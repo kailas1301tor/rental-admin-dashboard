@@ -1,0 +1,36 @@
+---
+description: Axios mutations and SWR reads — mandatory data-access patterns
+globs: src/api/**/*.{ts,tsx},src/mocks/**/*.{ts,tsx}
+alwaysApply: false
+---
+
+# API & Data Layer
+
+## Mandatory patterns
+
+- **GET** → SWR helper only (`useApiSWR` / shared fetcher). Never raw `fetch` or axios GET inside pages.
+- **POST / PUT / PATCH / DELETE** → Axios helpers only (`apiPost`, `apiPut`, `apiPatch`, `apiDelete`).
+- One axios instance: `baseURL` from `VITE_API_BASE_URL`, auth header, normalized errors.
+- Path strings live in `endpoints.ts` only — no hardcoded URLs in pages/components.
+
+```ts
+// ❌ BAD — page talks to axios/fetch directly
+const { data } = useSWR('/api/admins', fetcher);
+await axios.post('/api/admins', body);
+
+// ✅ GOOD
+const { data, error, isLoading, mutate } = useApiSWR<Admin[]>(ENDPOINTS.generalAdmins);
+await apiPost(ENDPOINTS.generalAdmins, body);
+await mutate();
+```
+
+## Mocks
+
+- Mocks must return the **same shapes** as the future Django API.
+- Prefer routing mocks through helpers (delay + fixtures) so swapping to real HTTP is config/fetcher only.
+- Pages should not import fixture arrays when a helper/SWR path exists.
+
+## Errors
+
+- Normalize API errors in the client/helpers; UI shows user-safe messages.
+- After mutations that change lists/detail, call SWR `mutate` (or matching key) so UI stays consistent.

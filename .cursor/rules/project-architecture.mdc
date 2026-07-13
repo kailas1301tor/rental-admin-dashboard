@@ -1,0 +1,36 @@
+---
+description: Project stack, folder layout, and role-by-role scope
+alwaysApply: true
+---
+
+# Project Architecture
+
+## Stack (locked)
+
+- Vite + React + TypeScript + React Router + Tailwind CSS
+- Never introduce Next.js, Remix, or another meta-framework unless the user explicitly requests it
+- Custom Tailwind only — no shadcn, MUI, Ant Design, or Chakra unless explicitly requested
+
+## Scope
+
+- Build **role by role**. Current phase: **Super Admin only**
+- Do not scaffold General Admin / HOD / Staff / Vendor / Customer portals early
+- Phase 1 is UI + mock data; keep call sites API-ready via helpers
+
+## Folder layout
+
+```
+src/
+  api/           # axios client, helpers, endpoints
+  mocks/         # fixtures + mock handlers
+  auth/          # AuthContext, guards
+  layouts/       # Admin shell, sidebar, topbar
+  pages/         # route-level screens (by role)
+  components/ui/ # shared primitives only
+  types/         # shared domain types
+  styles/        # theme tokens / global CSS
+```
+
+- Pages stay thin: UI + hooks. Business/API access goes through `src/api/`.
+- Shared visuals live in `components/ui/`. Do not duplicate Button/Input/Table per page.
+- Locale defaults: INR and India-oriented labels (GST, etc.) unless told otherwise.

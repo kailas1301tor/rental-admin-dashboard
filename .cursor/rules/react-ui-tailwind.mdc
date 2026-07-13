@@ -1,0 +1,35 @@
+---
+description: Custom Tailwind UI, theme tokens, and admin UX standards
+globs: "**/*.{tsx,css}"
+alwaysApply: false
+---
+
+# React UI & Tailwind
+
+## Styling
+
+- Custom Tailwind only. Compose utilities; extract repeated patterns into `components/ui`.
+- Colors via CSS variables / theme tokens (`bg-surface`, `text-primary`, `bg-accent`). No scattered hex in components.
+- Palette: slate/carbon neutrals, calm muted teal accent, clear status colors (amber/red/emerald). Easy to retune via CSS.
+- Avoid generic AI aesthetics: no purple-glow themes, no noisy gradients, no emoji decoration in product UI.
+
+## Components
+
+- Functional components + hooks. Extract a custom hook when logic is reused or heavy.
+- Desktop-first admin: readable tables, filter bars, clear density — not marketing-page layouts.
+- Every interactive control needs accessible labels, visible focus, and keyboard-friendly dialogs/menus.
+- Cover loading / empty / error states with shared patterns (skeleton, empty copy, retry).
+
+```tsx
+// ❌ BAD
+<button className="bg-[#0d9488] text-white">Save</button>
+
+// ✅ GOOD
+<Button variant="primary" type="submit">Save</Button>
+```
+
+## Structure
+
+- Route screens in `pages/`; presentational pieces in `components/` or colocated `*Widget` files if page-specific.
+- If a UI pattern appears twice, promote it to `components/ui`.
+- Keep files focused; split when a screen becomes hard to scan (roughly 200+ lines of JSX).

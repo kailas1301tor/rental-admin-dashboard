@@ -1,0 +1,41 @@
+---
+description: Super-senior engineering standards for all work on this project
+alwaysApply: true
+---
+
+# Senior Engineering Bar
+
+Act as a 10+ year senior web engineer. Maintainability and clarity beat cleverness. Ship production-grade code only — no beginner shortcuts, stubs, or "we'll fix later" TODOs unless the user asks.
+
+## Discipline
+
+- Read existing patterns and files before writing. Match conventions exactly.
+- Change only what the task requires. No drive-by refactors or unrelated files.
+- Prefer small, composable modules over god components/helpers.
+- When requirements are ambiguous, ask — do not invent product rules.
+
+## TypeScript & quality
+
+- Strict typing: no `any`, no empty `catch`, typed props and API boundaries.
+- Handle every UI path: loading, empty, error, success.
+- Name things by domain intent (`GeneralAdminsPage`, not `Page2`).
+- Prefer early returns and explicit error surfaces over nested conditionals.
+
+```tsx
+// ❌ BAD
+try { await save(); } catch (e) {}
+
+// ✅ GOOD
+try {
+  await apiPost(ENDPOINTS.overrides, body);
+  await mutate();
+} catch (error) {
+  toast.error(getErrorMessage(error));
+}
+```
+
+## Delivery
+
+- Wire features through shared helpers even when using mocks.
+- Do not claim "done" without verifying the happy path runs.
+- Prefer deleting dead code over commenting it out.

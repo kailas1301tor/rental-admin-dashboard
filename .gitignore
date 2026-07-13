@@ -1,0 +1,67 @@
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Build / Vite
+dist/
+dist-ssr/
+build/
+*.local
+
+# Env & secrets
+.env
+.env.*
+!.env.example
+
+# Logs & debug
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Test / coverage
+coverage/
+*.lcov
+.nyc_output/
+
+# TypeScript
+*.tsbuildinfo
+
+# OS
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Editors / IDEs (keep .cursor/rules tracked)
+.idea/
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+*.swp
+*.swo
+*~
+
+# Cursor — ignore local state; keep shared rules
+.cursor/*
+!.cursor/rules/
+!.cursor/rules/**
+
+# Local / binary docs (keep off remote)
+*.docx
+*.doc
+*.pdf
+*.xlsx
+*.xls
+*.pptx
+*.ppt
+
+# Misc local artifacts
+*.bak
+*.tmp
+.cache/
+.temp/
+tmp/
+temp/
