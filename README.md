@@ -56,15 +56,14 @@ src/
 
 ## Getting started
 
-> App scaffolding lands with the first Super Admin implementation. Once present:
-
 ```bash
 # Install
 npm install
 
 # Local env
 cp .env.example .env
-# Set VITE_API_BASE_URL when pointing at a real API
+# VITE_USE_MOCKS=true (default) — mock Super Admin API
+# Set VITE_API_BASE_URL when pointing at a real Django API
 
 # Dev server
 npm run dev
@@ -72,6 +71,8 @@ npm run dev
 # Production build
 npm run build
 ```
+
+Open the app, sign in with the prefilled Super Admin credentials, complete the CAPTCHA checkbox, then enter any 4+ digit OTP (mock).
 
 ---
 

@@ -1,0 +1,28 @@
+export const ENDPOINTS = {
+  authLogin: '/auth/login',
+  authVerifyOtp: '/auth/verify-otp',
+  dashboardKpis: '/super-admin/dashboard/kpis',
+  loginAlerts: '/super-admin/login-alerts',
+  generalAdmins: '/super-admin/general-admins',
+  admins: '/super-admin/admins',
+  staff: '/super-admin/staff',
+  users: '/super-admin/users',
+  categories: '/super-admin/categories',
+  categorySchemas: '/super-admin/category-schemas',
+  rbos: '/super-admin/rbos',
+  products: '/super-admin/products',
+  approvalOverrides: '/super-admin/approval-overrides',
+  masterAnalytics: '/super-admin/analytics',
+  contactViews: '/super-admin/reports/contact-views',
+  auditLogs: '/super-admin/reports/audit-logs',
+  activityLog: '/super-admin/activity-log',
+  platformSummary: '/super-admin/reports/platform-summary',
+  reportOverview: '/super-admin/reports/overview',
+  reportBookings: '/super-admin/reports/bookings',
+  reportProducts: '/super-admin/reports/products',
+  reportRbos: '/super-admin/reports/rbos',
+  reportCustomers: '/super-admin/reports/customers',
+  settings: '/super-admin/settings',
+} as const;
+
+export type EndpointKey = keyof typeof ENDPOINTS;
