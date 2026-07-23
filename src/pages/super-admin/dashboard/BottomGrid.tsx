@@ -2,7 +2,10 @@ import { Link } from 'react-router-dom';
 import { Cell, Pie, PieChart, ResponsiveContainer, Tooltip } from 'recharts';
 import { CHART_COLORS, CHART_TOOLTIP_STYLE } from '@/components/charts/chart-theme';
 import { Card } from '@/components/ui/Card';
-import { EmptyState, PageLoader } from '@/components/ui/States';
+import {
+  EmptyState,
+} from '@/components/ui/States';
+import { SectionSkeleton } from '@/components/ui/skeletons';
 import { BOOKING_VALUE_LABEL } from '@/lib/metrics';
 import { cn, formatDateTime, formatInr, formatInrCrore } from '@/lib/utils';
 import type { DashboardKpis, LoginAttempt, ReportOverview } from '@/types';
@@ -38,7 +41,7 @@ export function BottomGrid({
           </Link>
         </div>
         {overviewLoading && !overview ? (
-          <PageLoader />
+          <SectionSkeleton rows={2} className="border-0 bg-transparent p-0" />
         ) : topRbos.length === 0 ? (
           <EmptyState title="No vendor data" />
         ) : (
@@ -155,7 +158,7 @@ export function BottomGrid({
           </Link>
         </div>
         {alertsLoading && alerts.length === 0 ? (
-          <PageLoader />
+          <SectionSkeleton rows={2} className="border-0 bg-transparent p-0" />
         ) : security.length === 0 ? (
           <EmptyState title="No security events" />
         ) : (

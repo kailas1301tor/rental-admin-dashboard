@@ -19,10 +19,15 @@ import { Card } from '@/components/ui/Card';
 import {
   EmptyState,
   ErrorState,
-  PageLoader,
 } from '@/components/ui/States';
+import { ListPageSkeleton } from '@/components/ui/skeletons';
 import { Table, TableShell, Td, Th } from '@/components/ui/Table';
 import { useToast } from '@/components/ui/Toast';
+import {
+  filterSelectClass,
+  searchControlClass,
+} from '@/components/ui/control-styles';
+import { RboMobileCard } from '@/pages/super-admin/rbos/RboMobileCard';
 import { cn, formatDateTime } from '@/lib/utils';
 import type { Category, RboStatus, RboVendor } from '@/types';
 
@@ -161,7 +166,7 @@ export function RbosPage() {
   const rangeStart = filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(safePage * PAGE_SIZE, filtered.length);
 
-  if (isLoading && !data) return <PageLoader />;
+  if (isLoading && !data) return <ListPageSkeleton kpiCount={5} />;
   if (error) {
     return <ErrorState message={error.message} onRetry={() => void mutate()} />;
   }
@@ -170,7 +175,7 @@ export function RbosPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-text-primary">RBOs</h1>
+          <h1 className="hidden text-2xl font-semibold text-text-primary sm:block">RBOs</h1>
           <p className="mt-1 max-w-xl text-sm text-text-secondary">
             Manage registered business owners, onboarding, and vendor status.
           </p>
@@ -221,11 +226,11 @@ export function RbosPage() {
       </div>
 
       <Card className="!p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <label className="relative min-w-0 flex-1">
+        <div className="space-y-3">
+          <label className="relative block w-full">
             <span className="sr-only">Search vendors</span>
             <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted"
+              className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted"
               aria-hidden
             />
             <input
@@ -235,84 +240,87 @@ export function RbosPage() {
                 setPage(1);
               }}
               placeholder="Search vendors…"
-              className="h-11 w-full rounded-xl border border-border bg-canvas pl-10 pr-3 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+              className={searchControlClass}
             />
           </label>
-          <div className="grid grid-cols-2 gap-2 sm:grid-cols-4 lg:flex lg:flex-wrap">
-            <FilterSelect
-              value={statusFilter}
-              onChange={(v) => {
-                setStatusFilter(v as RboStatus | 'all');
-                setPage(1);
-              }}
-              options={[
-                { value: 'all', label: 'Status' },
-                { value: 'active', label: 'Active' },
-                { value: 'onboarding', label: 'Onboarding' },
-                { value: 'rejected', label: 'Rejected' },
-                { value: 'frozen', label: 'Frozen' },
-              ]}
-            />
-            <FilterSelect
-              value={categoryFilter}
-              onChange={(v) => {
-                setCategoryFilter(v);
-                setPage(1);
-              }}
-              options={[
-                { value: 'all', label: 'Category' },
-                ...(categories ?? []).map((c) => ({
-                  value: c.id,
-                  label: c.name,
-                })),
-              ]}
-            />
-            <FilterSelect
-              value={joinedFilter}
-              onChange={(v) => {
-                setJoinedFilter(v as JoinedFilter);
-                setPage(1);
-              }}
-              options={[
-                { value: 'all', label: 'Joined' },
-                { value: '30d', label: 'Last 30 days' },
-                { value: '90d', label: 'Last 90 days' },
-                { value: '1y', label: 'Last year' },
-              ]}
-            />
-            <FilterSelect
-              value={ratingFilter}
-              onChange={(v) => {
-                setRatingFilter(v as RatingFilter);
-                setPage(1);
-              }}
-              options={[
-                { value: 'all', label: 'Rating' },
-                { value: '4+', label: '4.0+' },
-                { value: '3+', label: '3.0+' },
-                { value: 'below3', label: 'Below 3' },
-              ]}
-            />
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                toast('Advanced filters ship with the API', 'info')
-              }
-            >
-              <SlidersHorizontal className="h-4 w-4" aria-hidden />
-              More Filters
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => toast('Export CSV coming soon', 'info')}
-            >
-              <Download className="h-4 w-4" aria-hidden />
-              Export
-            </Button>
+
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+            <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
+              <FilterSelect
+                value={statusFilter}
+                onChange={(v) => {
+                  setStatusFilter(v as RboStatus | 'all');
+                  setPage(1);
+                }}
+                options={[
+                  { value: 'all', label: 'Status' },
+                  { value: 'active', label: 'Active' },
+                  { value: 'onboarding', label: 'Onboarding' },
+                  { value: 'rejected', label: 'Rejected' },
+                  { value: 'frozen', label: 'Frozen' },
+                ]}
+              />
+              <FilterSelect
+                value={categoryFilter}
+                onChange={(v) => {
+                  setCategoryFilter(v);
+                  setPage(1);
+                }}
+                options={[
+                  { value: 'all', label: 'Category' },
+                  ...(categories ?? []).map((c) => ({
+                    value: c.id,
+                    label: c.name,
+                  })),
+                ]}
+              />
+              <FilterSelect
+                value={joinedFilter}
+                onChange={(v) => {
+                  setJoinedFilter(v as JoinedFilter);
+                  setPage(1);
+                }}
+                options={[
+                  { value: 'all', label: 'Joined' },
+                  { value: '30d', label: 'Last 30 days' },
+                  { value: '90d', label: 'Last 90 days' },
+                  { value: '1y', label: 'Last year' },
+                ]}
+              />
+              <FilterSelect
+                value={ratingFilter}
+                onChange={(v) => {
+                  setRatingFilter(v as RatingFilter);
+                  setPage(1);
+                }}
+                options={[
+                  { value: 'all', label: 'Rating' },
+                  { value: '4+', label: '4.0+' },
+                  { value: '3+', label: '3.0+' },
+                  { value: 'below3', label: 'Below 3' },
+                ]}
+              />
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  toast('Advanced filters ship with the API', 'info')
+                }
+              >
+                <SlidersHorizontal className="h-4 w-4" aria-hidden />
+                More Filters
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => toast('Export CSV coming soon', 'info')}
+              >
+                <Download className="h-4 w-4" aria-hidden />
+                Export
+              </Button>
+            </div>
           </div>
         </div>
       </Card>
@@ -320,7 +328,7 @@ export function RbosPage() {
       <div className="space-y-4">
         <div
           role="tablist"
-          className="flex gap-1 border-b border-border"
+          className="mobile-scroll-x border-b border-border"
         >
           {(
             [
@@ -362,101 +370,123 @@ export function RbosPage() {
         {pageRows.length === 0 ? (
           <EmptyState title="No vendors match these filters" />
         ) : (
-          <TableShell>
-            <Table>
-              <thead>
-                <tr>
-                  <Th>Business</Th>
-                  <Th>Owner</Th>
-                  <Th>Contact</Th>
-                  <Th>Categories</Th>
-                  <Th>Rating</Th>
-                  <Th>Joined</Th>
-                  <Th>Status</Th>
-                  <Th className="text-right">Actions</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {pageRows.map((r) => (
-                  <tr key={r.id} className="hover:bg-accent-muted/30">
-                    <Td>
-                      <div className="flex items-center gap-3">
-                        <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-muted text-xs font-semibold text-accent">
-                          {initials(r.businessName)}
-                        </span>
-                        <div className="min-w-0">
+          <>
+            <div className="space-y-3 lg:hidden">
+              {pageRows.map((r) => (
+                <RboMobileCard
+                  key={r.id}
+                  vendor={r}
+                  categoryNames={r.categoryIds.map(
+                    (id) => catMap.get(id) ?? id,
+                  )}
+                  onMore={() =>
+                    toast('More actions available on vendor detail', 'info')
+                  }
+                />
+              ))}
+            </div>
+
+            <TableShell className="hidden lg:block">
+              <Table>
+                <thead>
+                  <tr>
+                    <Th>Business</Th>
+                    <Th>Owner</Th>
+                    <Th>Contact</Th>
+                    <Th>Categories</Th>
+                    <Th>Rating</Th>
+                    <Th>Joined</Th>
+                    <Th>Status</Th>
+                    <Th className="text-right">Actions</Th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pageRows.map((r) => (
+                    <tr key={r.id} className="hover:bg-accent-muted/30">
+                      <Td>
+                        <div className="flex items-center gap-3">
+                          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-muted text-xs font-semibold text-accent">
+                            {initials(r.businessName)}
+                          </span>
+                          <div className="min-w-0">
+                            <Link
+                              to={`/rbos/${r.id}`}
+                              className="block truncate font-medium text-text-primary hover:text-accent"
+                            >
+                              {r.businessName}
+                            </Link>
+                            <p className="truncate text-xs text-text-muted">
+                              {r.id}
+                            </p>
+                          </div>
+                        </div>
+                      </Td>
+                      <Td className="text-sm text-text-primary">
+                        {r.ownerName}
+                      </Td>
+                      <Td>
+                        <p className="text-sm text-text-primary">{r.phone}</p>
+                        <p className="truncate text-xs text-text-muted">
+                          {r.email}
+                        </p>
+                      </Td>
+                      <Td>
+                        <div className="flex max-w-[14rem] flex-wrap gap-1">
+                          {r.categoryIds.length === 0 ? (
+                            <span className="text-xs text-text-muted">—</span>
+                          ) : (
+                            r.categoryIds.map((id, i) => (
+                              <span
+                                key={id}
+                                className={cn(
+                                  'inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium',
+                                  CAT_TONES[i % CAT_TONES.length],
+                                )}
+                              >
+                                {catMap.get(id) ?? id}
+                              </span>
+                            ))
+                          )}
+                        </div>
+                      </Td>
+                      <Td>
+                        <StarRating value={r.ratingAvg} />
+                      </Td>
+                      <Td className="text-sm text-text-secondary">
+                        {formatDateTime(r.createdAt)}
+                      </Td>
+                      <Td>
+                        <StatusPill status={r.status} />
+                      </Td>
+                      <Td>
+                        <div className="flex items-center justify-end gap-1.5">
                           <Link
                             to={`/rbos/${r.id}`}
-                            className="block truncate font-medium text-text-primary hover:text-accent"
+                            className="inline-flex h-9 items-center rounded-full border border-border-strong px-3 text-sm font-medium text-text-primary transition-colors hover:border-accent hover:text-accent"
                           >
-                            {r.businessName}
+                            View
                           </Link>
-                          <p className="truncate text-xs text-text-muted">
-                            {r.id}
-                          </p>
+                          <button
+                            type="button"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border text-text-secondary hover:border-accent hover:text-text-primary"
+                            aria-label={`More actions for ${r.businessName}`}
+                            onClick={() =>
+                              toast(
+                                'More actions available on vendor detail',
+                                'info',
+                              )
+                            }
+                          >
+                            <MoreHorizontal className="h-4 w-4" aria-hidden />
+                          </button>
                         </div>
-                      </div>
-                    </Td>
-                    <Td className="text-sm text-text-primary">{r.ownerName}</Td>
-                    <Td>
-                      <p className="text-sm text-text-primary">{r.phone}</p>
-                      <p className="truncate text-xs text-text-muted">
-                        {r.email}
-                      </p>
-                    </Td>
-                    <Td>
-                      <div className="flex max-w-[14rem] flex-wrap gap-1">
-                        {r.categoryIds.length === 0 ? (
-                          <span className="text-xs text-text-muted">—</span>
-                        ) : (
-                          r.categoryIds.map((id, i) => (
-                            <span
-                              key={id}
-                              className={cn(
-                                'inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium',
-                                CAT_TONES[i % CAT_TONES.length],
-                              )}
-                            >
-                              {catMap.get(id) ?? id}
-                            </span>
-                          ))
-                        )}
-                      </div>
-                    </Td>
-                    <Td>
-                      <StarRating value={r.ratingAvg} />
-                    </Td>
-                    <Td className="text-sm text-text-secondary">
-                      {formatDateTime(r.createdAt)}
-                    </Td>
-                    <Td>
-                      <StatusPill status={r.status} />
-                    </Td>
-                    <Td>
-                      <div className="flex items-center justify-end gap-1.5">
-                        <Link
-                          to={`/rbos/${r.id}`}
-                          className="inline-flex h-9 items-center rounded-lg border border-border-strong px-3 text-sm font-medium text-text-primary transition-colors hover:border-accent hover:text-accent"
-                        >
-                          View
-                        </Link>
-                        <button
-                          type="button"
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-text-secondary hover:border-accent hover:text-text-primary"
-                          aria-label={`More actions for ${r.businessName}`}
-                          onClick={() =>
-                            toast('More actions available on vendor detail', 'info')
-                          }
-                        >
-                          <MoreHorizontal className="h-4 w-4" aria-hidden />
-                        </button>
-                      </div>
-                    </Td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          </TableShell>
+                      </Td>
+                    </tr>
+                  ))}
+                </tbody>
+              </Table>
+            </TableShell>
+          </>
         )}
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -530,7 +560,7 @@ function FilterSelect({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="h-11 min-w-[8.5rem] rounded-xl border border-border bg-surface px-3 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+      className={filterSelectClass}
     >
       {options.map((o) => (
         <option key={o.value} value={o.value}>
@@ -628,7 +658,7 @@ function Pagination({
           type="button"
           onClick={() => onChange(p)}
           className={cn(
-            'inline-flex h-9 min-w-9 items-center justify-center rounded-lg text-sm font-medium',
+            'inline-flex h-9 min-w-9 items-center justify-center rounded-full text-sm font-medium',
             p === page
               ? 'bg-accent text-text-on-accent'
               : 'text-text-secondary hover:bg-accent-muted hover:text-text-primary',

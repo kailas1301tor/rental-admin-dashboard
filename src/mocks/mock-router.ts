@@ -15,6 +15,8 @@ import {
   mockRbos,
   mockStaff,
 } from '@/mocks/marketplace';
+import { buildDashboardKpisForRange } from '@/mocks/dashboard-kpis-range';
+import { defaultDashboardRange } from '@/lib/date-range';
 import {
   buildMockSession,
   delay,
@@ -24,7 +26,6 @@ import {
   mockCategories,
   mockContactViews,
   mockGeneralAdmins,
-  mockKpis,
   mockLoginAttempts,
   mockOverrides,
   mockPlatformSummary,
@@ -286,7 +287,7 @@ function buildUserDetail(user: MarketplaceUser): MarketplaceUserDetail {
     {
       id: `${user.id}-dev-2`,
       name: 'iPhone 15',
-      platform: 'Ornaments iOS',
+      platform: 'Rental iOS',
       lastActiveAt: '2026-05-18T09:12:00.000Z',
       location: `${user.city}, India`,
       current: false,
@@ -362,7 +363,13 @@ export async function mockRequest<T>(
   }
 
   if (method === 'get' && matchPath(url, ENDPOINTS.dashboardKpis)) {
-    return { ...mockKpis } as T;
+    const from = queryParam(url, 'from');
+    const to = queryParam(url, 'to');
+    if (from && to) {
+      return buildDashboardKpisForRange(from, to) as T;
+    }
+    const fallback = defaultDashboardRange();
+    return buildDashboardKpisForRange(fallback.from, fallback.to) as T;
   }
 
   if (method === 'get' && matchPath(url, ENDPOINTS.loginAlerts)) {

@@ -39,13 +39,13 @@ export function LoginPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-canvas">
+    <div className="flex min-h-dvh flex-col bg-canvas pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       <div className="flex justify-end p-4">
         <ThemeToggle />
       </div>
-      <div className="flex flex-1 items-center justify-center px-4 pb-16">
+      <div className="flex flex-1 items-center justify-center px-4 pb-10">
         <Card className="w-full max-w-md">
-          <p className="font-display text-xl text-accent">Ornaments</p>
+          <p className="font-display text-xl text-accent">Rental</p>
           <h1 className="mt-2 text-2xl font-semibold text-text-primary">
             Super Admin sign in
           </h1>

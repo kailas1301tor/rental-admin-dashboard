@@ -17,8 +17,8 @@ import { Card } from '@/components/ui/Card';
 import {
   EmptyState,
   ErrorState,
-  PageLoader,
 } from '@/components/ui/States';
+import { DetailPageSkeleton } from '@/components/ui/skeletons';
 import { Table, TableShell, Td, Th } from '@/components/ui/Table';
 import { useToast } from '@/components/ui/Toast';
 import { cn, formatDateTime, formatInr } from '@/lib/utils';
@@ -79,7 +79,7 @@ export function UserDetailPage() {
     return m;
   }, [rbos]);
 
-  if (isLoading && !data) return <PageLoader />;
+  if (isLoading && !data) return <DetailPageSkeleton />;
   if (error) {
     return <ErrorState message={error.message} onRetry={() => void mutate()} />;
   }
@@ -244,7 +244,7 @@ export function UserDetailPage() {
 
       <div
         role="tablist"
-        className="flex gap-1 overflow-x-auto border-b border-border"
+        className="mobile-scroll-x border-b border-border"
       >
         {tabs.map((item) => {
           const active = tab === item.id;
@@ -361,7 +361,7 @@ export function UserDetailPage() {
                 <h2 className="text-sm font-semibold text-text-primary">
                   Spending Summary
                 </h2>
-                <span className="inline-flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-[11px] text-text-secondary">
+                <span className="inline-flex items-center gap-1 rounded-full border border-border px-2.5 py-1 text-[11px] text-text-secondary">
                   Last 12 months
                   <ChevronDown className="h-3 w-3" aria-hidden />
                 </span>

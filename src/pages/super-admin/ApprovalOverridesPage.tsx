@@ -10,8 +10,8 @@ import {
   EmptyState,
   ErrorState,
   PageHeader,
-  PageLoader,
 } from '@/components/ui/States';
+import { ListPageSkeleton } from '@/components/ui/skeletons';
 import { useToast } from '@/components/ui/Toast';
 import { formatDateTime, taxonomyLabel } from '@/lib/utils';
 import type { ApprovalOverrideItem } from '@/types';
@@ -52,7 +52,7 @@ export function ApprovalOverridesPage() {
     }
   }
 
-  if (isLoading && !data) return <PageLoader />;
+  if (isLoading && !data) return <ListPageSkeleton showKpis={false} />;
   if (error) {
     return (
       <ErrorState

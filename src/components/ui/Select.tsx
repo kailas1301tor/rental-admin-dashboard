@@ -1,4 +1,5 @@
 import { forwardRef, type SelectHTMLAttributes } from 'react';
+import { selectControlClass } from '@/components/ui/control-styles';
 import { cn } from '@/lib/utils';
 
 interface SelectProps extends SelectHTMLAttributes<HTMLSelectElement> {
@@ -20,8 +21,8 @@ export const Select = forwardRef<HTMLSelectElement, SelectProps>(
           ref={ref}
           id={selectId}
           className={cn(
-            'h-11 w-full rounded-lg border border-border bg-surface px-3 text-text-primary',
-            'focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30',
+            selectControlClass,
+            'w-full',
             error && 'border-danger',
             className,
           )}

@@ -14,10 +14,11 @@ import { Sparkline } from '@/components/ui/Sparkline';
 import {
   EmptyState,
   ErrorState,
-  PageLoader,
 } from '@/components/ui/States';
+import { ListPageSkeleton } from '@/components/ui/skeletons';
 import { Table, TableShell, Td, Th } from '@/components/ui/Table';
 import { useToast } from '@/components/ui/Toast';
+import { AdminMobileCard } from '@/pages/super-admin/admins/AdminMobileCard';
 import {
   adminTierLabel,
   departmentLabel,
@@ -204,7 +205,7 @@ export function AdminsPage() {
     }
   }
 
-  if (isLoading && !data) return <PageLoader />;
+  if (isLoading && !data) return <ListPageSkeleton kpiCount={4} />;
   if (error) {
     return (
       <ErrorState message={error.message} onRetry={() => void mutate()} />
@@ -215,7 +216,7 @@ export function AdminsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-text-primary">Admins</h1>
+          <h1 className="hidden text-2xl font-semibold text-text-primary sm:block">Admins</h1>
           <p className="mt-1 max-w-xl text-sm text-text-secondary">
             Manage platform administrators, roles, and access permissions.
           </p>
@@ -565,6 +566,16 @@ function TierSection({
   );
 }
 
+function adminSubtitle(admin: PlatformAdmin, showDepartment?: boolean) {
+  if (showDepartment && admin.department) {
+    return departmentLabel(admin.department);
+  }
+  if (admin.slot) {
+    return `General Admin · Slot ${admin.slot}`;
+  }
+  return adminTierLabel(admin.tier);
+}
+
 function AdminTable({
   rows,
   readOnly,
@@ -585,66 +596,78 @@ function AdminTable({
   }
 
   return (
-    <TableShell>
-      <Table>
-        <thead>
-          <tr>
-            <Th>Admin</Th>
-            <Th>Contact</Th>
-            <Th>Status</Th>
-            <Th>Last active</Th>
-            <Th className="text-right">Action</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((admin) => (
-            <tr key={admin.id}>
-              <Td>
-                <div className="flex items-center gap-3">
-                  <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-muted text-xs font-semibold text-accent">
-                    {initials(admin.name)}
-                  </span>
-                  <div className="min-w-0">
-                    <p className="truncate font-medium text-text-primary">
-                      {admin.name}
-                    </p>
-                    <p className="truncate text-xs text-text-muted">
-                      {showDepartment && admin.department
-                        ? departmentLabel(admin.department)
-                        : admin.slot
-                          ? `General Admin · Slot ${admin.slot}`
-                          : adminTierLabel(admin.tier)}
-                    </p>
-                  </div>
-                </div>
-              </Td>
-              <Td>
-                <p className="text-sm text-text-primary">{admin.email}</p>
-                <p className="text-xs text-text-muted">{admin.phone}</p>
-              </Td>
-              <Td>
-                <StatusPill status={admin.status} />
-              </Td>
-              <Td className="text-sm text-text-secondary">
-                {admin.lastActiveAt ? formatDateTime(admin.lastActiveAt) : '—'}
-              </Td>
-              <Td>
-                {readOnly ? (
-                  <p className="text-right text-text-muted">—</p>
-                ) : (
-                  <RowActions
-                    admin={admin}
-                    onEdit={onEdit}
-                    onFreeze={onFreeze}
-                    onArchive={onArchive}
-                  />
-                )}
-              </Td>
+    <>
+      <div className="space-y-3 lg:hidden">
+        {rows.map((admin) => (
+          <AdminMobileCard
+            key={admin.id}
+            admin={admin}
+            subtitle={adminSubtitle(admin, showDepartment)}
+            readOnly={readOnly}
+            onEdit={onEdit}
+            onFreeze={onFreeze}
+            onArchive={onArchive}
+          />
+        ))}
+      </div>
+
+      <TableShell className="hidden lg:block">
+        <Table>
+          <thead>
+            <tr>
+              <Th>Admin</Th>
+              <Th>Contact</Th>
+              <Th>Status</Th>
+              <Th>Last active</Th>
+              <Th className="text-right">Action</Th>
             </tr>
-          ))}
-        </tbody>
-      </Table>
-    </TableShell>
+          </thead>
+          <tbody>
+            {rows.map((admin) => (
+              <tr key={admin.id}>
+                <Td>
+                  <div className="flex items-center gap-3">
+                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-muted text-xs font-semibold text-accent">
+                      {initials(admin.name)}
+                    </span>
+                    <div className="min-w-0">
+                      <p className="truncate font-medium text-text-primary">
+                        {admin.name}
+                      </p>
+                      <p className="truncate text-xs text-text-muted">
+                        {adminSubtitle(admin, showDepartment)}
+                      </p>
+                    </div>
+                  </div>
+                </Td>
+                <Td>
+                  <p className="text-sm text-text-primary">{admin.email}</p>
+                  <p className="text-xs text-text-muted">{admin.phone}</p>
+                </Td>
+                <Td>
+                  <StatusPill status={admin.status} />
+                </Td>
+                <Td className="text-sm text-text-secondary">
+                  {admin.lastActiveAt ? formatDateTime(admin.lastActiveAt) : '—'}
+                </Td>
+                <Td>
+                  {readOnly ? (
+                    <p className="text-right text-text-muted">—</p>
+                  ) : (
+                    <RowActions
+                      admin={admin}
+                      onEdit={onEdit}
+                      onFreeze={onFreeze}
+                      onArchive={onArchive}
+                    />
+                  )}
+                </Td>
+              </tr>
+            ))}
+          </tbody>
+        </Table>
+      </TableShell>
+    </>
   );
 }
 

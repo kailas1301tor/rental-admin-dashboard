@@ -20,10 +20,15 @@ import { Card } from '@/components/ui/Card';
 import {
   EmptyState,
   ErrorState,
-  PageLoader,
 } from '@/components/ui/States';
+import { ListPageSkeleton } from '@/components/ui/skeletons';
 import { Table, TableShell, Td, Th } from '@/components/ui/Table';
 import { useToast } from '@/components/ui/Toast';
+import {
+  filterSelectClass,
+  searchControlClass,
+} from '@/components/ui/control-styles';
+import { ProductMobileCard } from '@/pages/super-admin/products/ProductMobileCard';
 import { BOOKING_VALUE_LABEL, BOOKING_VALUE_MONTH_LABEL } from '@/lib/metrics';
 import { cn, formatInr } from '@/lib/utils';
 import type { Category, Product, ProductStatus, RboVendor } from '@/types';
@@ -44,7 +49,6 @@ export function ProductsPage() {
   const [categoryId, setCategoryId] = useState('');
   const [status, setStatus] = useState<'' | ProductStatus>('');
   const [page, setPage] = useState(1);
-  const [selected, setSelected] = useState<Set<string>>(new Set());
 
   const { data, error, isLoading, mutate } = useApiSWR<Product[]>(
     ENDPOINTS.products,
@@ -123,30 +127,6 @@ export function ProductsPage() {
     filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(safePage * PAGE_SIZE, filtered.length);
 
-  const allPageSelected =
-    pageRows.length > 0 && pageRows.every((p) => selected.has(p.id));
-
-  function toggleAllPage() {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (allPageSelected) {
-        for (const p of pageRows) next.delete(p.id);
-      } else {
-        for (const p of pageRows) next.add(p.id);
-      }
-      return next;
-    });
-  }
-
-  function toggleOne(id: string) {
-    setSelected((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
   function resetFilters() {
     setQ('');
     setRboId('');
@@ -155,7 +135,7 @@ export function ProductsPage() {
     setPage(1);
   }
 
-  if (isLoading && !data) return <PageLoader />;
+  if (isLoading && !data) return <ListPageSkeleton kpiCount={5} />;
   if (error) {
     return <ErrorState message={error.message} onRetry={() => void mutate()} />;
   }
@@ -164,7 +144,7 @@ export function ProductsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-text-primary">Products</h1>
+          <h1 className="hidden text-2xl font-semibold text-text-primary sm:block">Products</h1>
           <p className="mt-1 max-w-xl text-sm text-text-secondary">
             Manage all rental products across RBOs. Filter, search and track
             performance.
@@ -214,11 +194,11 @@ export function ProductsPage() {
       </div>
 
       <Card className="!p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <label className="relative min-w-0 flex-1">
+        <div className="space-y-3">
+          <label className="relative block w-full">
             <span className="sr-only">Search products</span>
             <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted"
+              className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted"
               aria-hidden
             />
             <input
@@ -228,75 +208,77 @@ export function ProductsPage() {
                 setPage(1);
               }}
               placeholder="Search products…"
-              className="h-11 w-full rounded-xl border border-border bg-canvas pl-10 pr-3 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+              className={searchControlClass}
             />
           </label>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:flex">
-            <FilterSelect
-              value={rboId}
-              onChange={(v) => {
-                setRboId(v);
-                setPage(1);
-              }}
-              options={[
-                { value: '', label: 'All vendors' },
-                ...(rbos ?? []).map((r) => ({
-                  value: r.id,
-                  label: r.businessName,
-                })),
-              ]}
-            />
-            <FilterSelect
-              value={categoryId}
-              onChange={(v) => {
-                setCategoryId(v);
-                setPage(1);
-              }}
-              options={[
-                { value: '', label: 'All categories' },
-                ...(categories ?? []).map((c) => ({
-                  value: c.id,
-                  label: c.name,
-                })),
-              ]}
-            />
-            <FilterSelect
-              value={status}
-              onChange={(v) => {
-                setStatus(v as '' | ProductStatus);
-                setPage(1);
-              }}
-              options={[
-                { value: '', label: 'All status' },
-                { value: 'active', label: 'Active' },
-                { value: 'frozen', label: 'Frozen' },
-                { value: 'disabled', label: 'Disabled' },
-              ]}
-            />
-          </div>
-          <div className="flex gap-2">
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() =>
-                toast('Advanced filters ship with the API', 'info')
-              }
-            >
-              <SlidersHorizontal className="h-4 w-4" aria-hidden />
-              More filters
-            </Button>
-            <Button variant="outline" size="sm" onClick={resetFilters}>
-              Reset
-            </Button>
-            <Button
-              variant="outline"
-              size="sm"
-              className="hidden sm:inline-flex"
-              onClick={() => toast('Export CSV coming soon', 'info')}
-            >
-              <Download className="h-4 w-4" aria-hidden />
-              Export
-            </Button>
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+            <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-3">
+              <FilterSelect
+                value={rboId}
+                onChange={(v) => {
+                  setRboId(v);
+                  setPage(1);
+                }}
+                options={[
+                  { value: '', label: 'All vendors' },
+                  ...(rbos ?? []).map((r) => ({
+                    value: r.id,
+                    label: r.businessName,
+                  })),
+                ]}
+              />
+              <FilterSelect
+                value={categoryId}
+                onChange={(v) => {
+                  setCategoryId(v);
+                  setPage(1);
+                }}
+                options={[
+                  { value: '', label: 'All categories' },
+                  ...(categories ?? []).map((c) => ({
+                    value: c.id,
+                    label: c.name,
+                  })),
+                ]}
+              />
+              <FilterSelect
+                value={status}
+                onChange={(v) => {
+                  setStatus(v as '' | ProductStatus);
+                  setPage(1);
+                }}
+                options={[
+                  { value: '', label: 'All status' },
+                  { value: 'active', label: 'Active' },
+                  { value: 'frozen', label: 'Frozen' },
+                  { value: 'disabled', label: 'Disabled' },
+                ]}
+              />
+            </div>
+            <div className="flex shrink-0 flex-wrap gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  toast('Advanced filters ship with the API', 'info')
+                }
+              >
+                <SlidersHorizontal className="h-4 w-4" aria-hidden />
+                More filters
+              </Button>
+              <Button variant="outline" size="sm" onClick={resetFilters}>
+                Reset
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="hidden sm:inline-flex"
+                onClick={() => toast('Export CSV coming soon', 'info')}
+              >
+                <Download className="h-4 w-4" aria-hidden />
+                Export
+              </Button>
+            </div>
           </div>
         </div>
       </Card>
@@ -304,127 +286,128 @@ export function ProductsPage() {
       {pageRows.length === 0 ? (
         <EmptyState title="No products match filters" />
       ) : (
-        <TableShell>
-          <Table>
-            <thead>
-              <tr>
-                <Th className="w-10">
-                  <input
-                    type="checkbox"
-                    checked={allPageSelected}
-                    onChange={toggleAllPage}
-                    aria-label="Select all on page"
-                    className="h-4 w-4 rounded border-border accent-[var(--accent)]"
-                  />
-                </Th>
-                <Th>Product</Th>
-                <Th>RBO</Th>
-                <Th>Category</Th>
-                <Th>Price / day</Th>
-                <Th>Bookings</Th>
-                <Th>Rating</Th>
-                <Th>Status</Th>
-                <Th className="text-right">Actions</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageRows.map((p) => {
-                const toneIdx = catIndex.get(p.categoryId) ?? 0;
-                return (
-                  <tr key={p.id} className="hover:bg-accent-muted/30">
-                    <Td>
-                      <input
-                        type="checkbox"
-                        checked={selected.has(p.id)}
-                        onChange={() => toggleOne(p.id)}
-                        aria-label={`Select ${p.name}`}
-                        className="h-4 w-4 rounded border-border accent-[var(--accent)]"
-                      />
-                    </Td>
-                    <Td>
-                      <div className="flex items-center gap-3">
-                        <img
-                          src={p.images[0]}
-                          alt=""
-                          className="h-11 w-11 rounded-lg object-cover"
-                        />
-                        <div className="min-w-0">
+        <>
+          <div className="space-y-3 lg:hidden">
+            {pageRows.map((p) => {
+              const toneIdx = catIndex.get(p.categoryId) ?? 0;
+              return (
+                <ProductMobileCard
+                  key={p.id}
+                  product={p}
+                  rboName={rboMap.get(p.rboId) ?? p.rboId}
+                  categoryName={catMap.get(p.categoryId) ?? p.categoryId}
+                  categoryToneIdx={toneIdx}
+                  onMore={() =>
+                    toast('More actions available on product detail', 'info')
+                  }
+                />
+              );
+            })}
+          </div>
+
+          <TableShell className="hidden lg:block">
+            <Table>
+              <thead>
+                <tr>
+                  <Th>Product</Th>
+                  <Th>RBO</Th>
+                  <Th>Category</Th>
+                  <Th>Price / day</Th>
+                  <Th>Bookings</Th>
+                  <Th>Rating</Th>
+                  <Th>Status</Th>
+                  <Th className="text-right">Actions</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageRows.map((p) => {
+                  const toneIdx = catIndex.get(p.categoryId) ?? 0;
+                  return (
+                    <tr key={p.id} className="hover:bg-accent-muted/30">
+                      <Td>
+                        <div className="flex items-center gap-3">
+                          <img
+                            src={p.images[0]}
+                            alt=""
+                            className="h-11 w-11 rounded-lg object-cover"
+                          />
+                          <div className="min-w-0">
+                            <Link
+                              to={`/products/${p.id}`}
+                              className="block truncate font-medium text-text-primary hover:text-accent"
+                            >
+                              {p.name}
+                            </Link>
+                            <p className="truncate text-xs text-text-muted">
+                              {p.id.toUpperCase()}
+                            </p>
+                          </div>
+                        </div>
+                      </Td>
+                      <Td>
+                        <Link
+                          to={`/rbos/${p.rboId}`}
+                          className="text-sm text-text-primary hover:text-accent"
+                        >
+                          {rboMap.get(p.rboId) ?? p.rboId}
+                        </Link>
+                      </Td>
+                      <Td>
+                        <span
+                          className={cn(
+                            'inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium',
+                            CAT_TONES[toneIdx % CAT_TONES.length],
+                          )}
+                        >
+                          {catMap.get(p.categoryId) ?? p.categoryId}
+                        </span>
+                      </Td>
+                      <Td className="tabular-nums">
+                        {formatInr(p.pricePerDayInr)}
+                      </Td>
+                      <Td className="tabular-nums">{p.bookingCount}</Td>
+                      <Td>
+                        <StarRating value={p.ratingAvg} />
+                      </Td>
+                      <Td>
+                        <StatusPill status={p.status} />
+                      </Td>
+                      <Td>
+                        <div className="flex items-center justify-end gap-1">
                           <Link
                             to={`/products/${p.id}`}
-                            className="block truncate font-medium text-text-primary hover:text-accent"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border text-text-secondary hover:border-accent hover:text-accent"
+                            aria-label={`Edit ${p.name}`}
                           >
-                            {p.name}
+                            <Pencil className="h-3.5 w-3.5" aria-hidden />
                           </Link>
-                          <p className="truncate text-xs text-text-muted">
-                            {p.id.toUpperCase()}
-                          </p>
+                          <button
+                            type="button"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border text-text-secondary hover:border-accent hover:text-text-primary"
+                            aria-label={`More actions for ${p.name}`}
+                            onClick={() =>
+                              toast(
+                                'More actions available on product detail',
+                                'info',
+                              )
+                            }
+                          >
+                            <MoreVertical className="h-4 w-4" aria-hidden />
+                          </button>
                         </div>
-                      </div>
-                    </Td>
-                    <Td>
-                      <Link
-                        to={`/rbos/${p.rboId}`}
-                        className="text-sm text-text-primary hover:text-accent"
-                      >
-                        {rboMap.get(p.rboId) ?? p.rboId}
-                      </Link>
-                    </Td>
-                    <Td>
-                      <span
-                        className={cn(
-                          'inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium',
-                          CAT_TONES[toneIdx % CAT_TONES.length],
-                        )}
-                      >
-                        {catMap.get(p.categoryId) ?? p.categoryId}
-                      </span>
-                    </Td>
-                    <Td className="tabular-nums">
-                      {formatInr(p.pricePerDayInr)}
-                    </Td>
-                    <Td className="tabular-nums">{p.bookingCount}</Td>
-                    <Td>
-                      <StarRating value={p.ratingAvg} />
-                    </Td>
-                    <Td>
-                      <StatusPill status={p.status} />
-                    </Td>
-                    <Td>
-                      <div className="flex items-center justify-end gap-1">
-                        <Link
-                          to={`/products/${p.id}`}
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-text-secondary hover:border-accent hover:text-accent"
-                          aria-label={`Edit ${p.name}`}
-                        >
-                          <Pencil className="h-3.5 w-3.5" aria-hidden />
-                        </Link>
-                        <button
-                          type="button"
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-text-secondary hover:border-accent hover:text-text-primary"
-                          aria-label={`More actions for ${p.name}`}
-                          onClick={() =>
-                            toast(
-                              'More actions available on product detail',
-                              'info',
-                            )
-                          }
-                        >
-                          <MoreVertical className="h-4 w-4" aria-hidden />
-                        </button>
-                      </div>
-                    </Td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </Table>
-        </TableShell>
+                      </Td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          </TableShell>
+        </>
       )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-text-muted">
           Showing {rangeStart} to {rangeEnd} of {filtered.length} products
-          {selected.size > 0 ? ` · ${selected.size} selected` : ''}
         </p>
         <Pagination
           page={safePage}
@@ -476,7 +459,7 @@ function FilterSelect({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="h-11 min-w-[9rem] rounded-xl border border-border bg-surface px-3 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+      className={filterSelectClass}
     >
       {options.map((o) => (
         <option key={o.value || o.label} value={o.value}>
@@ -563,7 +546,7 @@ function Pagination({
           type="button"
           onClick={() => onChange(p)}
           className={cn(
-            'inline-flex h-9 min-w-9 items-center justify-center rounded-lg text-sm font-medium',
+            'inline-flex h-9 min-w-9 items-center justify-center rounded-full text-sm font-medium',
             p === page
               ? 'bg-accent text-text-on-accent'
               : 'text-text-secondary hover:bg-accent-muted hover:text-text-primary',

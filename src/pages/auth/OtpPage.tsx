@@ -37,11 +37,11 @@ export function OtpPage() {
   }
 
   return (
-    <div className="flex min-h-screen flex-col bg-canvas">
+    <div className="flex min-h-dvh flex-col bg-canvas pt-[env(safe-area-inset-top)] pb-[env(safe-area-inset-bottom)]">
       <div className="flex justify-end p-4">
         <ThemeToggle />
       </div>
-      <div className="flex flex-1 items-center justify-center px-4 pb-16">
+      <div className="flex flex-1 items-center justify-center px-4 pb-10">
         <Card className="w-full max-w-md">
           <h1 className="text-2xl font-semibold text-text-primary">Enter OTP</h1>
           <p className="mt-1 text-sm text-text-secondary">

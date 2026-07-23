@@ -20,7 +20,7 @@ export function Tabs<T extends string>({
     <div
       role="tablist"
       className={cn(
-        'flex flex-wrap gap-1 rounded-xl border border-border bg-surface p-1',
+        'mobile-scroll-x max-w-full flex-nowrap rounded-full border border-border/80 bg-canvas/80 p-1 shadow-inner sm:inline-flex sm:flex-wrap',
         className,
       )}
     >
@@ -34,10 +34,10 @@ export function Tabs<T extends string>({
             aria-selected={active}
             onClick={() => onChange(item.id)}
             className={cn(
-              'min-h-10 rounded-lg px-3 text-sm font-medium transition-colors',
+              'min-h-9 shrink-0 rounded-full px-4 text-sm font-medium tracking-tight transition-all duration-200',
               active
-                ? 'bg-accent text-text-on-accent'
-                : 'text-text-secondary hover:bg-accent-muted hover:text-text-primary',
+                ? 'bg-accent text-text-on-accent shadow-sm ring-1 ring-accent/40'
+                : 'text-text-secondary hover:bg-surface-elevated hover:text-text-primary',
             )}
           >
             {item.label}

@@ -21,8 +21,8 @@ import { Card } from '@/components/ui/Card';
 import {
   EmptyState,
   ErrorState,
-  PageLoader,
 } from '@/components/ui/States';
+import { DetailPageSkeleton } from '@/components/ui/skeletons';
 import { Table, TableShell, Td, Th } from '@/components/ui/Table';
 import { useToast } from '@/components/ui/Toast';
 import { BOOKING_VALUE_LABEL } from '@/lib/metrics';
@@ -65,7 +65,7 @@ export function ProductDetailPage() {
     }
   }
 
-  if (isLoading && !data) return <PageLoader />;
+  if (isLoading && !data) return <DetailPageSkeleton />;
   if (error) {
     return <ErrorState message={error.message} onRetry={() => void mutate()} />;
   }
@@ -108,7 +108,7 @@ export function ProductDetailPage() {
         <div className="flex flex-wrap gap-2">
           <Link
             to="/products"
-            className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium text-text-secondary hover:border-accent hover:text-text-primary"
+            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border px-3 text-sm font-medium text-text-secondary hover:border-accent hover:text-text-primary"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden />
             Back to products
@@ -282,7 +282,7 @@ export function ProductDetailPage() {
         />
       </div>
 
-      <div role="tablist" className="flex gap-1 overflow-x-auto border-b border-border">
+      <div role="tablist" className="mobile-scroll-x border-b border-border">
         {tabs.map((item) => {
           const active = tab === item.id;
           return (

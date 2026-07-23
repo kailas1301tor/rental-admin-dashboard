@@ -21,10 +21,14 @@ import { Modal } from '@/components/ui/Modal';
 import {
   EmptyState,
   ErrorState,
-  PageLoader,
 } from '@/components/ui/States';
+import { ListPageSkeleton } from '@/components/ui/skeletons';
 import { Table, TableShell, Td, Th } from '@/components/ui/Table';
 import { useToast } from '@/components/ui/Toast';
+import {
+  filterSelectClass,
+  searchControlClass,
+} from '@/components/ui/control-styles';
 import { cn, formatDateTime } from '@/lib/utils';
 import type { Category, Product } from '@/types';
 
@@ -190,7 +194,7 @@ export function CategoriesPage() {
     setPage(1);
   }
 
-  if (isLoading && !data) return <PageLoader />;
+  if (isLoading && !data) return <ListPageSkeleton kpiCount={3} />;
   if (error) {
     return <ErrorState message={error.message} onRetry={() => void mutate()} />;
   }
@@ -204,7 +208,7 @@ export function CategoriesPage() {
             <span className="mx-1.5">/</span>
             <span className="text-text-primary">Categories</span>
           </nav>
-          <h1 className="text-2xl font-semibold text-text-primary">
+          <h1 className="hidden text-2xl font-semibold text-text-primary sm:block">
             Categories
           </h1>
           <p className="mt-1 max-w-xl text-sm text-text-secondary">
@@ -251,11 +255,11 @@ export function CategoriesPage() {
       </div>
 
       <Card className="!p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <label className="relative min-w-0 flex-1">
+        <div className="space-y-3">
+          <label className="relative block w-full">
             <span className="sr-only">Search categories</span>
             <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted"
+              className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted"
               aria-hidden
             />
             <input
@@ -265,37 +269,44 @@ export function CategoriesPage() {
                 setPage(1);
               }}
               placeholder="Search categories…"
-              className="h-11 w-full rounded-xl border border-border bg-canvas pl-10 pr-3 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+              className={searchControlClass}
             />
           </label>
-          <select
-            value={statusFilter}
-            onChange={(e) => {
-              setStatusFilter(e.target.value as StatusFilter);
-              setPage(1);
-            }}
-            className="h-11 rounded-xl border border-border bg-surface px-3 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
-          >
-            <option value="all">All status</option>
-            <option value="active">Active</option>
-            <option value="frozen">Frozen</option>
-            <option value="archived">Inactive</option>
-          </select>
-          <select
-            value={sortKey}
-            onChange={(e) => {
-              setSortKey(e.target.value as SortKey);
-              setPage(1);
-            }}
-            className="h-11 rounded-xl border border-border bg-surface px-3 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
-          >
-            <option value="newest">Sort by: Newest first</option>
-            <option value="oldest">Sort by: Oldest first</option>
-            <option value="name">Sort by: Name</option>
-            <option value="products">Sort by: Products</option>
-          </select>
-          <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={resetFilters}>
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2">
+              <select
+                value={statusFilter}
+                onChange={(e) => {
+                  setStatusFilter(e.target.value as StatusFilter);
+                  setPage(1);
+                }}
+                className={filterSelectClass}
+              >
+                <option value="all">All status</option>
+                <option value="active">Active</option>
+                <option value="frozen">Frozen</option>
+                <option value="archived">Inactive</option>
+              </select>
+              <select
+                value={sortKey}
+                onChange={(e) => {
+                  setSortKey(e.target.value as SortKey);
+                  setPage(1);
+                }}
+                className={filterSelectClass}
+              >
+                <option value="newest">Sort by: Newest first</option>
+                <option value="oldest">Sort by: Oldest first</option>
+                <option value="name">Sort by: Name</option>
+                <option value="products">Sort by: Products</option>
+              </select>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0 self-start"
+              onClick={resetFilters}
+            >
               Reset
             </Button>
           </div>
@@ -372,7 +383,7 @@ export function CategoriesPage() {
                       </Button>
                       <button
                         type="button"
-                        className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-text-secondary hover:border-accent hover:text-text-primary"
+                        className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border text-text-secondary hover:border-accent hover:text-text-primary"
                         aria-label={`More actions for ${cat.name}`}
                         onClick={() =>
                           toast('More actions coming soon', 'info')
@@ -538,7 +549,7 @@ function Pagination({
           type="button"
           onClick={() => onChange(p)}
           className={cn(
-            'inline-flex h-9 min-w-9 items-center justify-center rounded-lg text-sm font-medium',
+            'inline-flex h-9 min-w-9 items-center justify-center rounded-full text-sm font-medium',
             p === page
               ? 'bg-accent text-text-on-accent'
               : 'text-text-secondary hover:bg-accent-muted hover:text-text-primary',

@@ -1,6 +1,5 @@
 import { useMemo, useState } from 'react';
 import {
-  AlertTriangle,
   CalendarDays,
   CalendarRange,
   CheckCircle2,
@@ -11,7 +10,6 @@ import {
   LayoutDashboard,
   LineChart as LineChartIcon,
   Package,
-  Shield,
   Star,
   Store,
   TrendingDown,
@@ -49,17 +47,21 @@ import { Card, CardHeader } from '@/components/ui/Card';
 import {
   EmptyState,
   ErrorState,
-  PageLoader,
 } from '@/components/ui/States';
+import { Skeleton } from '@/components/ui/Skeleton';
+import { SectionSkeleton } from '@/components/ui/skeletons';
 import { Table, TableShell, Td, Th } from '@/components/ui/Table';
 import { useToast } from '@/components/ui/Toast';
+import { filterSelectClass } from '@/components/ui/control-styles';
+import { type BookingSeriesGranularity } from '@/lib/booking-series';
+import { BookingVolumeChart } from '@/pages/super-admin/reports/BookingVolumeChart';
+import {
+  buildBookingVolumeSeries,
+} from '@/lib/booking-volume-series';
 import { BOOKING_VALUE_HINT, BOOKING_VALUE_LABEL } from '@/lib/metrics';
-import { cn, formatDateTime, formatInr } from '@/lib/utils';
+import { cn, formatDateTime, formatInr, formatInrCrore } from '@/lib/utils';
 import type {
-  AuditLogRow,
-  ContactViewRow,
   ReportBookings,
-  ReportCustomer,
   ReportOverview,
   ReportProducts,
   ReportRbos,
@@ -72,9 +74,7 @@ type Tab =
   | 'revenue'
   | 'users'
   | 'products'
-  | 'vendors'
-  | 'customers'
-  | 'compliance';
+  | 'vendors';
 
 type ChartKind = 'line' | 'area' | 'bar';
 type CompareWith = 'previous' | 'yoy' | 'none';
@@ -88,8 +88,6 @@ const TABS: Array<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
   { id: 'users', label: 'Users', icon: Users },
   { id: 'products', label: 'Products', icon: Package },
   { id: 'vendors', label: 'Vendors', icon: Store },
-  { id: 'customers', label: 'Customer Risk', icon: AlertTriangle },
-  { id: 'compliance', label: 'Compliance', icon: Shield },
 ];
 
 function initials(name: string) {
@@ -115,9 +113,6 @@ export function ReportsPage() {
   const bookings = useApiSWR<ReportBookings>(ENDPOINTS.reportBookings);
   const products = useApiSWR<ReportProducts>(ENDPOINTS.reportProducts);
   const rbos = useApiSWR<ReportRbos>(ENDPOINTS.reportRbos);
-  const customers = useApiSWR<ReportCustomer[]>(ENDPOINTS.reportCustomers);
-  const contacts = useApiSWR<ContactViewRow[]>(ENDPOINTS.contactViews);
-  const audit = useApiSWR<AuditLogRow[]>(ENDPOINTS.auditLogs);
 
   const rangeLabel = useMemo(() => {
     const fmt = (iso: string) =>
@@ -133,7 +128,7 @@ export function ReportsPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-text-primary">Reports</h1>
+          <h1 className="hidden text-2xl font-semibold text-text-primary sm:block">Reports</h1>
           <nav className="mt-1 text-sm text-text-muted">
             <Link to="/" className="hover:text-accent">
               Home
@@ -153,28 +148,39 @@ export function ReportsPage() {
       </div>
 
       <Card className="!p-4">
-        <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-          <label className="inline-flex h-11 min-w-0 flex-1 items-center gap-2 rounded-xl border border-border bg-canvas px-3 text-sm text-text-secondary xl:max-w-xs">
-            <CalendarDays className="h-4 w-4 shrink-0 text-text-muted" aria-hidden />
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:flex xl:flex-wrap xl:items-center xl:gap-3">
+          <label className="inline-flex h-11 min-w-0 items-center gap-2 rounded-full border border-border bg-canvas px-3.5 text-sm text-text-secondary sm:col-span-1">
+            <CalendarDays
+              className="h-4 w-4 shrink-0 text-text-muted"
+              aria-hidden
+            />
+            <span className="shrink-0 text-xs text-text-muted">From</span>
             <input
               type="date"
               value={from}
               onChange={(e) => setFrom(e.target.value)}
-              className="min-w-0 flex-1 bg-transparent text-text-primary focus:outline-none"
+              className="min-w-0 flex-1 bg-transparent py-0 text-sm text-text-primary focus:outline-none"
             />
-            <span className="text-text-muted">–</span>
+          </label>
+
+          <label className="inline-flex h-11 min-w-0 items-center gap-2 rounded-full border border-border bg-canvas px-3.5 text-sm text-text-secondary sm:col-span-1">
+            <CalendarDays
+              className="h-4 w-4 shrink-0 text-text-muted"
+              aria-hidden
+            />
+            <span className="shrink-0 text-xs text-text-muted">To</span>
             <input
               type="date"
               value={to}
               onChange={(e) => setTo(e.target.value)}
-              className="min-w-0 flex-1 bg-transparent text-text-primary focus:outline-none"
+              className="min-w-0 flex-1 bg-transparent py-0 text-sm text-text-primary focus:outline-none"
             />
           </label>
 
           <select
             value={compareWith}
             onChange={(e) => setCompareWith(e.target.value as CompareWith)}
-            className="h-11 rounded-xl border border-border bg-surface px-3 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+            className={cn(filterSelectClass, 'xl:min-w-[10.5rem] xl:flex-none')}
             aria-label="Compare with"
           >
             <option value="previous">Previous Period</option>
@@ -185,7 +191,7 @@ export function ReportsPage() {
           <select
             value={groupBy}
             onChange={(e) => setGroupBy(e.target.value as GroupBy)}
-            className="h-11 rounded-xl border border-border bg-surface px-3 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+            className={cn(filterSelectClass, 'xl:min-w-[10.5rem] xl:flex-none')}
             aria-label="Group by"
           >
             <option value="day">Day</option>
@@ -193,24 +199,26 @@ export function ReportsPage() {
             <option value="month">Month</option>
           </select>
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => toast('Advanced filters ship with the API', 'info')}
-          >
-            <Filter className="h-4 w-4" aria-hidden />
-            Filters
-          </Button>
+          <div className="flex flex-wrap gap-2 sm:col-span-2 xl:col-span-1 xl:ml-auto">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => toast('Advanced filters ship with the API', 'info')}
+            >
+              <Filter className="h-4 w-4" aria-hidden />
+              Filters
+            </Button>
 
-          <Button
-            size="sm"
-            onClick={() => {
-              setApplied({ from, to });
-              toast('Filters applied', 'success');
-            }}
-          >
-            Apply Filters
-          </Button>
+            <Button
+              size="sm"
+              onClick={() => {
+                setApplied({ from, to });
+                toast('Filters applied', 'success');
+              }}
+            >
+              Apply Filters
+            </Button>
+          </div>
         </div>
         <p className="mt-2 text-xs text-text-muted">
           Showing {rangeLabel}
@@ -227,12 +235,29 @@ export function ReportsPage() {
       {overview.data ? (
         <KpiRow data={overview.data} compareWith={compareWith} />
       ) : overview.isLoading ? (
-        <PageLoader />
+        <div
+          className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
+          role="status"
+          aria-busy="true"
+          aria-label="Loading"
+        >
+          {Array.from({ length: 4 }, (_, i) => (
+            <div
+              key={i}
+              className="rounded-xl border border-border bg-surface p-4 shadow-sm"
+            >
+              <Skeleton className="h-3 w-20" />
+              <Skeleton className="mt-3 h-7 w-28" />
+              <Skeleton className="mt-2 h-3 w-24" />
+            </div>
+          ))}
+          <span className="sr-only">Loading…</span>
+        </div>
       ) : null}
 
       <div
         role="tablist"
-        className="flex gap-1 overflow-x-auto border-b border-border"
+        className="flex flex-wrap gap-2 rounded-xl border border-border bg-surface p-2 lg:flex-nowrap lg:gap-0 lg:rounded-none lg:border-0 lg:border-b lg:border-border lg:bg-transparent lg:p-0"
       >
         {TABS.map((item) => {
           const active = tab === item.id;
@@ -245,16 +270,16 @@ export function ReportsPage() {
               aria-selected={active}
               onClick={() => setTab(item.id)}
               className={cn(
-                'relative inline-flex min-h-11 shrink-0 items-center gap-2 px-3 text-sm font-medium transition-colors',
+                'relative inline-flex min-h-10 shrink-0 items-center gap-2 rounded-full border px-3.5 text-sm font-medium transition-colors lg:min-h-11 lg:rounded-none lg:border-0 lg:px-3',
                 active
-                  ? 'text-accent'
-                  : 'text-text-secondary hover:text-text-primary',
+                  ? 'border-accent/40 bg-accent-muted text-accent lg:bg-transparent'
+                  : 'border-border bg-canvas text-text-secondary hover:border-accent/30 hover:text-text-primary lg:border-0 lg:bg-transparent lg:hover:bg-transparent',
               )}
             >
-              <Icon className="h-3.5 w-3.5" aria-hidden />
+              <Icon className="h-3.5 w-3.5 shrink-0" aria-hidden />
               {item.label}
               {active ? (
-                <span className="absolute inset-x-2 bottom-0 h-0.5 rounded-full bg-accent" />
+                <span className="absolute inset-x-2 bottom-0 hidden h-0.5 rounded-full bg-accent lg:block" />
               ) : null}
             </button>
           );
@@ -268,7 +293,13 @@ export function ReportsPage() {
           onChartKind={setChartKind}
         />
       ) : null}
-      {tab === 'bookings' ? <BookingsTab state={bookings} /> : null}
+      {tab === 'bookings' ? (
+        <BookingsTab
+          state={bookings}
+          rangeFrom={applied.from}
+          rangeTo={applied.to}
+        />
+      ) : null}
       {tab === 'rentals' ? (
         <PlaceholderTab
           title="Active rentals"
@@ -286,10 +317,6 @@ export function ReportsPage() {
       ) : null}
       {tab === 'products' ? <ProductsTab state={products} /> : null}
       {tab === 'vendors' ? <RbosTab state={rbos} /> : null}
-      {tab === 'customers' ? <CustomersTab state={customers} /> : null}
-      {tab === 'compliance' ? (
-        <ComplianceTab contacts={contacts} audit={audit} />
-      ) : null}
     </div>
   );
 }
@@ -418,7 +445,7 @@ function OverviewTab({
   chartKind: ChartKind;
   onChartKind: (v: ChartKind) => void;
 }) {
-  if (state.isLoading && !state.data) return <PageLoader />;
+  if (state.isLoading && !state.data) return <SectionSkeleton rows={4} />;
   if (state.error) {
     return (
       <ErrorState
@@ -445,7 +472,7 @@ function OverviewTab({
           <select
             value={chartKind}
             onChange={(e) => onChartKind(e.target.value as ChartKind)}
-            className="h-9 rounded-lg border border-border bg-surface px-2 text-xs text-text-primary focus:border-accent focus:outline-none"
+            className="h-9 rounded-full border border-border bg-surface px-3 text-xs text-text-primary focus:border-accent focus:outline-none"
             aria-label="Chart type"
           >
             <option value="line">Line</option>
@@ -704,7 +731,7 @@ function PlaceholderTab({
 }
 
 function RevenueTab({ state }: { state: SWRLike<ReportOverview> }) {
-  if (state.isLoading && !state.data) return <PageLoader />;
+  if (state.isLoading && !state.data) return <SectionSkeleton rows={4} />;
   if (state.error) {
     return (
       <ErrorState message={state.error.message} onRetry={() => void state.mutate()} />
@@ -712,31 +739,84 @@ function RevenueTab({ state }: { state: SWRLike<ReportOverview> }) {
   }
   if (!state.data) return <EmptyState title="No revenue data" />;
   const d = state.data;
+  const categoryTotal = d.salesByCategory.reduce((sum, item) => sum + item.value, 0);
+
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
       <Card>
-        <CardHeader title={`${BOOKING_VALUE_LABEL} by category`} />
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie
-                data={d.salesByCategory}
-                dataKey="value"
-                nameKey="name"
-                innerRadius={55}
-                outerRadius={85}
-                paddingAngle={2}
-              >
-                {d.salesByCategory.map((_, i) => (
-                  <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip
-                contentStyle={CHART_TOOLTIP_STYLE}
-                formatter={(v) => [formatInr(Number(v)), BOOKING_VALUE_LABEL]}
-              />
-            </PieChart>
-          </ResponsiveContainer>
+        <CardHeader
+          title={`${BOOKING_VALUE_LABEL} by category`}
+          description={`${formatInr(categoryTotal)} total across all categories`}
+        />
+        <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-2">
+          <div className="relative mx-auto h-52 w-full max-w-[240px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={d.salesByCategory}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={56}
+                  outerRadius={82}
+                  paddingAngle={2}
+                >
+                  {d.salesByCategory.map((item, i) => (
+                    <Cell
+                      key={item.name}
+                      fill={CHART_COLORS[i % CHART_COLORS.length]}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={CHART_TOOLTIP_STYLE}
+                  formatter={(value, name) => {
+                    const amount = Number(value);
+                    const pct =
+                      categoryTotal > 0
+                        ? Math.round((amount / categoryTotal) * 100)
+                        : 0;
+                    return [`${formatInr(amount)} (${pct}%)`, name];
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-2xl font-semibold tabular-nums text-text-primary">
+                {formatInrCrore(categoryTotal)}
+              </span>
+              <span className="text-xs text-text-muted">total value</span>
+            </div>
+          </div>
+          <ul className="space-y-2.5">
+            {d.salesByCategory.map((item, i) => {
+              const pct =
+                categoryTotal > 0
+                  ? Math.round((item.value / categoryTotal) * 100)
+                  : 0;
+              return (
+                <li
+                  key={item.name}
+                  className="flex items-center justify-between gap-3 text-sm"
+                >
+                  <span className="flex min-w-0 items-center gap-2.5 text-text-secondary">
+                    <span
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{
+                        background: CHART_COLORS[i % CHART_COLORS.length],
+                      }}
+                    />
+                    <span className="truncate">{item.name}</span>
+                  </span>
+                  <span className="shrink-0 text-right tabular-nums">
+                    <span className="font-semibold text-text-primary">
+                      {formatInr(item.value)}
+                    </span>
+                    <span className="ml-2 text-xs text-text-muted">{pct}%</span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       </Card>
       <Card>
@@ -764,8 +844,52 @@ function RevenueTab({ state }: { state: SWRLike<ReportOverview> }) {
   );
 }
 
-function BookingsTab({ state }: { state: SWRLike<ReportBookings> }) {
-  if (state.isLoading && !state.data) return <PageLoader />;
+function bookingStatusColor(name: string, index: number): string {
+  switch (name) {
+    case 'Completed':
+      return 'var(--success)';
+    case 'Active':
+    case 'Confirmed':
+      return 'var(--accent)';
+    case 'Pending':
+      return 'var(--warning)';
+    case 'Cancelled':
+    case 'Rejected':
+      return 'var(--danger)';
+    default:
+      return CHART_COLORS[index % CHART_COLORS.length];
+  }
+}
+
+function BookingsTab({
+  state,
+  rangeFrom,
+  rangeTo,
+}: {
+  state: SWRLike<ReportBookings>;
+  rangeFrom: string;
+  rangeTo: string;
+}) {
+  const [volumeView, setVolumeView] =
+    useState<BookingSeriesGranularity>('day');
+
+  const statusTotal = useMemo(
+    () =>
+      (state.data?.byStatus ?? []).reduce((sum, item) => sum + item.value, 0),
+    [state.data?.byStatus],
+  );
+
+  const volumeSeries = useMemo(() => {
+    if (!state.data || statusTotal === 0) return [];
+    return buildBookingVolumeSeries(
+      rangeFrom,
+      rangeTo,
+      statusTotal,
+      volumeView,
+    );
+  }, [rangeFrom, rangeTo, state.data, statusTotal, volumeView]);
+
+  if (state.isLoading && !state.data) return <SectionSkeleton rows={4} />;
   if (state.error) {
     return (
       <ErrorState message={state.error.message} onRetry={() => void state.mutate()} />
@@ -773,21 +897,83 @@ function BookingsTab({ state }: { state: SWRLike<ReportBookings> }) {
   }
   if (!state.data) return <EmptyState title="No booking report" />;
   const d = state.data;
+
   return (
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-2">
       <Card>
-        <CardHeader title="Bookings by status" />
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <PieChart>
-              <Pie data={d.byStatus} dataKey="value" nameKey="name" outerRadius={90}>
-                {d.byStatus.map((_, i) => (
-                  <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />
-                ))}
-              </Pie>
-              <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
-            </PieChart>
-          </ResponsiveContainer>
+        <CardHeader
+          title="Bookings by status"
+          description={`${statusTotal.toLocaleString('en-IN')} bookings in the selected period`}
+        />
+        <div className="grid grid-cols-1 items-center gap-4 sm:grid-cols-2">
+          <div className="relative mx-auto h-52 w-full max-w-[240px]">
+            <ResponsiveContainer width="100%" height="100%">
+              <PieChart>
+                <Pie
+                  data={d.byStatus}
+                  dataKey="value"
+                  nameKey="name"
+                  innerRadius={56}
+                  outerRadius={82}
+                  paddingAngle={2}
+                >
+                  {d.byStatus.map((item, i) => (
+                    <Cell
+                      key={item.name}
+                      fill={bookingStatusColor(item.name, i)}
+                    />
+                  ))}
+                </Pie>
+                <Tooltip
+                  contentStyle={CHART_TOOLTIP_STYLE}
+                  formatter={(value, name) => {
+                    const count = Number(value);
+                    const pct =
+                      statusTotal > 0
+                        ? Math.round((count / statusTotal) * 100)
+                        : 0;
+                    return [`${count.toLocaleString('en-IN')} (${pct}%)`, name];
+                  }}
+                />
+              </PieChart>
+            </ResponsiveContainer>
+            <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-2xl font-semibold tabular-nums text-text-primary">
+                {statusTotal.toLocaleString('en-IN')}
+              </span>
+              <span className="text-xs text-text-muted">total bookings</span>
+            </div>
+          </div>
+          <ul className="space-y-2.5">
+            {d.byStatus.map((item, i) => {
+              const pct =
+                statusTotal > 0
+                  ? Math.round((item.value / statusTotal) * 100)
+                  : 0;
+              return (
+                <li
+                  key={item.name}
+                  className="flex items-center justify-between gap-3 text-sm"
+                >
+                  <span className="flex min-w-0 items-center gap-2.5 text-text-secondary">
+                    <span
+                      className="h-2.5 w-2.5 shrink-0 rounded-full"
+                      style={{
+                        background: bookingStatusColor(item.name, i),
+                      }}
+                    />
+                    <span className="truncate">{item.name}</span>
+                  </span>
+                  <span className="shrink-0 text-right tabular-nums">
+                    <span className="font-semibold text-text-primary">
+                      {item.value.toLocaleString('en-IN')}
+                    </span>
+                    <span className="ml-2 text-xs text-text-muted">{pct}%</span>
+                  </span>
+                </li>
+              );
+            })}
+          </ul>
         </div>
       </Card>
       <Card>
@@ -804,26 +990,19 @@ function BookingsTab({ state }: { state: SWRLike<ReportBookings> }) {
           </ResponsiveContainer>
         </div>
       </Card>
-      <Card className="xl:col-span-2">
-        <CardHeader title="Booking volume by week" />
-        <div className="h-64">
-          <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={d.volumeSeries}>
-              <CartesianGrid stroke={CHART_GRID} strokeDasharray="3 3" />
-              <XAxis dataKey="label" stroke={CHART_AXIS} />
-              <YAxis stroke={CHART_AXIS} />
-              <Tooltip contentStyle={CHART_TOOLTIP_STYLE} />
-              <Bar dataKey="count" fill="var(--success)" radius={[6, 6, 0, 0]} />
-            </BarChart>
-          </ResponsiveContainer>
-        </div>
-      </Card>
+      <BookingVolumeChart
+        series={volumeSeries}
+        view={volumeView}
+        onViewChange={setVolumeView}
+        rangeFrom={rangeFrom}
+        rangeTo={rangeTo}
+      />
     </div>
   );
 }
 
 function ProductsTab({ state }: { state: SWRLike<ReportProducts> }) {
-  if (state.isLoading && !state.data) return <PageLoader />;
+  if (state.isLoading && !state.data) return <SectionSkeleton rows={4} />;
   if (state.error) {
     return (
       <ErrorState message={state.error.message} onRetry={() => void state.mutate()} />
@@ -893,7 +1072,7 @@ function SimpleProductTable({
 }
 
 function RbosTab({ state }: { state: SWRLike<ReportRbos> }) {
-  if (state.isLoading && !state.data) return <PageLoader />;
+  if (state.isLoading && !state.data) return <SectionSkeleton rows={4} />;
   if (state.error) {
     return (
       <ErrorState message={state.error.message} onRetry={() => void state.mutate()} />
@@ -947,122 +1126,6 @@ function RbosTab({ state }: { state: SWRLike<ReportRbos> }) {
             </li>
           ))}
         </ul>
-      </Card>
-    </div>
-  );
-}
-
-function CustomersTab({ state }: { state: SWRLike<ReportCustomer[]> }) {
-  if (state.isLoading && !state.data) return <PageLoader />;
-  if (state.error) {
-    return (
-      <ErrorState message={state.error.message} onRetry={() => void state.mutate()} />
-    );
-  }
-  const rows = state.data ?? [];
-  if (!rows.length) return <EmptyState title="No flagged customers" />;
-  return (
-    <Card>
-      <CardHeader
-        title="Trust & risk flags"
-        description="Customers with repeated negative behaviour or scam signals."
-      />
-      <TableShell>
-        <Table>
-          <thead>
-            <tr>
-              <Th>Customer</Th>
-              <Th>Neg. reviews</Th>
-              <Th>Risk</Th>
-              <Th>Flag</Th>
-              <Th>Last incident</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((r) => (
-              <tr key={r.id}>
-                <Td className="font-medium">{r.name}</Td>
-                <Td>{r.negativeReviews}</Td>
-                <Td>{r.riskScore}</Td>
-                <Td>{r.flag}</Td>
-                <Td className="text-text-secondary">
-                  {formatDateTime(r.lastIncidentAt)}
-                </Td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      </TableShell>
-    </Card>
-  );
-}
-
-function ComplianceTab({
-  contacts,
-  audit,
-}: {
-  contacts: SWRLike<ContactViewRow[]>;
-  audit: SWRLike<AuditLogRow[]>;
-}) {
-  return (
-    <div className="space-y-4">
-      <Card>
-        <CardHeader title="Contact view audit" description="Listing-fee contact reveals." />
-        {contacts.isLoading && !contacts.data ? (
-          <PageLoader />
-        ) : (
-          <TableShell>
-            <Table>
-              <thead>
-                <tr>
-                  <Th>When</Th>
-                  <Th>Viewer</Th>
-                  <Th>Listing</Th>
-                  <Th>Vendor</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {(contacts.data ?? []).map((r) => (
-                  <tr key={r.id}>
-                    <Td className="text-text-secondary">{formatDateTime(r.viewedAt)}</Td>
-                    <Td>{r.viewerName}</Td>
-                    <Td>{r.listingName}</Td>
-                    <Td>{r.vendorName}</Td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          </TableShell>
-        )}
-      </Card>
-      <Card>
-        <CardHeader title="Audit trail" description="Immutable activity log." />
-        {audit.isLoading && !audit.data ? (
-          <PageLoader />
-        ) : (
-          <TableShell>
-            <Table>
-              <thead>
-                <tr>
-                  <Th>When</Th>
-                  <Th>Actor</Th>
-                  <Th>Action</Th>
-                  <Th>Entity</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {(audit.data ?? []).map((r) => (
-                  <tr key={r.id}>
-                    <Td className="text-text-secondary">{formatDateTime(r.occurredAt)}</Td>
-                    <Td>{r.actor}</Td>
-                    <Td>{r.action}</Td>
-                    <Td>{r.entity}</Td>
-                  </tr>
-                ))}
-              </tbody>
-            </Table>
-          </TableShell>
-        )}
       </Card>
     </div>
   );

@@ -2,11 +2,18 @@ import { useMemo, useState } from 'react';
 import { apiPatch } from '@/api/axios-helpers';
 import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
+import {
+  buildDateRangeQuery,
+  defaultDashboardRange,
+  type DateRange,
+} from '@/lib/date-range';
 import { useApiSWR } from '@/api/swr-helpers';
 import { useAuth } from '@/auth/AuthContext';
 import { useToast } from '@/components/ui/Toast';
-import { EmptyState, ErrorState, PageLoader } from '@/components/ui/States';
+import { EmptyState, ErrorState } from '@/components/ui/States';
+import { DashboardSkeleton } from '@/components/ui/skeletons';
 import { AnalyticsRow } from '@/pages/super-admin/dashboard/AnalyticsRow';
+import { DashboardDateRangeFilter } from '@/pages/super-admin/dashboard/DashboardDateRangeFilter';
 import { BottomGrid } from '@/pages/super-admin/dashboard/BottomGrid';
 import { HeroRow } from '@/pages/super-admin/dashboard/HeroRow';
 import { MiniStats } from '@/pages/super-admin/dashboard/MiniStats';
@@ -27,13 +34,21 @@ export function DashboardPage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const [needsTab, setNeedsTab] = useState<NeedsTab>('overrides');
+  const [appliedRange, setAppliedRange] = useState<DateRange>(() =>
+    defaultDashboardRange(),
+  );
+
+  const kpiKey = `${ENDPOINTS.dashboardKpis}${buildDateRangeQuery(
+    appliedRange.from,
+    appliedRange.to,
+  )}`;
 
   const {
     data: kpis,
     error: kpiError,
     isLoading: kpiLoading,
     mutate: mutateKpis,
-  } = useApiSWR<DashboardKpis>(ENDPOINTS.dashboardKpis);
+  } = useApiSWR<DashboardKpis>(kpiKey);
   const {
     data: alerts,
     isLoading: alertLoading,
@@ -103,7 +118,7 @@ export function DashboardPage() {
     }
   }
 
-  if (kpiLoading && !kpis) return <PageLoader />;
+  if (kpiLoading && !kpis) return <DashboardSkeleton />;
   if (kpiError) {
     return (
       <ErrorState
@@ -125,18 +140,28 @@ export function DashboardPage() {
   }).format(new Date());
 
   return (
-    <div className="space-y-6">
-      <HeroRow
-        greeting={greeting}
-        name={user?.name ?? 'Super Admin'}
-        dateLabel={dateLabel}
-      />
+    <div className="space-y-4 sm:space-y-6">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <HeroRow
+          greeting={greeting}
+          name={user?.name ?? 'Super Admin'}
+          dateLabel={dateLabel}
+        />
+        <DashboardDateRangeFilter
+          range={appliedRange}
+          onRangeChange={setAppliedRange}
+        />
+      </div>
 
-      <section className="space-y-3">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
+      <section className="space-y-2.5 sm:space-y-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted sm:text-xs">
           Marketplace pulse
         </h2>
-        <SparkKpis kpis={kpis} />
+        <SparkKpis
+          kpis={kpis}
+          rangeFrom={appliedRange.from}
+          rangeTo={appliedRange.to}
+        />
       </section>
 
       <NeedsActionQueue
@@ -154,22 +179,27 @@ export function DashboardPage() {
         securityLoading={alertLoading && !alerts}
       />
 
-      <section className="space-y-3">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
-          Analytics
-        </h2>
-        <AnalyticsRow kpis={kpis} overview={reportOverview} />
-      </section>
-
-      <section className="space-y-3">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
+      <section className="space-y-2.5 sm:space-y-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted sm:text-xs">
           Platform snapshot
         </h2>
         <MiniStats kpis={kpis} />
       </section>
 
-      <section className="space-y-3">
-        <h2 className="text-xs font-semibold uppercase tracking-[0.12em] text-text-muted">
+      <section className="space-y-2.5 sm:space-y-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted sm:text-xs">
+          Analytics
+        </h2>
+        <AnalyticsRow
+          kpis={kpis}
+          overview={reportOverview}
+          rangeFrom={appliedRange.from}
+          rangeTo={appliedRange.to}
+        />
+      </section>
+
+      <section className="space-y-2.5 sm:space-y-3">
+        <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted sm:text-xs">
           Vendors & security
         </h2>
         <BottomGrid

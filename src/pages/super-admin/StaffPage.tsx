@@ -13,10 +13,11 @@ import {
   EmptyState,
   ErrorState,
   PageHeader,
-  PageLoader,
 } from '@/components/ui/States';
+import { ListPageSkeleton } from '@/components/ui/skeletons';
 import { Table, TableShell, Td, Th } from '@/components/ui/Table';
 import { useToast } from '@/components/ui/Toast';
+import { StaffMobileCard } from '@/pages/super-admin/staff/StaffMobileCard';
 import { departmentLabel, HOD_DEPARTMENTS } from '@/lib/departments';
 import { formatDateTime } from '@/lib/utils';
 import type { HodDepartment, PlatformStaff, PlatformStaffWrite } from '@/types';
@@ -116,7 +117,7 @@ export function StaffPage() {
     }
   }
 
-  if (isLoading && !data) return <PageLoader />;
+  if (isLoading && !data) return <ListPageSkeleton showKpis={false} />;
   if (error) {
     return <ErrorState message={error.message} onRetry={() => void mutate()} />;
   }
@@ -175,50 +176,63 @@ export function StaffPage() {
       {filtered.length === 0 ? (
         <EmptyState title="No staff match filters" actionLabel="Add staff" onAction={openCreate} />
       ) : (
-        <TableShell>
-          <Table>
-            <thead>
-              <tr>
-                <Th>Name</Th>
-                <Th>Contact</Th>
-                <Th>Department</Th>
-                <Th>Status</Th>
-                <Th>Joined</Th>
-                <Th>Actions</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((row) => (
-                <tr key={row.id}>
-                  <Td className="font-medium">{row.name}</Td>
-                  <Td>
-                    <div>{row.email}</div>
-                    <div className="text-xs text-text-muted">{row.phone}</div>
-                  </Td>
-                  <Td>{departmentLabel(row.department)}</Td>
-                  <Td>
-                    <Badge tone={row.status === 'active' ? 'success' : 'warning'}>
-                      {row.status}
-                    </Badge>
-                  </Td>
-                  <Td className="text-text-secondary">
-                    {formatDateTime(row.createdAt)}
-                  </Td>
-                  <Td>
-                    <div className="flex flex-wrap gap-2">
-                      <Button size="sm" variant="outline" onClick={() => openEdit(row)}>
-                        Edit
-                      </Button>
-                      <Button size="sm" variant="secondary" onClick={() => void toggleFreeze(row)}>
-                        {row.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
-                      </Button>
-                    </div>
-                  </Td>
+        <>
+          <div className="space-y-3 lg:hidden">
+            {filtered.map((row) => (
+              <StaffMobileCard
+                key={row.id}
+                staff={row}
+                onEdit={() => openEdit(row)}
+                onToggleFreeze={() => void toggleFreeze(row)}
+              />
+            ))}
+          </div>
+
+          <TableShell className="hidden lg:block">
+            <Table>
+              <thead>
+                <tr>
+                  <Th>Name</Th>
+                  <Th>Contact</Th>
+                  <Th>Department</Th>
+                  <Th>Status</Th>
+                  <Th>Joined</Th>
+                  <Th>Actions</Th>
                 </tr>
-              ))}
-            </tbody>
-          </Table>
-        </TableShell>
+              </thead>
+              <tbody>
+                {filtered.map((row) => (
+                  <tr key={row.id}>
+                    <Td className="font-medium">{row.name}</Td>
+                    <Td>
+                      <div>{row.email}</div>
+                      <div className="text-xs text-text-muted">{row.phone}</div>
+                    </Td>
+                    <Td>{departmentLabel(row.department)}</Td>
+                    <Td>
+                      <Badge tone={row.status === 'active' ? 'success' : 'warning'}>
+                        {row.status}
+                      </Badge>
+                    </Td>
+                    <Td className="text-text-secondary">
+                      {formatDateTime(row.createdAt)}
+                    </Td>
+                    <Td>
+                      <div className="flex flex-wrap gap-2">
+                        <Button size="sm" variant="outline" onClick={() => openEdit(row)}>
+                          Edit
+                        </Button>
+                        <Button size="sm" variant="secondary" onClick={() => void toggleFreeze(row)}>
+                          {row.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
+                        </Button>
+                      </div>
+                    </Td>
+                  </tr>
+                ))}
+              </tbody>
+            </Table>
+          </TableShell>
+        </>
       )}
 
       <Modal

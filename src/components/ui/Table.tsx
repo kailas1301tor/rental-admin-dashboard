@@ -11,7 +11,7 @@ export function TableShell({
   return (
     <div
       className={cn(
-        'w-full overflow-x-auto rounded-xl border border-border bg-surface',
+        'w-full overflow-x-auto overscroll-x-contain rounded-xl border border-border bg-surface [-webkit-overflow-scrolling:touch]',
         className,
       )}
     >

@@ -4,7 +4,6 @@ import {
   CalendarDays,
   Check,
   Clock3,
-  Globe2,
   Headset,
   IndianRupee,
   Mail,
@@ -13,7 +12,6 @@ import {
   Palette,
   Plus,
   Save,
-  Send,
   Sun,
 } from 'lucide-react';
 import { apiPatch } from '@/api/axios-helpers';
@@ -27,8 +25,8 @@ import { Select } from '@/components/ui/Select';
 import {
   EmptyState,
   ErrorState,
-  PageLoader,
 } from '@/components/ui/States';
+import { SettingsSkeleton } from '@/components/ui/skeletons';
 import { useToast } from '@/components/ui/Toast';
 import {
   ACCENT_SWATCHES,
@@ -41,7 +39,6 @@ import { useTheme } from '@/theme/ThemeProvider';
 import type {
   AccentColorId,
   AppCurrency,
-  AppLanguage,
   DateFormatPref,
   PlatformSettings,
 } from '@/types';
@@ -99,7 +96,6 @@ export function SettingsPage() {
       supportPhone: data.supportPhone ?? '+91 98765 43210',
       emailNotifications: data.emailNotifications ?? true,
       inAppNotifications: data.inAppNotifications ?? true,
-      marketingEmails: data.marketingEmails ?? false,
     });
     // Hydrate once from API; live locale edits update form via patchField.
     // eslint-disable-next-line react-hooks/exhaustive-deps -- prefs only used as fallback defaults
@@ -140,7 +136,7 @@ export function SettingsPage() {
     }
   }
 
-  if (isLoading && !data) return <PageLoader />;
+  if (isLoading && !data) return <SettingsSkeleton />;
   if (error) {
     return <ErrorState message={error.message} onRetry={() => void mutate()} />;
   }
@@ -162,32 +158,13 @@ export function SettingsPage() {
   return (
     <form onSubmit={(e) => void onSave(e)} className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-text-primary">Settings</h1>
+        <h1 className="hidden text-2xl font-semibold text-text-primary sm:block">Settings</h1>
         <p className="mt-1 text-sm text-text-secondary">
           Manage platform preferences and configurations.
         </p>
       </div>
 
       <Card className="space-y-1 !p-2 sm:!p-3">
-        <SettingsRow
-          icon={<Globe2 className="h-4 w-4" />}
-          iconClass="bg-purple-500/15 text-purple-400"
-          title="Language"
-          description="Interface language for labels and formatting locale."
-        >
-          <Select
-            value={form.language}
-            onChange={(e) => {
-              const language = e.target.value as AppLanguage;
-              patchField('language', language);
-              applyLocaleLive({ language });
-            }}
-          >
-            <option value="en">English</option>
-            <option value="hi">Hindi</option>
-          </Select>
-        </SettingsRow>
-
         <SettingsRow
           icon={<IndianRupee className="h-4 w-4" />}
           iconClass="bg-success-muted text-success"
@@ -256,7 +233,7 @@ export function SettingsPage() {
       </Card>
 
       <Card className="!p-4 sm:!p-5">
-        <div className="flex items-start gap-3">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-start">
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-purple-500/15 text-purple-400">
             <Palette className="h-4 w-4" aria-hidden />
           </span>
@@ -271,7 +248,7 @@ export function SettingsPage() {
             <p className="mt-5 text-xs font-medium uppercase tracking-wide text-text-muted">
               Theme
             </p>
-            <div className="mt-2 grid grid-cols-3 gap-2">
+            <div className="mt-2 grid grid-cols-1 gap-2 sm:grid-cols-3">
               {(
                 [
                   { id: 'light' as const, label: 'Light', Icon: Sun },
@@ -289,14 +266,14 @@ export function SettingsPage() {
                       applyLocaleLive({ themeMode: id });
                     }}
                     className={cn(
-                      'inline-flex h-11 items-center justify-center gap-2 rounded-xl border text-sm font-medium transition-colors',
+                      'inline-flex h-11 w-full items-center justify-center gap-2 rounded-full border px-4 text-sm font-medium transition-colors',
                       active
                         ? 'border-accent bg-accent-muted text-accent'
                         : 'border-border bg-canvas text-text-secondary hover:border-accent/50 hover:text-text-primary',
                     )}
                   >
-                    <Icon className="h-4 w-4" aria-hidden />
-                    {label}
+                    <Icon className="h-4 w-4 shrink-0" aria-hidden />
+                    <span>{label}</span>
                   </button>
                 );
               })}
@@ -403,14 +380,6 @@ export function SettingsPage() {
           description="Receive alerts and updates within the admin panel."
           checked={form.inAppNotifications}
           onChange={(v) => patchField('inAppNotifications', v)}
-        />
-        <ToggleRow
-          icon={<Send className="h-4 w-4" />}
-          iconClass="bg-cyan-500/15 text-cyan-400"
-          title="Marketing & updates"
-          description="Receive product updates, tips, and news via email."
-          checked={form.marketingEmails}
-          onChange={(v) => patchField('marketingEmails', v)}
         />
       </Card>
 

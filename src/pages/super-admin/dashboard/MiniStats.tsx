@@ -67,22 +67,26 @@ export function MiniStats({ kpis }: { kpis: DashboardKpis }) {
   ];
 
   return (
-    <div className="grid grid-cols-2 gap-3 md:grid-cols-3 xl:grid-cols-6">
+    <div className="grid grid-cols-2 gap-2 sm:gap-3 md:grid-cols-3 xl:grid-cols-6">
       {items.map((item) => (
         <div
           key={item.label}
-          className="rounded-xl border border-border bg-surface px-3.5 py-3"
+          className="rounded-xl border border-border bg-surface px-3 py-2.5 sm:px-3.5 sm:py-3"
         >
           <div className="flex items-start justify-between gap-1">
-            <p className="text-[10px] font-medium uppercase tracking-wide text-text-muted">
+            <p className="text-[10px] font-medium uppercase leading-snug tracking-wide text-text-muted">
               {item.label}
             </p>
             <Delta value={item.delta} suffix={item.deltaSuffix ?? '%'} />
           </div>
-          <p className="mt-1 text-lg font-semibold tabular-nums text-text-primary">
+          <p className="mt-1 text-base font-semibold tabular-nums text-text-primary sm:text-lg">
             {item.value}
           </p>
-          <Sparkline values={item.spark} tone={item.tone} className="mt-1 h-6" />
+          <Sparkline
+            values={item.spark}
+            tone={item.tone}
+            className="mt-1 h-5 sm:h-6"
+          />
         </div>
       ))}
     </div>

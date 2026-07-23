@@ -1,4 +1,5 @@
 import { forwardRef, type InputHTMLAttributes } from 'react';
+import { controlClass } from '@/components/ui/control-styles';
 import { cn } from '@/lib/utils';
 
 interface InputProps extends InputHTMLAttributes<HTMLInputElement> {
@@ -20,9 +21,8 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
           ref={ref}
           id={inputId}
           className={cn(
-            'h-11 w-full rounded-lg border border-border bg-surface px-3 text-text-primary',
-            'placeholder:text-text-muted',
-            'focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30',
+            controlClass,
+            'w-full placeholder:text-text-muted',
             error && 'border-danger',
             className,
           )}

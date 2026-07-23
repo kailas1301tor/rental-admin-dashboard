@@ -22,8 +22,8 @@ import { Card } from '@/components/ui/Card';
 import {
   EmptyState,
   ErrorState,
-  PageLoader,
 } from '@/components/ui/States';
+import { DetailPageSkeleton } from '@/components/ui/skeletons';
 import { Table, TableShell, Td, Th } from '@/components/ui/Table';
 import { useToast } from '@/components/ui/Toast';
 import { BOOKING_VALUE_LABEL } from '@/lib/metrics';
@@ -108,7 +108,7 @@ export function RboDetailPage() {
     }
   }
 
-  if (isLoading && !data) return <PageLoader />;
+  if (isLoading && !data) return <DetailPageSkeleton />;
   if (error) {
     return <ErrorState message={error.message} onRetry={() => void mutate()} />;
   }
@@ -247,7 +247,7 @@ export function RboDetailPage() {
         </div>
       </Card>
 
-      <div role="tablist" className="flex gap-1 overflow-x-auto border-b border-border">
+      <div role="tablist" className="mobile-scroll-x border-b border-border">
         {tabs.map((item) => {
           const active = tab === item.id;
           return (

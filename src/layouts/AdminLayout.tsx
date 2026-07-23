@@ -2,6 +2,7 @@ import { useMemo, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useApiSWR } from '@/api/swr-helpers';
 import { ENDPOINTS } from '@/api/endpoints';
+import { MobileBottomNav } from '@/layouts/MobileBottomNav';
 import { MobileNavDrawer } from '@/layouts/MobileNavDrawer';
 import { Sidebar } from '@/layouts/Sidebar';
 import { TopBar } from '@/layouts/TopBar';
@@ -32,10 +33,12 @@ export function AdminLayout() {
     [kpis?.loginAlertsToday, kpis?.pendingOverrides],
   );
 
+  const alertCount = kpis?.loginAlertsToday ?? 0;
+
   return (
-    <div className="min-h-screen bg-canvas lg:flex">
+    <div className="min-h-dvh bg-canvas lg:flex">
       <aside className="hidden w-64 shrink-0 lg:block">
-        <div className="sticky top-0 h-screen">
+        <div className="sticky top-0 h-dvh">
           <Sidebar badges={navBadges} />
         </div>
       </aside>
@@ -47,13 +50,17 @@ export function AdminLayout() {
       <div className="flex min-w-0 flex-1 flex-col">
         <TopBar
           title={title}
-          alertCount={kpis?.loginAlertsToday ?? 0}
+          alertCount={alertCount}
           onMenuClick={() => setDrawerOpen(true)}
         />
-        <main className="flex-1 px-4 py-5 sm:px-6 sm:py-6">
+        <main className="flex-1 px-4 pt-4 pb-[calc(5.25rem+env(safe-area-inset-bottom))] sm:px-5 sm:pt-5 lg:px-6 lg:py-6 lg:pb-6">
           <Outlet />
         </main>
       </div>
+      <MobileBottomNav
+        alertCount={alertCount}
+        onMoreClick={() => setDrawerOpen(true)}
+      />
     </div>
   );
 }

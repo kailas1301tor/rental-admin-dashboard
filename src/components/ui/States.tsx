@@ -1,4 +1,5 @@
 import { Button } from '@/components/ui/Button';
+import { ListPageSkeleton } from '@/components/ui/skeletons';
 import { cn } from '@/lib/utils';
 
 export function Spinner({ className }: { className?: string }) {
@@ -14,12 +15,9 @@ export function Spinner({ className }: { className?: string }) {
   );
 }
 
+/** @deprecated Prefer page-shaped skeletons from `@/components/ui/skeletons`. */
 export function PageLoader() {
-  return (
-    <div className="flex min-h-48 items-center justify-center py-12">
-      <Spinner />
-    </div>
-  );
+  return <ListPageSkeleton />;
 }
 
 export function EmptyState({
@@ -77,17 +75,22 @@ export function PageHeader({
   actions?: React.ReactNode;
 }) {
   return (
-    <div className="mb-6 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-      <div>
-        <h1 className="text-2xl font-semibold tracking-tight text-text-primary">
+    <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-end sm:justify-between">
+      <div className="min-w-0">
+        {/* Title lives in TopBar on small screens — avoid duplicate chrome. */}
+        <h1 className="hidden text-2xl font-semibold tracking-tight text-text-primary sm:block">
           {title}
         </h1>
         {description ? (
-          <p className="mt-1 text-sm text-text-secondary">{description}</p>
+          <p className="text-sm leading-relaxed text-text-secondary sm:mt-1">
+            {description}
+          </p>
         ) : null}
       </div>
       {actions ? (
-        <div className="flex flex-wrap items-center gap-2">{actions}</div>
+        <div className="flex w-full flex-wrap items-center gap-2 sm:w-auto">
+          {actions}
+        </div>
       ) : null}
     </div>
   );

@@ -18,10 +18,15 @@ import { Card } from '@/components/ui/Card';
 import {
   EmptyState,
   ErrorState,
-  PageLoader,
 } from '@/components/ui/States';
+import { ListPageSkeleton } from '@/components/ui/skeletons';
 import { Table, TableShell, Td, Th } from '@/components/ui/Table';
 import { useToast } from '@/components/ui/Toast';
+import {
+  filterSelectClass,
+  searchControlClass,
+} from '@/components/ui/control-styles';
+import { UserMobileCard } from '@/pages/super-admin/users/UserMobileCard';
 import { cn, formatDateTime } from '@/lib/utils';
 import type {
   MarketplaceUser,
@@ -128,7 +133,7 @@ export function UsersPage() {
     filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(safePage * PAGE_SIZE, filtered.length);
 
-  if (isLoading && !data) return <PageLoader />;
+  if (isLoading && !data) return <ListPageSkeleton kpiCount={4} />;
   if (error) {
     return <ErrorState message={error.message} onRetry={() => void mutate()} />;
   }
@@ -136,7 +141,7 @@ export function UsersPage() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-text-primary">
+        <h1 className="hidden text-2xl font-semibold text-text-primary sm:block">
           User Management
         </h1>
         <p className="mt-1 max-w-2xl text-sm text-text-secondary">
@@ -177,11 +182,11 @@ export function UsersPage() {
       </div>
 
       <Card className="!p-4">
-        <div className="flex flex-col gap-3 lg:flex-row lg:items-center">
-          <label className="relative min-w-0 flex-1">
+        <div className="space-y-3">
+          <label className="relative block w-full">
             <span className="sr-only">Search users</span>
             <Search
-              className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted"
+              className="pointer-events-none absolute left-4 top-1/2 h-4 w-4 -translate-y-1/2 text-text-muted"
               aria-hidden
             />
             <input
@@ -191,177 +196,197 @@ export function UsersPage() {
                 setPage(1);
               }}
               placeholder="Search by name, email, phone, or ID…"
-              className="h-11 w-full rounded-xl border border-border bg-canvas pl-10 pr-3 text-sm text-text-primary placeholder:text-text-muted focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+              className={searchControlClass}
             />
           </label>
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-3 lg:flex">
-            <FilterSelect
-              value={status}
-              onChange={(v) => {
-                setStatus(v as '' | MarketplaceUserStatus);
-                setPage(1);
-              }}
-              options={[
-                { value: '', label: 'All Status' },
-                { value: 'active', label: 'Active' },
-                { value: 'inactive', label: 'Inactive' },
-              ]}
-            />
-            <FilterSelect
-              value={city}
-              onChange={(v) => {
-                setCity(v);
-                setPage(1);
-              }}
-              options={[
-                { value: '', label: 'All Cities' },
-                ...cities.map((c) => ({ value: c, label: c })),
-              ]}
-            />
-            <FilterSelect
-              value={rboId}
-              onChange={(v) => {
-                setRboId(v);
-                setPage(1);
-              }}
-              options={[
-                { value: '', label: 'All RBOs' },
-                { value: '__none__', label: 'No RBO linked' },
-                ...(rbos ?? []).map((r) => ({
-                  value: r.id,
-                  label: r.businessName,
-                })),
-              ]}
-            />
+          <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
+            <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-3">
+              <FilterSelect
+                value={status}
+                onChange={(v) => {
+                  setStatus(v as '' | MarketplaceUserStatus);
+                  setPage(1);
+                }}
+                options={[
+                  { value: '', label: 'All Status' },
+                  { value: 'active', label: 'Active' },
+                  { value: 'inactive', label: 'Inactive' },
+                ]}
+              />
+              <FilterSelect
+                value={city}
+                onChange={(v) => {
+                  setCity(v);
+                  setPage(1);
+                }}
+                options={[
+                  { value: '', label: 'All Cities' },
+                  ...cities.map((c) => ({ value: c, label: c })),
+                ]}
+              />
+              <FilterSelect
+                value={rboId}
+                onChange={(v) => {
+                  setRboId(v);
+                  setPage(1);
+                }}
+                options={[
+                  { value: '', label: 'All RBOs' },
+                  { value: '__none__', label: 'No RBO linked' },
+                  ...(rbos ?? []).map((r) => ({
+                    value: r.id,
+                    label: r.businessName,
+                  })),
+                ]}
+              />
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              className="shrink-0 self-start"
+              onClick={() => toast('Export CSV coming soon', 'info')}
+            >
+              <Download className="h-4 w-4" aria-hidden />
+              Export
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            className="shrink-0"
-            onClick={() => toast('Export CSV coming soon', 'info')}
-          >
-            <Download className="h-4 w-4" aria-hidden />
-            Export
-          </Button>
         </div>
       </Card>
 
       {pageRows.length === 0 ? (
         <EmptyState title="No users match filters" />
       ) : (
-        <TableShell>
-          <Table>
-            <thead>
-              <tr>
-                <Th>User</Th>
-                <Th>Contact</Th>
-                <Th>Location</Th>
-                <Th>RBO</Th>
-                <Th>Joined On</Th>
-                <Th>Status</Th>
-                <Th className="text-right">Actions</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {pageRows.map((user, idx) => {
-                const tone =
+        <>
+          <div className="space-y-3 lg:hidden">
+            {pageRows.map((user, idx) => (
+              <UserMobileCard
+                key={user.id}
+                user={user}
+                avatarTone={
                   AVATAR_TONES[
                     (safePage * PAGE_SIZE + idx) % AVATAR_TONES.length
-                  ];
-                return (
-                  <tr key={user.id} className="hover:bg-accent-muted/30">
-                    <Td>
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={cn(
-                            'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
-                            tone,
-                          )}
-                          aria-hidden
-                        >
-                          {initials(user.name)}
-                        </span>
+                  ]
+                }
+                rboName={user.rboId ? (rboMap.get(user.rboId) ?? null) : null}
+                onMore={() => toast('More actions coming soon', 'info')}
+              />
+            ))}
+          </div>
+
+          <TableShell className="hidden lg:block">
+            <Table>
+              <thead>
+                <tr>
+                  <Th>User</Th>
+                  <Th>Contact</Th>
+                  <Th>Location</Th>
+                  <Th>RBO</Th>
+                  <Th>Joined On</Th>
+                  <Th>Status</Th>
+                  <Th className="text-right">Actions</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {pageRows.map((user, idx) => {
+                  const tone =
+                    AVATAR_TONES[
+                      (safePage * PAGE_SIZE + idx) % AVATAR_TONES.length
+                    ];
+                  return (
+                    <tr key={user.id} className="hover:bg-accent-muted/30">
+                      <Td>
+                        <div className="flex items-center gap-3">
+                          <span
+                            className={cn(
+                              'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
+                              tone,
+                            )}
+                            aria-hidden
+                          >
+                            {initials(user.name)}
+                          </span>
+                          <div className="min-w-0">
+                            <p className="truncate font-medium text-text-primary">
+                              {user.name}
+                            </p>
+                            <p className="truncate text-xs text-text-muted">
+                              {user.id.toUpperCase()}
+                            </p>
+                          </div>
+                        </div>
+                      </Td>
+                      <Td>
                         <div className="min-w-0">
-                          <p className="truncate font-medium text-text-primary">
-                            {user.name}
+                          <p className="truncate text-sm text-text-primary">
+                            {user.email}
                           </p>
                           <p className="truncate text-xs text-text-muted">
-                            {user.id.toUpperCase()}
+                            {user.phone}
                           </p>
                         </div>
-                      </div>
-                    </Td>
-                    <Td>
-                      <div className="min-w-0">
-                        <p className="truncate text-sm text-text-primary">
-                          {user.email}
-                        </p>
-                        <p className="truncate text-xs text-text-muted">
-                          {user.phone}
-                        </p>
-                      </div>
-                    </Td>
-                    <Td>
-                      <div className="flex items-start gap-1.5">
-                        <MapPin
-                          className="mt-0.5 h-3.5 w-3.5 shrink-0 text-text-muted"
-                          aria-hidden
-                        />
-                        <div className="min-w-0">
-                          <p className="text-sm text-text-primary">
-                            {user.city}, {user.state}
-                          </p>
-                          <p className="text-xs text-text-muted">
-                            {user.pincode}
-                          </p>
+                      </Td>
+                      <Td>
+                        <div className="flex items-start gap-1.5">
+                          <MapPin
+                            className="mt-0.5 h-3.5 w-3.5 shrink-0 text-text-muted"
+                            aria-hidden
+                          />
+                          <div className="min-w-0">
+                            <p className="text-sm text-text-primary">
+                              {user.city}, {user.state}
+                            </p>
+                            <p className="text-xs text-text-muted">
+                              {user.pincode}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                    </Td>
-                    <Td>
-                      {user.rboId ? (
-                        <Link
-                          to={`/rbos/${user.rboId}`}
-                          className="text-sm text-text-primary hover:text-accent"
-                        >
-                          {rboMap.get(user.rboId) ?? user.rboId}
-                        </Link>
-                      ) : (
-                        <span className="text-sm text-text-muted">—</span>
-                      )}
-                    </Td>
-                    <Td className="whitespace-nowrap text-sm text-text-secondary">
-                      {formatDateTime(user.joinedAt)}
-                    </Td>
-                    <Td>
-                      <StatusPill status={user.status} />
-                    </Td>
-                    <Td>
-                      <div className="flex items-center justify-end gap-1">
-                        <Link
-                          to={`/users/${user.id}`}
-                          className="inline-flex h-9 items-center gap-1.5 rounded-lg border border-border px-3 text-sm font-medium text-text-secondary hover:border-accent hover:text-accent"
-                        >
-                          <Eye className="h-3.5 w-3.5" aria-hidden />
-                          View
-                        </Link>
-                        <button
-                          type="button"
-                          className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-border text-text-secondary hover:border-accent hover:text-text-primary"
-                          aria-label={`More actions for ${user.name}`}
-                          onClick={() =>
-                            toast('More actions coming soon', 'info')
-                          }
-                        >
-                          <MoreVertical className="h-4 w-4" aria-hidden />
-                        </button>
-                      </div>
-                    </Td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </Table>
-        </TableShell>
+                      </Td>
+                      <Td>
+                        {user.rboId ? (
+                          <Link
+                            to={`/rbos/${user.rboId}`}
+                            className="text-sm text-text-primary hover:text-accent"
+                          >
+                            {rboMap.get(user.rboId) ?? user.rboId}
+                          </Link>
+                        ) : (
+                          <span className="text-sm text-text-muted">—</span>
+                        )}
+                      </Td>
+                      <Td className="whitespace-nowrap text-sm text-text-secondary">
+                        {formatDateTime(user.joinedAt)}
+                      </Td>
+                      <Td>
+                        <StatusPill status={user.status} />
+                      </Td>
+                      <Td>
+                        <div className="flex items-center justify-end gap-1">
+                          <Link
+                            to={`/users/${user.id}`}
+                            className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border px-3 text-sm font-medium text-text-secondary hover:border-accent hover:text-accent"
+                          >
+                            <Eye className="h-3.5 w-3.5" aria-hidden />
+                            View
+                          </Link>
+                          <button
+                            type="button"
+                            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border text-text-secondary hover:border-accent hover:text-text-primary"
+                            aria-label={`More actions for ${user.name}`}
+                            onClick={() =>
+                              toast('More actions coming soon', 'info')
+                            }
+                          >
+                            <MoreVertical className="h-4 w-4" aria-hidden />
+                          </button>
+                        </div>
+                      </Td>
+                    </tr>
+                  );
+                })}
+              </tbody>
+            </Table>
+          </TableShell>
+        </>
       )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -432,7 +457,7 @@ function FilterSelect({
     <select
       value={value}
       onChange={(e) => onChange(e.target.value)}
-      className="h-11 min-w-[9rem] rounded-xl border border-border bg-surface px-3 text-sm text-text-primary focus:border-accent focus:outline-none focus:ring-2 focus:ring-accent/30"
+      className={filterSelectClass}
     >
       {options.map((o) => (
         <option key={o.value || o.label} value={o.value}>
@@ -493,7 +518,7 @@ function Pagination({
           type="button"
           onClick={() => onChange(p)}
           className={cn(
-            'inline-flex h-9 min-w-9 items-center justify-center rounded-lg text-sm font-medium',
+            'inline-flex h-9 min-w-9 items-center justify-center rounded-full text-sm font-medium',
             p === page
               ? 'bg-accent text-text-on-accent'
               : 'text-text-secondary hover:bg-accent-muted hover:text-text-primary',

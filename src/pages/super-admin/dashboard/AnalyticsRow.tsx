@@ -4,6 +4,7 @@ import {
   ShieldAlert,
   Store,
 } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Area,
@@ -24,7 +25,15 @@ import {
   CHART_TOOLTIP_STYLE,
 } from '@/components/charts/chart-theme';
 import { Card } from '@/components/ui/Card';
+import { Tabs } from '@/components/ui/Tabs';
+import {
+  BOOKING_SERIES_GRANULARITY,
+  buildDailyBookingSeries,
+  groupBookingSeries,
+  type BookingSeriesGranularity,
+} from '@/lib/booking-series';
 import { BOOKING_VALUE_LABEL } from '@/lib/metrics';
+import { formatDateRangeLabel } from '@/lib/date-range';
 import { cn, formatInr, formatInrCrore } from '@/lib/utils';
 import type { DashboardKpis, ReportOverview } from '@/types';
 
@@ -37,10 +46,26 @@ import type { DashboardKpis, ReportOverview } from '@/types';
 export function AnalyticsRow({
   kpis,
   overview,
+  rangeFrom,
+  rangeTo,
 }: {
   kpis: DashboardKpis;
   overview?: ReportOverview;
+  rangeFrom: string;
+  rangeTo: string;
 }) {
+  const [granularity, setGranularity] =
+    useState<BookingSeriesGranularity>('day');
+
+  const bookingSeries = useMemo(() => {
+    const daily = buildDailyBookingSeries(
+      rangeFrom,
+      rangeTo,
+      kpis.revenueInr,
+    );
+    return groupBookingSeries(daily, granularity);
+  }, [granularity, kpis.revenueInr, rangeFrom, rangeTo]);
+
   const distribution = overview?.salesByCategory ?? [];
   const totalBookings = kpis.bookingsTrend.reduce((s, d) => s + d.count, 0);
   const distTotal = distribution.reduce((s, d) => s + d.value, 0);
@@ -83,30 +108,32 @@ export function AnalyticsRow({
   };
 
   return (
-    <div className="space-y-4">
-      <div className="grid grid-cols-1 gap-4 xl:grid-cols-12">
+    <div className="space-y-3 sm:space-y-4">
+      <div className="grid grid-cols-1 gap-3 sm:gap-4 xl:grid-cols-12">
         <Card className="xl:col-span-8">
-          <div className="mb-4 flex flex-wrap items-start justify-between gap-3">
+          <div className="mb-3 flex flex-wrap items-start justify-between gap-2 sm:mb-4 sm:gap-3">
             <div>
-              <h2 className="text-base font-semibold text-text-primary">
+              <h2 className="text-sm font-semibold text-text-primary sm:text-base">
                 {BOOKING_VALUE_LABEL} overview
               </h2>
-              <p className="mt-1.5 text-3xl font-semibold tabular-nums text-accent">
+              <p className="mt-1 text-2xl font-semibold tabular-nums text-accent sm:mt-1.5 sm:text-3xl">
                 {formatInrCrore(kpis.revenueInr)}
               </p>
             </div>
-            <div className="flex gap-1.5">
+            <div className="flex flex-col items-start gap-2 sm:items-end">
               <span className="rounded-full border border-accent/40 bg-accent-muted px-3 py-1 text-xs font-medium text-accent">
-                This month
+                {formatDateRangeLabel(rangeFrom, rangeTo)}
               </span>
-              <span className="rounded-full border border-border px-3 py-1 text-xs font-medium text-text-muted">
-                Daily
-              </span>
+              <Tabs
+                items={BOOKING_SERIES_GRANULARITY}
+                value={granularity}
+                onChange={setGranularity}
+              />
             </div>
           </div>
-          <div className="h-64 sm:h-72">
+          <div className="h-48 sm:h-72">
             <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={kpis.monthBookingSeries}>
+              <AreaChart data={bookingSeries}>
                 <defs>
                   <linearGradient id="monthFill" x1="0" y1="0" x2="0" y2="1">
                     <stop offset="0%" stopColor="var(--accent)" stopOpacity={0.4} />
@@ -123,6 +150,8 @@ export function AnalyticsRow({
                   stroke={CHART_AXIS}
                   fontSize={12}
                   tickLine={false}
+                  minTickGap={16}
+                  interval="preserveStartEnd"
                 />
                 <YAxis
                   stroke={CHART_AXIS}
@@ -202,7 +231,7 @@ export function AnalyticsRow({
               +{kpis.bookingsTrendDeltaPct.toFixed(1)}%
             </span>
           </div>
-          <div className="h-56">
+          <div className="h-44 sm:h-56">
             <ResponsiveContainer width="100%" height="100%">
               <AreaChart data={kpis.bookingsTrend}>
                 <defs>
