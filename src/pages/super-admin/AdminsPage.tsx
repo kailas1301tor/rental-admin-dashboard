@@ -4,6 +4,7 @@ import { apiDelete, apiPatch, apiPost } from '@/api/axios-helpers';
 import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
+import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -18,23 +19,20 @@ import {
 import { ListPageSkeleton } from '@/components/ui/skeletons';
 import { Table, TableShell, Td, Th } from '@/components/ui/Table';
 import { useToast } from '@/components/ui/Toast';
+import { useListFilters } from '@/hooks/useListFilters';
 import { AdminMobileCard } from '@/pages/super-admin/admins/AdminMobileCard';
-import {
-  adminTierLabel,
-  departmentLabel,
-  HOD_DEPARTMENTS,
-} from '@/lib/departments';
+import { adminTierLabel, departmentLabel } from '@/lib/departments';
+import { districtLabel } from '@/lib/kerala-districts';
 import { cn, formatDateTime } from '@/lib/utils';
 import type {
   AdminTier,
-  HodDepartment,
+  Department,
   PlatformAdmin,
   PlatformAdminWrite,
 } from '@/types';
 
 const SUPER_CAP = 2;
 const GENERAL_CAP = 2;
-const HOD_CAP = HOD_DEPARTMENTS.length;
 
 type FormState = {
   tier: 'general_admin' | 'department_admin';
@@ -43,7 +41,7 @@ type FormState = {
   email: string;
   address: string;
   password: string;
-  department: HodDepartment | '';
+  departmentId: string;
 };
 
 const emptyForm: FormState = {
@@ -53,7 +51,7 @@ const emptyForm: FormState = {
   email: '',
   address: '',
   password: '',
-  department: '',
+  departmentId: '',
 };
 
 function initials(name: string) {
@@ -70,6 +68,8 @@ export function AdminsPage() {
   const { data, error, isLoading, mutate } = useApiSWR<PlatformAdmin[]>(
     ENDPOINTS.admins,
   );
+  const { data: deptData } = useApiSWR<Department[]>(ENDPOINTS.departments);
+  const { filters, setFilters, reset, matchesDistrict } = useListFilters();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<PlatformAdmin | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -78,7 +78,13 @@ export function AdminsPage() {
     null,
   );
 
-  const admins = data ?? [];
+  const deptList = deptData ?? [];
+  const HOD_CAP = deptList.length;
+
+  const admins = useMemo(() => {
+    return (data ?? []).filter((a) => matchesDistrict(a.districtId));
+  }, [data, matchesDistrict]);
+
   const supers = useMemo(
     () => admins.filter((a) => a.tier === 'super_admin'),
     [admins],
@@ -87,28 +93,31 @@ export function AdminsPage() {
     () => admins.filter((a) => a.tier === 'general_admin'),
     [admins],
   );
-  const departments = useMemo(
+  const departmentAdmins = useMemo(
     () => admins.filter((a) => a.tier === 'department_admin'),
     [admins],
   );
 
-  const filledDepartments = useMemo(
+  const filledDepartmentIds = useMemo(
     () =>
       new Set(
-        departments
-          .map((d) => d.department)
-          .filter((d): d is HodDepartment => Boolean(d)),
+        departmentAdmins
+          .map((d) => d.departmentId)
+          .filter((id): id is string => Boolean(id)),
       ),
-    [departments],
+    [departmentAdmins],
   );
 
-  const vacantDepartments = HOD_DEPARTMENTS.filter(
+  const vacantDepartments = deptList.filter(
     (d) =>
-      !filledDepartments.has(d) ||
-      (editing?.tier === 'department_admin' && editing.department === d),
+      d.status === 'active' &&
+      (!d.hodAdminId ||
+        !filledDepartmentIds.has(d.id) ||
+        (editing?.tier === 'department_admin' &&
+          editing.departmentId === d.id)),
   );
 
-  const hodSeatsLeft = HOD_CAP - departments.length;
+  const hodSeatsLeft = HOD_CAP - departmentAdmins.length;
   const canAdd =
     generals.length < GENERAL_CAP || vacantDepartments.length > 0;
 
@@ -128,7 +137,7 @@ export function AdminsPage() {
       email: admin.email,
       address: admin.address,
       password: '',
-      department: admin.department ?? '',
+      departmentId: admin.departmentId ?? '',
     });
     setOpen(true);
   }
@@ -143,7 +152,7 @@ export function AdminsPage() {
           phone: form.phone,
           email: form.email,
           address: form.address,
-          department: form.department || undefined,
+          departmentId: form.departmentId || undefined,
         };
         if (form.password) body.password = form.password;
         await apiPatch(`${ENDPOINTS.admins}/${editing.id}`, body);
@@ -152,7 +161,7 @@ export function AdminsPage() {
         if (form.tier === 'general_admin' && generals.length >= GENERAL_CAP) {
           throw { message: 'Maximum of 2 General Admin slots' };
         }
-        if (form.tier === 'department_admin' && !form.department) {
+        if (form.tier === 'department_admin' && !form.departmentId) {
           throw { message: 'Select a department' };
         }
         const body: PlatformAdminWrite = {
@@ -162,7 +171,7 @@ export function AdminsPage() {
           email: form.email,
           address: form.address,
           password: form.password,
-          department: form.department || undefined,
+          departmentId: form.departmentId || undefined,
         };
         if (!form.password) throw { message: 'Password is required' };
         await apiPost(ENDPOINTS.admins, body);
@@ -227,6 +236,13 @@ export function AdminsPage() {
         </Button>
       </div>
 
+      <ListFilterBar
+        filters={filters}
+        onChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
+        onReset={reset}
+        showTaxonomy={false}
+      />
+
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <SummaryCard
           label="Super Admins"
@@ -252,14 +268,14 @@ export function AdminsPage() {
         />
         <SummaryCard
           label="Department HODs"
-          value={`${departments.length} / ${HOD_CAP}`}
+          value={`${departmentAdmins.length} / ${HOD_CAP}`}
           hint={`Seats available: ${Math.max(hodSeatsLeft, 0)}`}
-          progress={departments.length / HOD_CAP}
+          progress={HOD_CAP ? departmentAdmins.length / HOD_CAP : 0}
         />
         <SummaryCard
           label="Total Admins"
           value={String(admins.length)}
-          hint="Active administrators"
+          hint="Matching filters"
           spark
         />
       </div>
@@ -271,6 +287,7 @@ export function AdminsPage() {
       >
         <AdminTable
           rows={supers}
+          deptList={deptList}
           readOnly
           onEdit={openEdit}
           onFreeze={toggleFreeze}
@@ -290,6 +307,7 @@ export function AdminsPage() {
       >
         <AdminTable
           rows={generals}
+          deptList={deptList}
           onEdit={openEdit}
           onFreeze={toggleFreeze}
           onArchive={setConfirmArchive}
@@ -301,13 +319,14 @@ export function AdminsPage() {
         description="One seat per department. Vacant seats can be assigned via Add Admin."
         badge={
           <Badge tone="accent">
-            {departments.length}/{HOD_CAP} Seats used
+            {departmentAdmins.length}/{HOD_CAP} Seats used
           </Badge>
         }
-        countLabel={`${departments.length} Account${departments.length === 1 ? '' : 's'}`}
+        countLabel={`${departmentAdmins.length} Account${departmentAdmins.length === 1 ? '' : 's'}`}
       >
         <AdminTable
-          rows={departments}
+          rows={departmentAdmins}
+          deptList={deptList}
           showDepartment
           onEdit={openEdit}
           onFreeze={toggleFreeze}
@@ -317,12 +336,12 @@ export function AdminsPage() {
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
             {vacantDepartments.map((dept) => (
               <div
-                key={dept}
+                key={dept.id}
                 className="flex items-center justify-between gap-3 rounded-xl border border-dashed border-border px-3 py-2.5"
               >
                 <div>
                   <p className="text-sm font-medium text-text-primary">
-                    {departmentLabel(dept)}
+                    {dept.name}
                   </p>
                   <p className="text-xs text-text-muted">Vacant seat</p>
                 </div>
@@ -334,7 +353,7 @@ export function AdminsPage() {
                     setForm({
                       ...emptyForm,
                       tier: 'department_admin',
-                      department: dept,
+                      departmentId: dept.id,
                     });
                     setOpen(true);
                   }}
@@ -377,7 +396,7 @@ export function AdminsPage() {
                 setForm((f) => ({
                   ...f,
                   tier: e.target.value as FormState['tier'],
-                  department: '',
+                  departmentId: '',
                 }))
               }
             >
@@ -403,19 +422,19 @@ export function AdminsPage() {
           {form.tier === 'department_admin' ? (
             <Select
               label="Department"
-              value={form.department}
+              value={form.departmentId}
               onChange={(e) =>
                 setForm((f) => ({
                   ...f,
-                  department: e.target.value as HodDepartment | '',
+                  departmentId: e.target.value,
                 }))
               }
               required
             >
               <option value="">Select department</option>
               {vacantDepartments.map((d) => (
-                <option key={d} value={d}>
-                  {departmentLabel(d)}
+                <option key={d.id} value={d.id}>
+                  {d.name}
                 </option>
               ))}
             </Select>
@@ -566,9 +585,16 @@ function TierSection({
   );
 }
 
-function adminSubtitle(admin: PlatformAdmin, showDepartment?: boolean) {
-  if (showDepartment && admin.department) {
-    return departmentLabel(admin.department);
+function adminSubtitle(
+  admin: PlatformAdmin,
+  deptList: Department[],
+  showDepartment?: boolean,
+) {
+  if (showDepartment && admin.departmentId) {
+    return departmentLabel(admin.departmentId, deptList);
+  }
+  if (admin.districtId) {
+    return districtLabel(admin.districtId);
   }
   if (admin.slot) {
     return `General Admin · Slot ${admin.slot}`;
@@ -578,6 +604,7 @@ function adminSubtitle(admin: PlatformAdmin, showDepartment?: boolean) {
 
 function AdminTable({
   rows,
+  deptList,
   readOnly,
   showDepartment,
   onEdit,
@@ -585,6 +612,7 @@ function AdminTable({
   onArchive,
 }: {
   rows: PlatformAdmin[];
+  deptList: Department[];
   readOnly?: boolean;
   showDepartment?: boolean;
   onEdit: (a: PlatformAdmin) => void;
@@ -602,7 +630,7 @@ function AdminTable({
           <AdminMobileCard
             key={admin.id}
             admin={admin}
-            subtitle={adminSubtitle(admin, showDepartment)}
+            subtitle={adminSubtitle(admin, deptList, showDepartment)}
             readOnly={readOnly}
             onEdit={onEdit}
             onFreeze={onFreeze}
@@ -635,7 +663,7 @@ function AdminTable({
                         {admin.name}
                       </p>
                       <p className="truncate text-xs text-text-muted">
-                        {adminSubtitle(admin, showDepartment)}
+                        {adminSubtitle(admin, deptList, showDepartment)}
                       </p>
                     </div>
                   </div>

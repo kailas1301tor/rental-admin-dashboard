@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 import {
   Ban,
   CheckCircle2,
@@ -27,6 +27,7 @@ import { DetailPageSkeleton } from '@/components/ui/skeletons';
 import { Table, TableShell, Td, Th } from '@/components/ui/Table';
 import { useToast } from '@/components/ui/Toast';
 import { BOOKING_VALUE_LABEL } from '@/lib/metrics';
+import { categoryPathLabel } from '@/lib/category-helpers';
 import { cn, formatDateTime, formatInr } from '@/lib/utils';
 import type {
   Category,
@@ -58,11 +59,7 @@ export function RboDetailPage() {
   );
   const { data: categories } = useApiSWR<Category[]>(ENDPOINTS.categories);
 
-  const catMap = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const c of categories ?? []) m.set(c.id, c.name);
-    return m;
-  }, [categories]);
+  const catList = categories ?? [];
 
   async function patchVendor(status: string) {
     try {
@@ -162,7 +159,7 @@ export function RboDetailPage() {
                     key={cid}
                     className="rounded-full border border-accent/35 bg-accent-muted px-2.5 py-0.5 text-[11px] font-medium text-accent"
                   >
-                    {catMap.get(cid) ?? cid}
+                    {categoryPathLabel(catList, cid)}
                   </span>
                 ))}
                 <span className="rounded-full border border-border bg-canvas px-2.5 py-0.5 text-[11px] font-medium text-text-secondary">
@@ -280,7 +277,7 @@ export function RboDetailPage() {
           reviews={reviews}
           activity={activity}
           metrics={metrics}
-          catMap={catMap}
+          catList={catList}
           onShowProducts={() => setTab('products')}
           onShowStaff={() => setTab('staff')}
           onShowReviews={() => setTab('reviews')}
@@ -291,7 +288,7 @@ export function RboDetailPage() {
       {tab === 'products' ? (
         <ProductsTab
           products={products}
-          catMap={catMap}
+          catList={catList}
           onPatch={patchProduct}
         />
       ) : null}
@@ -315,7 +312,7 @@ function OverviewTab({
   reviews,
   activity,
   metrics,
-  catMap,
+  catList,
   onShowProducts,
   onShowStaff,
   onShowReviews,
@@ -326,7 +323,7 @@ function OverviewTab({
   reviews: Review[];
   activity: RboActivityEvent[];
   metrics: RboDetail['metrics'];
-  catMap: Map<string, string>;
+  catList: Category[];
   onShowProducts: () => void;
   onShowStaff: () => void;
   onShowReviews: () => void;
@@ -400,7 +397,7 @@ function OverviewTab({
                       {p.name}
                     </Link>
                     <p className="truncate text-xs text-text-muted">
-                      {catMap.get(p.categoryId) ?? p.categoryId} ·{' '}
+                      {categoryPathLabel(catList, p.categoryId)} ·{' '}
                       {formatInr(p.pricePerDayInr)}/day
                     </p>
                   </div>
@@ -449,7 +446,14 @@ function OverviewTab({
             <EmptyState title="No reviews" />
           ) : (
             <ul className="space-y-2.5">
-              {reviews.slice(0, 3).map((r) => (
+              {[...reviews]
+                .sort(
+                  (a, b) =>
+                    new Date(b.createdAt).getTime() -
+                    new Date(a.createdAt).getTime(),
+                )
+                .slice(0, 3)
+                .map((r) => (
                 <li
                   key={r.id}
                   className="rounded-xl border border-border px-3 py-2.5"
@@ -461,9 +465,14 @@ function OverviewTab({
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center justify-between gap-2">
                         <p className="text-sm font-medium text-text-primary">
-                          {r.author}
+                          {r.direction === 'posted' && r.targetName
+                            ? `${r.author} → ${r.targetName}`
+                            : r.author}
                         </p>
-                        <Stars value={r.rating} />
+                        <div className="flex items-center gap-2">
+                          <ReviewDirectionBadge direction={r.direction} />
+                          <Stars value={r.rating} />
+                        </div>
                       </div>
                       <p className="mt-1 line-clamp-2 text-xs text-text-secondary">
                         {r.body}
@@ -490,11 +499,11 @@ function OverviewTab({
 
 function ProductsTab({
   products,
-  catMap,
+  catList,
   onPatch,
 }: {
   products: Product[];
-  catMap: Map<string, string>;
+  catList: Category[];
   onPatch: (id: string, status: string) => Promise<void>;
 }) {
   if (products.length === 0) {
@@ -533,7 +542,7 @@ function ProductsTab({
                 </div>
               </Td>
               <Td className="text-sm text-text-secondary">
-                {catMap.get(p.categoryId) ?? p.categoryId}
+                {categoryPathLabel(catList, p.categoryId)}
               </Td>
               <Td>{formatInr(p.pricePerDayInr)}</Td>
               <Td>
@@ -635,63 +644,117 @@ function ReviewsTab({
   reviews: Review[];
   onPatch: (id: string, status: string) => Promise<void>;
 }) {
+  const [direction, setDirection] = useState<'received' | 'posted'>('received');
+  const filtered = reviews.filter((r) => r.direction === direction);
+
   if (reviews.length === 0) return <EmptyState title="No reviews" />;
+
   return (
-    <TableShell>
-      <Table>
-        <thead>
-          <tr>
-            <Th>Author</Th>
-            <Th>Rating</Th>
-            <Th>Review</Th>
-            <Th>Status</Th>
-            <Th className="text-right">Actions</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {reviews.map((r) => (
-            <tr key={r.id}>
-              <Td>{r.author}</Td>
-              <Td>
-                <div className="flex items-center gap-1.5">
-                  <span className="tabular-nums">{r.rating}</span>
-                  <Stars value={r.rating} />
-                </div>
-              </Td>
-              <Td className="max-w-xs truncate">{r.body}</Td>
-              <Td>
-                <span className="text-xs capitalize text-text-secondary">
-                  {r.status}
-                </span>
-              </Td>
-              <Td>
-                <div className="flex flex-wrap justify-end gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                      void onPatch(
-                        r.id,
-                        r.status === 'frozen' ? 'visible' : 'frozen',
-                      )
-                    }
-                  >
-                    {r.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void onPatch(r.id, 'hidden')}
-                  >
-                    Hide
-                  </Button>
-                </div>
-              </Td>
-            </tr>
-          ))}
-        </tbody>
-      </Table>
-    </TableShell>
+    <div className="space-y-4">
+      <div className="inline-flex rounded-lg border border-border bg-canvas p-1">
+        {(['received', 'posted'] as const).map((d) => (
+          <button
+            key={d}
+            type="button"
+            onClick={() => setDirection(d)}
+            className={cn(
+              'rounded-md px-3 py-1.5 text-sm font-medium capitalize transition-colors',
+              direction === d
+                ? 'bg-surface text-text-primary shadow-sm'
+                : 'text-text-secondary hover:text-text-primary',
+            )}
+          >
+            {d} ({reviews.filter((r) => r.direction === d).length})
+          </button>
+        ))}
+      </div>
+
+      {filtered.length === 0 ? (
+        <EmptyState title={`No ${direction} reviews`} />
+      ) : (
+        <TableShell>
+          <Table>
+            <thead>
+              <tr>
+                <Th>{direction === 'posted' ? 'Author / Target' : 'Author'}</Th>
+                <Th>Rating</Th>
+                <Th>Review</Th>
+                <Th>Status</Th>
+                <Th className="text-right">Actions</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((r) => (
+                <tr key={r.id}>
+                  <Td>
+                    <p className="text-sm text-text-primary">{r.author}</p>
+                    {direction === 'posted' && r.targetName ? (
+                      <p className="text-xs text-text-muted">
+                        → {r.targetName}
+                      </p>
+                    ) : null}
+                  </Td>
+                  <Td>
+                    <div className="flex items-center gap-1.5">
+                      <span className="tabular-nums">{r.rating}</span>
+                      <Stars value={r.rating} />
+                    </div>
+                  </Td>
+                  <Td className="max-w-xs truncate">{r.body}</Td>
+                  <Td>
+                    <span className="text-xs capitalize text-text-secondary">
+                      {r.status}
+                    </span>
+                  </Td>
+                  <Td>
+                    <div className="flex flex-wrap justify-end gap-2">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() =>
+                          void onPatch(
+                            r.id,
+                            r.status === 'frozen' ? 'visible' : 'frozen',
+                          )
+                        }
+                      >
+                        {r.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => void onPatch(r.id, 'hidden')}
+                      >
+                        Hide
+                      </Button>
+                    </div>
+                  </Td>
+                </tr>
+              ))}
+            </tbody>
+          </Table>
+        </TableShell>
+      )}
+    </div>
+  );
+}
+
+function ReviewDirectionBadge({
+  direction,
+}: {
+  direction: Review['direction'];
+}) {
+  return (
+    <span
+      className={cn(
+        'rounded-full px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide',
+        direction === 'received'
+          ? 'bg-accent-muted text-accent'
+          : 'bg-warning-muted text-warning',
+      )}
+    >
+      {direction}
+    </span>
   );
 }
 

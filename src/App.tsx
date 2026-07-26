@@ -10,6 +10,7 @@ import { AdminsPage } from '@/pages/super-admin/AdminsPage';
 import { ApprovalOverridesPage } from '@/pages/super-admin/ApprovalOverridesPage';
 import { CategoriesPage } from '@/pages/super-admin/CategoriesPage';
 import { DashboardPage } from '@/pages/super-admin/DashboardPage';
+import { DepartmentsPage } from '@/pages/super-admin/DepartmentsPage';
 import { LoginAlertsPage } from '@/pages/super-admin/LoginAlertsPage';
 import { ProductDetailPage } from '@/pages/super-admin/ProductDetailPage';
 import { ProductsPage } from '@/pages/super-admin/ProductsPage';
@@ -45,6 +46,7 @@ export default function App() {
                     <Route index element={<DashboardPage />} />
                     <Route path="admins" element={<AdminsPage />} />
                     <Route path="staff" element={<StaffPage />} />
+                    <Route path="departments" element={<DepartmentsPage />} />
                     <Route path="rbos" element={<RbosPage />} />
                     <Route path="rbos/:id" element={<RboDetailPage />} />
                     <Route path="products" element={<ProductsPage />} />

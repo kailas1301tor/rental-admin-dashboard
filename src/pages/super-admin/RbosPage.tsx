@@ -4,7 +4,6 @@ import {
   MoreHorizontal,
   Plus,
   Search,
-  SlidersHorizontal,
   Star,
   Store,
   UserPlus,
@@ -14,6 +13,7 @@ import {
 import { Link, useSearchParams } from 'react-router-dom';
 import { useApiSWR } from '@/api/swr-helpers';
 import { ENDPOINTS } from '@/api/endpoints';
+import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import {
@@ -28,7 +28,9 @@ import {
   searchControlClass,
 } from '@/components/ui/control-styles';
 import { RboMobileCard } from '@/pages/super-admin/rbos/RboMobileCard';
+import { categoryPathLabel } from '@/lib/category-helpers';
 import { cn, formatDateTime } from '@/lib/utils';
+import { useListFilters } from '@/hooks/useListFilters';
 import type { Category, RboStatus, RboVendor } from '@/types';
 
 type Tab = 'all' | 'onboarding' | 'rejected';
@@ -82,21 +84,19 @@ export function RbosPage() {
   const [tab, setTab] = useState<Tab>(() => parseTab(searchParams.get('tab')));
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<RboStatus | 'all'>('all');
-  const [categoryFilter, setCategoryFilter] = useState('all');
   const [joinedFilter, setJoinedFilter] = useState<JoinedFilter>('all');
   const [ratingFilter, setRatingFilter] = useState<RatingFilter>('all');
   const [page, setPage] = useState(1);
+
+  const { filters, setFilters, reset, matchesDistrict, matchesTaxonomy } =
+    useListFilters();
 
   const { data, error, isLoading, mutate } = useApiSWR<RboVendor[]>(
     ENDPOINTS.rbos,
   );
   const { data: categories } = useApiSWR<Category[]>(ENDPOINTS.categories);
 
-  const catMap = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const c of categories ?? []) m.set(c.id, c.name);
-    return m;
-  }, [categories]);
+  const catList = categories ?? [];
 
   const list = data ?? [];
 
@@ -127,15 +127,11 @@ export function RbosPage() {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return list.filter((r) => {
+      if (!matchesDistrict(r.districtId)) return false;
+      if (!matchesTaxonomy(r.categoryIds, catList)) return false;
       if (tab === 'onboarding' && r.status !== 'onboarding') return false;
       if (tab === 'rejected' && r.status !== 'rejected') return false;
       if (statusFilter !== 'all' && r.status !== statusFilter) return false;
-      if (
-        categoryFilter !== 'all' &&
-        !r.categoryIds.includes(categoryFilter)
-      ) {
-        return false;
-      }
       if (!withinJoined(r.createdAt, joinedFilter)) return false;
       if (!matchesRating(r.ratingAvg, ratingFilter)) return false;
       if (!q) return true;
@@ -152,9 +148,11 @@ export function RbosPage() {
     tab,
     query,
     statusFilter,
-    categoryFilter,
     joinedFilter,
     ratingFilter,
+    matchesDistrict,
+    matchesTaxonomy,
+    catList,
   ]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
@@ -225,8 +223,12 @@ export function RbosPage() {
         />
       </div>
 
-      <Card className="!p-4">
-        <div className="space-y-3">
+      <ListFilterBar
+        filters={filters}
+        onChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
+        onReset={reset}
+        categories={catList}
+        search={
           <label className="relative block w-full">
             <span className="sr-only">Search vendors</span>
             <Search
@@ -243,87 +245,58 @@ export function RbosPage() {
               className={searchControlClass}
             />
           </label>
-
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-            <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-4">
-              <FilterSelect
-                value={statusFilter}
-                onChange={(v) => {
-                  setStatusFilter(v as RboStatus | 'all');
-                  setPage(1);
-                }}
-                options={[
-                  { value: 'all', label: 'Status' },
-                  { value: 'active', label: 'Active' },
-                  { value: 'onboarding', label: 'Onboarding' },
-                  { value: 'rejected', label: 'Rejected' },
-                  { value: 'frozen', label: 'Frozen' },
-                ]}
-              />
-              <FilterSelect
-                value={categoryFilter}
-                onChange={(v) => {
-                  setCategoryFilter(v);
-                  setPage(1);
-                }}
-                options={[
-                  { value: 'all', label: 'Category' },
-                  ...(categories ?? []).map((c) => ({
-                    value: c.id,
-                    label: c.name,
-                  })),
-                ]}
-              />
-              <FilterSelect
-                value={joinedFilter}
-                onChange={(v) => {
-                  setJoinedFilter(v as JoinedFilter);
-                  setPage(1);
-                }}
-                options={[
-                  { value: 'all', label: 'Joined' },
-                  { value: '30d', label: 'Last 30 days' },
-                  { value: '90d', label: 'Last 90 days' },
-                  { value: '1y', label: 'Last year' },
-                ]}
-              />
-              <FilterSelect
-                value={ratingFilter}
-                onChange={(v) => {
-                  setRatingFilter(v as RatingFilter);
-                  setPage(1);
-                }}
-                options={[
-                  { value: 'all', label: 'Rating' },
-                  { value: '4+', label: '4.0+' },
-                  { value: '3+', label: '3.0+' },
-                  { value: 'below3', label: 'Below 3' },
-                ]}
-              />
-            </div>
-            <div className="flex shrink-0 flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  toast('Advanced filters ship with the API', 'info')
-                }
-              >
-                <SlidersHorizontal className="h-4 w-4" aria-hidden />
-                More Filters
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => toast('Export CSV coming soon', 'info')}
-              >
-                <Download className="h-4 w-4" aria-hidden />
-                Export
-              </Button>
-            </div>
-          </div>
-        </div>
-      </Card>
+        }
+      >
+        <FilterSelect
+          value={statusFilter}
+          onChange={(v) => {
+            setStatusFilter(v as RboStatus | 'all');
+            setPage(1);
+          }}
+          options={[
+            { value: 'all', label: 'Status' },
+            { value: 'active', label: 'Active' },
+            { value: 'onboarding', label: 'Onboarding' },
+            { value: 'rejected', label: 'Rejected' },
+            { value: 'frozen', label: 'Frozen' },
+          ]}
+        />
+        <FilterSelect
+          value={joinedFilter}
+          onChange={(v) => {
+            setJoinedFilter(v as JoinedFilter);
+            setPage(1);
+          }}
+          options={[
+            { value: 'all', label: 'Joined' },
+            { value: '30d', label: 'Last 30 days' },
+            { value: '90d', label: 'Last 90 days' },
+            { value: '1y', label: 'Last year' },
+          ]}
+        />
+        <FilterSelect
+          value={ratingFilter}
+          onChange={(v) => {
+            setRatingFilter(v as RatingFilter);
+            setPage(1);
+          }}
+          options={[
+            { value: 'all', label: 'Rating' },
+            { value: '4+', label: '4.0+' },
+            { value: '3+', label: '3.0+' },
+            { value: 'below3', label: 'Below 3' },
+          ]}
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          className="self-end"
+          onClick={() => toast('Export CSV coming soon', 'info')}
+        >
+          <Download className="h-4 w-4" aria-hidden />
+          Export
+        </Button>
+      </ListFilterBar>
 
       <div className="space-y-4">
         <div
@@ -376,8 +349,8 @@ export function RbosPage() {
                 <RboMobileCard
                   key={r.id}
                   vendor={r}
-                  categoryNames={r.categoryIds.map(
-                    (id) => catMap.get(id) ?? id,
+                  categoryNames={r.categoryIds.map((id) =>
+                    categoryPathLabel(catList, id),
                   )}
                   onMore={() =>
                     toast('More actions available on vendor detail', 'info')
@@ -443,7 +416,7 @@ export function RbosPage() {
                                   CAT_TONES[i % CAT_TONES.length],
                                 )}
                               >
-                                {catMap.get(id) ?? id}
+                                {categoryPathLabel(catList, id)}
                               </span>
                             ))
                           )}

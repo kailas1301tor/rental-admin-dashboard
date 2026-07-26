@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import {
+  Building2,
   ClipboardCheck,
   ContactRound,
   FileText,
@@ -41,6 +42,7 @@ export const SUPER_ADMIN_NAV: NavItem[] = [
   { to: '/', label: 'Dashboard', end: true, icon: LayoutDashboard, section: 'operations' },
   { to: '/admins', label: 'Admins', icon: UserCog, section: 'operations' },
   { to: '/staff', label: 'Staff', icon: Users, section: 'operations' },
+  { to: '/departments', label: 'Departments', icon: Building2, section: 'operations' },
   { to: '/rbos', label: 'RBOs', icon: Store, section: 'operations' },
   { to: '/products', label: 'Products', icon: Package, section: 'operations' },
   { to: '/categories', label: 'Categories', icon: Layers3, section: 'operations' },

@@ -4,14 +4,16 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { cn, formatDateTime } from '@/lib/utils';
 import { departmentLabel } from '@/lib/departments';
-import type { PlatformStaff } from '@/types';
+import type { Department, PlatformStaff } from '@/types';
 
 export function StaffMobileCard({
   staff,
+  deptList,
   onEdit,
   onToggleFreeze,
 }: {
   staff: PlatformStaff;
+  deptList: Department[];
   onEdit: () => void;
   onToggleFreeze: () => void;
 }) {
@@ -36,7 +38,7 @@ export function StaffMobileCard({
                 {staff.name}
               </p>
               <p className="mt-0.5 truncate text-xs text-text-muted">
-                {departmentLabel(staff.department)}
+                {departmentLabel(staff.departmentId, deptList)}
               </p>
             </div>
             <ChevronDown
@@ -66,7 +68,7 @@ export function StaffMobileCard({
           <DetailField label="Phone" value={staff.phone} />
           <DetailField
             label="Department"
-            value={departmentLabel(staff.department)}
+            value={departmentLabel(staff.departmentId, deptList)}
           />
           <DetailField label="Joined" value={formatDateTime(staff.createdAt)} />
 

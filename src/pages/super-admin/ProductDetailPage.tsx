@@ -25,10 +25,12 @@ import {
 import { DetailPageSkeleton } from '@/components/ui/skeletons';
 import { Table, TableShell, Td, Th } from '@/components/ui/Table';
 import { useToast } from '@/components/ui/Toast';
+import { categoryPathLabel } from '@/lib/category-helpers';
 import { BOOKING_VALUE_LABEL } from '@/lib/metrics';
 import { cn, formatDateTime, formatInr } from '@/lib/utils';
 import type {
   BookingSummary,
+  Category,
   ProductDetail,
   ProductStatus,
   Review,
@@ -54,6 +56,9 @@ export function ProductDetailPage() {
   const { data, error, isLoading, mutate } = useApiSWR<ProductDetail>(
     id ? `${ENDPOINTS.products}/${id}` : null,
   );
+  const { data: categories } = useApiSWR<Category[]>(ENDPOINTS.categories);
+
+  const catList = categories ?? [];
 
   async function setStatus(status: ProductStatus) {
     try {
@@ -74,7 +79,6 @@ export function ProductDetailPage() {
   const {
     product,
     rbo,
-    category,
     reviews,
     bookings,
     createdAt,
@@ -84,6 +88,7 @@ export function ProductDetailPage() {
     activity,
     metrics,
   } = data;
+  const categoryLabel = categoryPathLabel(catList, product.categoryId);
   const images = product.images.length ? product.images : [''];
   const thumbLimit = 4;
   const extraThumbs = Math.max(0, images.length - thumbLimit);
@@ -209,7 +214,7 @@ export function ProductDetailPage() {
                 {rbo.businessName}
               </Link>
               <span className="mx-1.5 text-text-muted">·</span>
-              {category.name}
+              {categoryLabel}
             </p>
             <div className="mt-3 flex flex-wrap gap-1.5">
               <MetaPill label={`RBO ID: ${rbo.id.toUpperCase()}`} />
@@ -315,7 +320,7 @@ export function ProductDetailPage() {
               Product information
             </h2>
             <dl className="grid grid-cols-1 gap-x-8 gap-y-3 text-sm sm:grid-cols-2">
-              <InfoRow label="Category" value={category.name} />
+              <InfoRow label="Category" value={categoryLabel} />
               <InfoRow
                 label="RBO"
                 value={

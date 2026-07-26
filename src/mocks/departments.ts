@@ -1,0 +1,60 @@
+import type { Department } from '@/types';
+
+export const mockDepartments: Department[] = [
+  {
+    id: 'dep-onboarding',
+    name: 'Onboarding, Compliance & Marketing',
+    description: 'Vendor onboarding, compliance checks, and marketing ops.',
+    status: 'active',
+    hodAdminId: 'hod-onboard',
+    createdAt: '2025-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'dep-user-verification',
+    name: 'User Verification & Escalation',
+    description: 'Identity verification and escalation handling.',
+    status: 'active',
+    hodAdminId: null,
+    createdAt: '2025-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'dep-operations',
+    name: 'Operations',
+    description: 'Day-to-day platform operations.',
+    status: 'active',
+    hodAdminId: 'hod-ops',
+    createdAt: '2025-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'dep-deal-desk',
+    name: 'Call Center / Deal Desk',
+    description: 'Inbound support and deal coordination.',
+    status: 'active',
+    hodAdminId: null,
+    createdAt: '2025-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'dep-technical',
+    name: 'Technical',
+    description: 'Platform engineering and technical support.',
+    status: 'active',
+    hodAdminId: null,
+    createdAt: '2025-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'dep-accounts',
+    name: 'Accounts',
+    description: 'Billing, payouts, and finance.',
+    status: 'active',
+    hodAdminId: 'hod-accounts',
+    createdAt: '2025-01-01T00:00:00.000Z',
+  },
+  {
+    id: 'dep-audit',
+    name: 'Audit',
+    description: 'Internal audit and compliance monitoring.',
+    status: 'active',
+    hodAdminId: 'hod-audit',
+    createdAt: '2025-01-01T00:00:00.000Z',
+  },
+];

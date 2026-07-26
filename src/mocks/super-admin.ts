@@ -102,6 +102,7 @@ export const mockLoginAttempts: LoginAttempt[] = [
     role: 'General Admin 2',
     ip: '103.21.244.12',
     location: 'Kochi, IN',
+    districtId: 'ernakulam',
     result: 'success',
     emailAlertSent: true,
     attemptedAt: '2026-07-13T06:12:00.000Z',
@@ -112,6 +113,7 @@ export const mockLoginAttempts: LoginAttempt[] = [
     role: 'RBO',
     ip: '49.37.112.88',
     location: 'Bengaluru, IN',
+    districtId: 'thiruvananthapuram',
     result: 'failed',
     emailAlertSent: true,
     attemptedAt: '2026-07-13T05:48:00.000Z',
@@ -122,6 +124,7 @@ export const mockLoginAttempts: LoginAttempt[] = [
     role: 'Operations HOD',
     ip: '122.168.44.9',
     location: 'Mumbai, IN',
+    districtId: 'kozhikode',
     result: 'success',
     emailAlertSent: true,
     attemptedAt: '2026-07-13T05:10:00.000Z',
@@ -132,6 +135,7 @@ export const mockLoginAttempts: LoginAttempt[] = [
     role: '—',
     ip: '185.220.101.4',
     location: 'Unknown',
+    districtId: 'thrissur',
     result: 'blocked',
     emailAlertSent: true,
     attemptedAt: '2026-07-13T04:55:00.000Z',
@@ -142,6 +146,7 @@ export const mockLoginAttempts: LoginAttempt[] = [
     role: 'General Admin 1',
     ip: '103.21.244.18',
     location: 'Kochi, IN',
+    districtId: 'kannur',
     result: 'success',
     emailAlertSent: true,
     attemptedAt: '2026-07-12T22:30:00.000Z',
@@ -152,6 +157,7 @@ export const mockLoginAttempts: LoginAttempt[] = [
     role: 'Super Admin',
     ip: '103.21.244.2',
     location: 'Kochi, IN',
+    districtId: 'kollam',
     result: 'success',
     emailAlertSent: true,
     attemptedAt: '2026-07-12T18:05:00.000Z',
@@ -162,6 +168,7 @@ export const mockLoginAttempts: LoginAttempt[] = [
     role: 'Staff',
     ip: '49.205.88.14',
     location: 'Hyderabad, IN',
+    districtId: 'alappuzha',
     result: 'failed',
     emailAlertSent: true,
     attemptedAt: '2026-07-12T16:40:00.000Z',
@@ -172,6 +179,7 @@ export const mockLoginAttempts: LoginAttempt[] = [
     role: 'Customer',
     ip: '157.48.22.91',
     location: 'Chennai, IN',
+    districtId: 'palakkad',
     result: 'success',
     emailAlertSent: true,
     attemptedAt: '2026-07-12T14:22:00.000Z',
@@ -282,8 +290,10 @@ export const mockOverrides: ApprovalOverrideItem[] = [
     requestedBy: 'ops.hod',
     listingName: 'Heritage Emerald Necklace',
     categoryRoot: 'products_gadgets',
+    categoryId: 'cat-root-1',
     status: 'pending',
     createdAt: '2026-07-13T03:20:00.000Z',
+    districtId: 'ernakulam',
   },
   {
     id: 'ov-2',
@@ -292,8 +302,10 @@ export const mockOverrides: ApprovalOverrideItem[] = [
     requestedBy: 'compliance.hod',
     listingName: 'Kochi Waterfront Hall',
     categoryRoot: 'properties_spaces',
+    categoryId: 'cat-root-2',
     status: 'pending',
     createdAt: '2026-07-12T18:40:00.000Z',
+    districtId: 'thiruvananthapuram',
   },
   {
     id: 'ov-3',
@@ -302,8 +314,10 @@ export const mockOverrides: ApprovalOverrideItem[] = [
     requestedBy: 'audit.hod',
     listingName: '4K Cinema Projector Kit',
     categoryRoot: 'products_gadgets',
+    categoryId: 'cat-root-1',
     status: 'info_requested',
     createdAt: '2026-07-12T11:05:00.000Z',
+    districtId: 'kozhikode',
     note: 'Need insurance certificate copy',
   },
   {
@@ -313,8 +327,10 @@ export const mockOverrides: ApprovalOverrideItem[] = [
     requestedBy: 'accounts.hod',
     listingName: 'Luxury Villa Pre-booking — Phase 2',
     categoryRoot: 'sales_booking',
+    categoryId: 'cat-root-4',
     status: 'pending',
     createdAt: '2026-07-11T09:15:00.000Z',
+    districtId: 'thrissur',
   },
   {
     id: 'ov-5',
@@ -323,8 +339,10 @@ export const mockOverrides: ApprovalOverrideItem[] = [
     requestedBy: 'dealdesk.hod',
     listingName: 'Excavator — 20T Class',
     categoryRoot: 'products_gadgets',
+    categoryId: 'cat-root-1',
     status: 'approved',
     createdAt: '2026-07-10T16:00:00.000Z',
+    districtId: 'kannur',
   },
   {
     id: 'ov-6',
@@ -333,8 +351,10 @@ export const mockOverrides: ApprovalOverrideItem[] = [
     requestedBy: 'user.hod',
     listingName: 'On-site Plumber Crew (Group)',
     categoryRoot: 'human_resources',
+    categoryId: 'cat-root-3',
     status: 'pending',
     createdAt: '2026-07-13T01:45:00.000Z',
+    districtId: 'kollam',
   },
 ];
 
@@ -486,6 +506,7 @@ export const mockActivityLog: ActivityLogEntry[] = [
     status: 'success',
     ipAddress: '103.21.244.12',
     location: 'Kochi, IN',
+    districtId: 'ernakulam',
   },
   {
     id: 'act-2',
@@ -500,6 +521,7 @@ export const mockActivityLog: ActivityLogEntry[] = [
     status: 'success',
     ipAddress: '103.21.244.18',
     location: 'Kochi, IN',
+    districtId: 'thiruvananthapuram',
   },
   {
     id: 'act-3',
@@ -514,6 +536,7 @@ export const mockActivityLog: ActivityLogEntry[] = [
     status: 'success',
     ipAddress: '49.207.12.44',
     location: 'Bengaluru, IN',
+    districtId: 'kozhikode',
   },
   {
     id: 'act-4',
@@ -528,6 +551,7 @@ export const mockActivityLog: ActivityLogEntry[] = [
     status: 'success',
     ipAddress: '122.168.44.9',
     location: 'Kochi, IN',
+    districtId: 'thrissur',
   },
   {
     id: 'act-5',
@@ -542,6 +566,7 @@ export const mockActivityLog: ActivityLogEntry[] = [
     status: 'success',
     ipAddress: '49.36.88.101',
     location: 'Bengaluru, IN',
+    districtId: 'kannur',
   },
   {
     id: 'act-6',
@@ -556,6 +581,7 @@ export const mockActivityLog: ActivityLogEntry[] = [
     status: 'success',
     ipAddress: '103.21.244.12',
     location: 'Kochi, IN',
+    districtId: 'kollam',
   },
   {
     id: 'act-7',
@@ -570,6 +596,7 @@ export const mockActivityLog: ActivityLogEntry[] = [
     status: 'failed',
     ipAddress: '185.220.101.4',
     location: 'Unknown',
+    districtId: 'alappuzha',
   },
   {
     id: 'act-8',
@@ -584,6 +611,7 @@ export const mockActivityLog: ActivityLogEntry[] = [
     status: 'info',
     ipAddress: '106.51.22.78',
     location: 'Chennai, IN',
+    districtId: 'palakkad',
   },
   {
     id: 'act-9',
@@ -598,6 +626,7 @@ export const mockActivityLog: ActivityLogEntry[] = [
     status: 'success',
     ipAddress: '103.21.244.30',
     location: 'Kochi, IN',
+    districtId: 'malappuram',
   },
   {
     id: 'act-10',
@@ -612,6 +641,7 @@ export const mockActivityLog: ActivityLogEntry[] = [
     status: 'info',
     ipAddress: '103.21.244.12',
     location: 'Kochi, IN',
+    districtId: 'kottayam',
   },
   {
     id: 'act-11',
@@ -626,6 +656,7 @@ export const mockActivityLog: ActivityLogEntry[] = [
     status: 'failed',
     ipAddress: '157.45.12.66',
     location: 'Bengaluru, IN',
+    districtId: 'idukki',
   },
   {
     id: 'act-12',
@@ -640,6 +671,7 @@ export const mockActivityLog: ActivityLogEntry[] = [
     status: 'failed',
     ipAddress: '103.21.244.18',
     location: 'Kochi, IN',
+    districtId: 'wayanad',
   },
   {
     id: 'act-13',
@@ -654,6 +686,7 @@ export const mockActivityLog: ActivityLogEntry[] = [
     status: 'success',
     ipAddress: '49.207.90.2',
     location: 'Kochi, IN',
+    districtId: 'kasaragod',
   },
   {
     id: 'act-14',
@@ -668,6 +701,7 @@ export const mockActivityLog: ActivityLogEntry[] = [
     status: 'info',
     ipAddress: '103.21.244.12',
     location: 'Kochi, IN',
+    districtId: 'pathanamthitta',
   },
   {
     id: 'act-15',
@@ -682,6 +716,7 @@ export const mockActivityLog: ActivityLogEntry[] = [
     status: 'success',
     ipAddress: '103.21.244.30',
     location: 'Kochi, IN',
+    districtId: 'ernakulam',
   },
 ];
 

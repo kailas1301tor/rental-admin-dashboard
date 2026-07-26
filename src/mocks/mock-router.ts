@@ -16,6 +16,7 @@ import {
   mockStaff,
 } from '@/mocks/marketplace';
 import { buildDashboardKpisForRange } from '@/mocks/dashboard-kpis-range';
+import { mockDepartments } from '@/mocks/departments';
 import { defaultDashboardRange } from '@/lib/date-range';
 import {
   buildMockSession,
@@ -41,6 +42,8 @@ import type {
   MarketplaceUserDetail,
   PlatformAdmin,
   PlatformAdminWrite,
+  Department,
+  DepartmentWrite,
   PlatformSettings,
   PlatformStaff,
   PlatformStaffWrite,
@@ -407,11 +410,15 @@ export async function mockRequest<T>(
       return created as T;
     }
     if (payload.tier === 'department_admin') {
-      if (!payload.department) throw { message: 'Department is required', status: 400 };
+      if (!payload.departmentId) {
+        throw { message: 'Department is required', status: 400 };
+      }
+      const dept = mockDepartments.find((d) => d.id === payload.departmentId);
+      if (!dept) throw { message: 'Department not found', status: 400 };
       const taken = mockPlatformAdmins.some(
         (a) =>
           a.tier === 'department_admin' &&
-          a.department === payload.department &&
+          a.departmentId === payload.departmentId &&
           a.status !== 'archived',
       );
       if (taken) throw { message: 'This department already has an HOD', status: 400 };
@@ -423,10 +430,18 @@ export async function mockRequest<T>(
         email: payload.email,
         address: payload.address,
         status: 'active',
-        department: payload.department,
+        departmentId: payload.departmentId,
+        districtId: payload.districtId ?? 'ernakulam',
         createdAt: new Date().toISOString(),
       };
       mockPlatformAdmins.push(created);
+      const depIdx = mockDepartments.findIndex((d) => d.id === payload.departmentId);
+      if (depIdx >= 0) {
+        mockDepartments[depIdx] = {
+          ...mockDepartments[depIdx],
+          hodAdminId: created.id,
+        };
+      }
       return created as T;
     }
     throw { message: 'Cannot create Super Admin from this panel', status: 403 };
@@ -456,7 +471,8 @@ export async function mockRequest<T>(
         email: payload.email ?? current.email,
         address: payload.address ?? current.address,
         status: payload.status ?? current.status,
-        department: payload.department ?? current.department,
+        departmentId: payload.departmentId ?? current.departmentId,
+        districtId: payload.districtId ?? current.districtId,
         slot: payload.slot ?? current.slot,
       };
     }
@@ -508,7 +524,8 @@ export async function mockRequest<T>(
       name: payload.name,
       email: payload.email,
       phone: payload.phone,
-      department: payload.department,
+      departmentId: payload.departmentId,
+      districtId: payload.districtId ?? 'ernakulam',
       status: payload.status ?? 'active',
       createdAt: new Date().toISOString(),
     };
@@ -546,17 +563,100 @@ export async function mockRequest<T>(
     return mockMarketplaceUsers[index] as T;
   }
 
-  // --- Categories (flat) ---
+  // --- Departments ---
+  if (method === 'get' && matchPath(url, ENDPOINTS.departments)) {
+    return mockDepartments.filter((d) => d.status !== 'archived') as T;
+  }
+  if (method === 'post' && matchPath(url, ENDPOINTS.departments)) {
+    const payload = body as DepartmentWrite;
+    if (!payload.name?.trim()) throw { message: 'Name is required', status: 400 };
+    const created: Department = {
+      id: `dep-${Date.now()}`,
+      name: payload.name.trim(),
+      description: payload.description?.trim() || undefined,
+      status: payload.status ?? 'active',
+      hodAdminId: payload.hodAdminId ?? null,
+      createdAt: new Date().toISOString(),
+    };
+    mockDepartments.push(created);
+    if (created.hodAdminId) {
+      const adminIdx = mockPlatformAdmins.findIndex(
+        (a) => a.id === created.hodAdminId,
+      );
+      if (adminIdx >= 0) {
+        mockPlatformAdmins[adminIdx] = {
+          ...mockPlatformAdmins[adminIdx],
+          tier: 'department_admin',
+          departmentId: created.id,
+        };
+      }
+    }
+    return created as T;
+  }
+  if (
+    (method === 'patch' || method === 'delete') &&
+    url.startsWith(`${ENDPOINTS.departments}/`)
+  ) {
+    const id = pathId(url, ENDPOINTS.departments);
+    const index = mockDepartments.findIndex((d) => d.id === id);
+    if (index < 0) throw { message: 'Department not found', status: 404 };
+    const deptId = id;
+    if (!deptId) throw { message: 'Department not found', status: 404 };
+    if (method === 'delete') {
+      const staffCount = mockStaff.filter((s) => s.departmentId === id).length;
+      if (staffCount > 0) {
+        throw { message: 'Cannot delete department with assigned staff', status: 400 };
+      }
+      mockDepartments[index] = {
+        ...mockDepartments[index],
+        status: 'archived',
+      };
+      return mockDepartments[index] as T;
+    }
+    const payload = body as Partial<DepartmentWrite>;
+    const prev = mockDepartments[index];
+    mockDepartments[index] = {
+      ...prev,
+      name: payload.name?.trim() ?? prev.name,
+      description: payload.description ?? prev.description,
+      status: payload.status ?? prev.status,
+      hodAdminId:
+        payload.hodAdminId !== undefined ? payload.hodAdminId : prev.hodAdminId,
+    };
+    if (payload.hodAdminId) {
+      const adminIdx = mockPlatformAdmins.findIndex(
+        (a) => a.id === payload.hodAdminId,
+      );
+      if (adminIdx >= 0) {
+        mockPlatformAdmins[adminIdx] = {
+          ...mockPlatformAdmins[adminIdx],
+          tier: 'department_admin',
+          departmentId: deptId,
+        };
+      }
+    }
+    return mockDepartments[index] as T;
+  }
+
+  // --- Categories ---
   if (method === 'get' && matchPath(url, ENDPOINTS.categories)) {
     return mockFlatCategories.filter((c) => c.status !== 'archived') as T;
   }
   if (method === 'post' && matchPath(url, ENDPOINTS.categories)) {
     const payload = body as Partial<Category>;
     if (!payload.name?.trim()) throw { message: 'Name is required', status: 400 };
+    const parentId = payload.parentId ?? null;
+    if (parentId) {
+      const parent = mockFlatCategories.find((c) => c.id === parentId);
+      if (!parent || parent.parentId !== null) {
+        throw { message: 'Invalid parent business type', status: 400 };
+      }
+    }
     const created: Category = {
       id: `cat-${Date.now()}`,
       name: payload.name.trim(),
       description: payload.description?.trim() || undefined,
+      parentId,
       status: 'active',
       createdAt: new Date().toISOString(),
     };
@@ -571,6 +671,10 @@ export async function mockRequest<T>(
     const index = mockFlatCategories.findIndex((c) => c.id === id);
     if (index < 0) throw { message: 'Category not found', status: 404 };
     if (method === 'delete') {
+      const hasChildren = mockFlatCategories.some((c) => c.parentId === id);
+      if (hasChildren) {
+        throw { message: 'Remove subcategories first', status: 400 };
+      }
       const inUse = mockProducts.some((p) => p.categoryId === id);
       if (inUse) {
         mockFlatCategories[index] = {

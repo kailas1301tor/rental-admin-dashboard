@@ -1,8 +1,8 @@
 import { useMemo, useState } from 'react';
 import { useApiSWR } from '@/api/swr-helpers';
 import { ENDPOINTS } from '@/api/endpoints';
+import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Badge } from '@/components/ui/Badge';
-import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
 import {
   EmptyState,
@@ -12,6 +12,7 @@ import {
 import { ListPageSkeleton } from '@/components/ui/skeletons';
 import { Table, TableShell, Td, Th } from '@/components/ui/Table';
 import { cn, formatDateTime } from '@/lib/utils';
+import { useListFilters } from '@/hooks/useListFilters';
 import type { LoginAttempt } from '@/types';
 
 type RoleTab =
@@ -51,6 +52,7 @@ export function LoginAlertsPage() {
   const { data, error, isLoading, mutate } = useApiSWR<LoginAttempt[]>(
     ENDPOINTS.loginAlerts,
   );
+  const { filters, setFilters, reset, matchesDistrict } = useListFilters();
   const [roleTab, setRoleTab] = useState<RoleTab>('all');
   const [query, setQuery] = useState('');
   const [from, setFrom] = useState('');
@@ -76,6 +78,7 @@ export function LoginAlertsPage() {
 
   const filtered = useMemo(() => {
     return list.filter((row) => {
+      if (!matchesDistrict(row.districtId)) return false;
       if (roleTab !== 'all' && classifyRole(row.role) !== roleTab) return false;
       const q = query.trim().toLowerCase();
       const matchesQuery =
@@ -90,7 +93,7 @@ export function LoginAlertsPage() {
         !to || ts <= new Date(`${to}T23:59:59`).getTime();
       return matchesQuery && afterFrom && beforeTo;
     });
-  }, [list, roleTab, query, from, to]);
+  }, [list, roleTab, query, from, to, matchesDistrict]);
 
   if (isLoading && !data) return <ListPageSkeleton showKpis={false} />;
   if (error) {
@@ -111,28 +114,33 @@ export function LoginAlertsPage() {
         description="Immutable stream of platform login attempts. Super Admin receives SMTP alerts for each attempt."
       />
 
-      <Card className="!p-4">
-        <div className="grid grid-cols-1 gap-3 md:grid-cols-3">
+      <ListFilterBar
+        filters={filters}
+        onChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
+        onReset={reset}
+        showTaxonomy={false}
+        search={
           <Input
             label="Search"
             placeholder="User, IP, location"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          <Input
-            label="From"
-            type="date"
-            value={from}
-            onChange={(e) => setFrom(e.target.value)}
-          />
-          <Input
-            label="To"
-            type="date"
-            value={to}
-            onChange={(e) => setTo(e.target.value)}
-          />
-        </div>
-      </Card>
+        }
+      >
+        <Input
+          label="From"
+          type="date"
+          value={from}
+          onChange={(e) => setFrom(e.target.value)}
+        />
+        <Input
+          label="To"
+          type="date"
+          value={to}
+          onChange={(e) => setTo(e.target.value)}
+        />
+      </ListFilterBar>
 
       <div className="space-y-4">
         <div

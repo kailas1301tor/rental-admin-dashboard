@@ -6,6 +6,7 @@ export type LoaderStatus = 'idle' | 'loading' | 'success' | 'error' | 'empty';
 
 export type AdminTier = 'super_admin' | 'general_admin' | 'department_admin';
 
+/** @deprecated Use departmentId on PlatformAdmin / PlatformStaff */
 export type HodDepartment =
   | 'onboarding_compliance_marketing'
   | 'user_verification'
@@ -14,6 +15,22 @@ export type HodDepartment =
   | 'technical'
   | 'accounts'
   | 'audit';
+
+export interface Department {
+  id: string;
+  name: string;
+  description?: string;
+  status: EntityStatus | 'archived';
+  hodAdminId?: string | null;
+  createdAt: string;
+}
+
+export interface DepartmentWrite {
+  name: string;
+  description?: string;
+  status?: EntityStatus | 'archived';
+  hodAdminId?: string | null;
+}
 
 export type EntityStatus = 'active' | 'frozen';
 export type AdminStatus = 'active' | 'frozen' | 'archived';
@@ -101,6 +118,7 @@ export interface LoginAttempt {
   role: string;
   ip: string;
   location: string;
+  districtId?: string;
   result: 'success' | 'failed' | 'blocked';
   emailAlertSent: boolean;
   attemptedAt: string;
@@ -126,7 +144,8 @@ export interface PlatformAdmin {
   address: string;
   status: AdminStatus;
   slot?: 1 | 2;
-  department?: HodDepartment;
+  departmentId?: string;
+  districtId?: string;
   createdAt: string;
   lastActiveAt?: string;
 }
@@ -139,7 +158,8 @@ export interface PlatformAdminWrite {
   address: string;
   password?: string;
   slot?: 1 | 2;
-  department?: HodDepartment;
+  departmentId?: string;
+  districtId?: string;
   status?: AdminStatus;
 }
 
@@ -148,7 +168,8 @@ export interface PlatformStaff {
   name: string;
   email: string;
   phone: string;
-  department: HodDepartment;
+  departmentId: string;
+  districtId: string;
   status: EntityStatus;
   createdAt: string;
 }
@@ -157,7 +178,8 @@ export interface PlatformStaffWrite {
   name: string;
   email: string;
   phone: string;
-  department: HodDepartment;
+  departmentId: string;
+  districtId?: string;
   status?: EntityStatus;
 }
 
@@ -165,6 +187,7 @@ export interface Category {
   id: string;
   name: string;
   description?: string;
+  parentId: string | null;
   status: EntityStatus | 'archived';
   createdAt: string;
 }
@@ -193,6 +216,7 @@ export interface RboVendor {
   email: string;
   phone: string;
   address: string;
+  districtId: string;
   status: RboStatus;
   categoryIds: string[];
   ratingAvg: number;
@@ -208,6 +232,7 @@ export interface MarketplaceUser {
   city: string;
   state: string;
   pincode: string;
+  districtId: string;
   rboId: string | null;
   status: MarketplaceUserStatus;
   joinedAt: string;
@@ -282,6 +307,7 @@ export interface Product {
   id: string;
   rboId: string;
   categoryId: string;
+  districtId: string;
   name: string;
   description: string;
   images: string[];
@@ -294,14 +320,18 @@ export interface Product {
   bookingCount: number;
 }
 
+export type ReviewDirection = 'received' | 'posted';
+
 export interface Review {
   id: string;
   productId: string;
   rboId: string;
   author: string;
+  targetName?: string;
   rating: number;
   body: string;
   status: ReviewStatus;
+  direction: ReviewDirection;
   createdAt: string;
 }
 
@@ -375,6 +405,8 @@ export interface ApprovalOverrideItem {
   requestedBy: string;
   listingName: string;
   categoryRoot: TaxonomyRoot;
+  categoryId?: string;
+  districtId?: string;
   status: 'pending' | 'approved' | 'rejected' | 'info_requested';
   createdAt: string;
   note?: string;
@@ -457,6 +489,8 @@ export interface ActivityLogEntry {
   status: ActivityLogStatus;
   ipAddress: string;
   location: string;
+  districtId?: string;
+  categoryId?: string;
 }
 
 export interface PlatformSummaryRow {

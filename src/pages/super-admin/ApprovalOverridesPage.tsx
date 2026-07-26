@@ -3,6 +3,7 @@ import { apiPatch } from '@/api/axios-helpers';
 import { useApiSWR } from '@/api/swr-helpers';
 import { ENDPOINTS } from '@/api/endpoints';
 import { getErrorMessage } from '@/api/axios-client';
+import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -13,8 +14,10 @@ import {
 } from '@/components/ui/States';
 import { ListPageSkeleton } from '@/components/ui/skeletons';
 import { useToast } from '@/components/ui/Toast';
-import { formatDateTime, taxonomyLabel } from '@/lib/utils';
-import type { ApprovalOverrideItem } from '@/types';
+import { categoryPathLabel } from '@/lib/category-helpers';
+import { formatDateTime } from '@/lib/utils';
+import { useListFilters } from '@/hooks/useListFilters';
+import type { ApprovalOverrideItem, Category } from '@/types';
 
 type StatusFilter = 'all' | ApprovalOverrideItem['status'];
 
@@ -22,15 +25,25 @@ export function ApprovalOverridesPage() {
   const { data, error, isLoading, mutate } = useApiSWR<ApprovalOverrideItem[]>(
     ENDPOINTS.approvalOverrides,
   );
+  const { data: categories } = useApiSWR<Category[]>(ENDPOINTS.categories);
   const { toast } = useToast();
+  const { filters, setFilters, reset, matchesDistrict, matchesTaxonomy } =
+    useListFilters();
   const [filter, setFilter] = useState<StatusFilter>('pending');
   const [busyId, setBusyId] = useState<string | null>(null);
 
+  const catList = categories ?? [];
+
   const filtered = useMemo(() => {
     const rows = data ?? [];
-    if (filter === 'all') return rows;
-    return rows.filter((r) => r.status === filter);
-  }, [data, filter]);
+    return rows.filter((r) => {
+      if (filter !== 'all' && r.status !== filter) return false;
+      if (!matchesDistrict(r.districtId)) return false;
+      const categoryIds = r.categoryId ? [r.categoryId] : [];
+      if (!matchesTaxonomy(categoryIds, catList)) return false;
+      return true;
+    });
+  }, [data, filter, matchesDistrict, matchesTaxonomy, catList]);
 
   async function act(
     item: ApprovalOverrideItem,
@@ -69,6 +82,12 @@ export function ApprovalOverridesPage() {
       <PageHeader
         title="Approval Overrides"
         description="Cross-departmental items requiring Super Admin final override."
+      />
+      <ListFilterBar
+        filters={filters}
+        onChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
+        onReset={reset}
+        categories={catList}
       />
       <Card className="mb-4">
         <div className="flex flex-wrap gap-2">
@@ -120,7 +139,10 @@ export function ApprovalOverridesPage() {
                     </Badge>
                   </div>
                   <p className="mt-1 text-sm text-text-secondary">
-                    {item.listingName} · {taxonomyLabel(item.categoryRoot)}
+                    {item.listingName} ·{' '}
+                    {item.categoryId
+                      ? categoryPathLabel(catList, item.categoryId)
+                      : '—'}
                   </p>
                   <p className="mt-1 text-xs text-text-muted">
                     {item.department} · requested by {item.requestedBy} ·{' '}

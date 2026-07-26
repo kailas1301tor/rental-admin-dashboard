@@ -13,6 +13,7 @@ import {
 import { Link } from 'react-router-dom';
 import { useApiSWR } from '@/api/swr-helpers';
 import { ENDPOINTS } from '@/api/endpoints';
+import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import {
@@ -26,9 +27,11 @@ import {
   filterSelectClass,
   searchControlClass,
 } from '@/components/ui/control-styles';
+import { useListFilters } from '@/hooks/useListFilters';
 import { UserMobileCard } from '@/pages/super-admin/users/UserMobileCard';
 import { cn, formatDateTime } from '@/lib/utils';
 import type {
+  Category,
   MarketplaceUser,
   MarketplaceUserStatus,
   RboVendor,
@@ -66,14 +69,25 @@ export function UsersPage() {
   const [rboId, setRboId] = useState('');
   const [page, setPage] = useState(1);
 
+  const { filters, setFilters, reset, matchesDistrict, matchesTaxonomy } =
+    useListFilters();
   const { data, error, isLoading, mutate } = useApiSWR<MarketplaceUser[]>(
     ENDPOINTS.users,
   );
   const { data: rbos } = useApiSWR<RboVendor[]>(ENDPOINTS.rbos);
+  const { data: categories } = useApiSWR<Category[]>(ENDPOINTS.categories);
+
+  const catList = categories ?? [];
 
   const rboMap = useMemo(() => {
     const m = new Map<string, string>();
     for (const r of rbos ?? []) m.set(r.id, r.businessName);
+    return m;
+  }, [rbos]);
+
+  const rboById = useMemo(() => {
+    const m = new Map<string, RboVendor>();
+    for (const r of rbos ?? []) m.set(r.id, r);
     return m;
   }, [rbos]);
 
@@ -104,6 +118,10 @@ export function UsersPage() {
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
     return list.filter((u) => {
+      if (!matchesDistrict(u.districtId)) return false;
+      const linkedRbo = u.rboId ? rboById.get(u.rboId) : undefined;
+      const categoryIds = linkedRbo?.categoryIds ?? [];
+      if (!matchesTaxonomy(categoryIds, catList)) return false;
       if (status && u.status !== status) return false;
       if (city && u.city !== city) return false;
       if (rboId === '__none__' && u.rboId !== null) return false;
@@ -121,7 +139,18 @@ export function UsersPage() {
         rboName.includes(query)
       );
     });
-  }, [list, q, status, city, rboId, rboMap]);
+  }, [
+    list,
+    q,
+    status,
+    city,
+    rboId,
+    rboMap,
+    rboById,
+    matchesDistrict,
+    matchesTaxonomy,
+    catList,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -181,8 +210,12 @@ export function UsersPage() {
         />
       </div>
 
-      <Card className="!p-4">
-        <div className="space-y-3">
+      <ListFilterBar
+        filters={filters}
+        onChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
+        onReset={reset}
+        categories={catList}
+        search={
           <label className="relative block w-full">
             <span className="sr-only">Search users</span>
             <Search
@@ -199,59 +232,56 @@ export function UsersPage() {
               className={searchControlClass}
             />
           </label>
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-            <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-3">
-              <FilterSelect
-                value={status}
-                onChange={(v) => {
-                  setStatus(v as '' | MarketplaceUserStatus);
-                  setPage(1);
-                }}
-                options={[
-                  { value: '', label: 'All Status' },
-                  { value: 'active', label: 'Active' },
-                  { value: 'inactive', label: 'Inactive' },
-                ]}
-              />
-              <FilterSelect
-                value={city}
-                onChange={(v) => {
-                  setCity(v);
-                  setPage(1);
-                }}
-                options={[
-                  { value: '', label: 'All Cities' },
-                  ...cities.map((c) => ({ value: c, label: c })),
-                ]}
-              />
-              <FilterSelect
-                value={rboId}
-                onChange={(v) => {
-                  setRboId(v);
-                  setPage(1);
-                }}
-                options={[
-                  { value: '', label: 'All RBOs' },
-                  { value: '__none__', label: 'No RBO linked' },
-                  ...(rbos ?? []).map((r) => ({
-                    value: r.id,
-                    label: r.businessName,
-                  })),
-                ]}
-              />
-            </div>
-            <Button
-              variant="outline"
-              size="sm"
-              className="shrink-0 self-start"
-              onClick={() => toast('Export CSV coming soon', 'info')}
-            >
-              <Download className="h-4 w-4" aria-hidden />
-              Export
-            </Button>
-          </div>
-        </div>
-      </Card>
+        }
+      >
+        <FilterSelect
+          value={status}
+          onChange={(v) => {
+            setStatus(v as '' | MarketplaceUserStatus);
+            setPage(1);
+          }}
+          options={[
+            { value: '', label: 'All Status' },
+            { value: 'active', label: 'Active' },
+            { value: 'inactive', label: 'Inactive' },
+          ]}
+        />
+        <FilterSelect
+          value={city}
+          onChange={(v) => {
+            setCity(v);
+            setPage(1);
+          }}
+          options={[
+            { value: '', label: 'All Cities' },
+            ...cities.map((c) => ({ value: c, label: c })),
+          ]}
+        />
+        <FilterSelect
+          value={rboId}
+          onChange={(v) => {
+            setRboId(v);
+            setPage(1);
+          }}
+          options={[
+            { value: '', label: 'All RBOs' },
+            { value: '__none__', label: 'No RBO linked' },
+            ...(rbos ?? []).map((r) => ({
+              value: r.id,
+              label: r.businessName,
+            })),
+          ]}
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          className="self-end"
+          onClick={() => toast('Export CSV coming soon', 'info')}
+        >
+          <Download className="h-4 w-4" aria-hidden />
+          Export
+        </Button>
+      </ListFilterBar>
 
       {pageRows.length === 0 ? (
         <EmptyState title="No users match filters" />

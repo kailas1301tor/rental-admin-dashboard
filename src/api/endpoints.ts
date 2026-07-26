@@ -8,6 +8,7 @@ export const ENDPOINTS = {
   staff: '/super-admin/staff',
   users: '/super-admin/users',
   categories: '/super-admin/categories',
+  departments: '/super-admin/departments',
   categorySchemas: '/super-admin/category-schemas',
   rbos: '/super-admin/rbos',
   products: '/super-admin/products',

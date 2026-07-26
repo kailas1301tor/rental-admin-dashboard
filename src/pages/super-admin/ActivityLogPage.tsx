@@ -7,8 +7,8 @@ import {
 } from 'lucide-react';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
+import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
 import {
   EmptyState,
   ErrorState,
@@ -29,6 +29,7 @@ import {
   initials,
 } from '@/pages/super-admin/activity-log/activity-log-ui';
 import { cn, formatDateTime } from '@/lib/utils';
+import { useListFilters } from '@/hooks/useListFilters';
 import type {
   ActivityLogActionKind,
   ActivityLogEntry,
@@ -59,6 +60,7 @@ export function ActivityLogPage() {
     ENDPOINTS.activityLog,
   );
 
+  const { filters, setFilters, reset, matchesDistrict } = useListFilters();
   const [q, setQ] = useState('');
   const [user, setUser] = useState('');
   const [role, setRole] = useState<'' | ActivityLogRole>('');
@@ -84,6 +86,7 @@ export function ActivityLogPage() {
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
     return list.filter((row) => {
+      if (!matchesDistrict(row.districtId)) return false;
       if (user && row.userEmail !== user) return false;
       if (role && row.role !== role) return false;
       if (module && row.module !== module) return false;
@@ -100,7 +103,7 @@ export function ActivityLogPage() {
         row.ipAddress.includes(query)
       );
     });
-  }, [list, q, user, role, module, action, status, from, to]);
+  }, [list, q, user, role, module, action, status, from, to, matchesDistrict]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -140,8 +143,12 @@ export function ActivityLogPage() {
         </p>
       </div>
 
-      <Card className="!p-4">
-        <div className="space-y-3">
+      <ListFilterBar
+        filters={filters}
+        onChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
+        onReset={reset}
+        showTaxonomy={false}
+        search={
           <label className="relative block w-full">
             <span className="sr-only">Search activity</span>
             <Search
@@ -158,136 +165,127 @@ export function ActivityLogPage() {
               className={searchControlClass}
             />
           </label>
-
-          <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:grid-cols-4">
-            <FilterSelect
-              value={user}
-              onChange={(v) => {
-                setUser(v);
-                setPage(1);
-              }}
-              options={[
-                { value: '', label: 'All Users' },
-                ...users.map(([email, name]) => ({
-                  value: email,
-                  label: name,
-                })),
-              ]}
-            />
-            <FilterSelect
-              value={role}
-              onChange={(v) => {
-                setRole(v as '' | ActivityLogRole);
-                setPage(1);
-              }}
-              options={[
-                { value: '', label: 'All Roles' },
-                { value: 'super_admin', label: 'Super Admin' },
-                { value: 'general_admin', label: 'General Admin' },
-                { value: 'staff', label: 'Staff' },
-                { value: 'rbo', label: 'RBO' },
-                { value: 'customer', label: 'Customer' },
-              ]}
-            />
-            <FilterSelect
-              value={module}
-              onChange={(v) => {
-                setModule(v as '' | ActivityLogModule);
-                setPage(1);
-              }}
-              options={[
-                { value: '', label: 'All Modules' },
-                ...modules.map((m) => ({ value: m, label: m })),
-              ]}
-            />
-            <FilterSelect
-              value={action}
-              onChange={(v) => {
-                setAction(v as '' | ActivityLogActionKind);
-                setPage(1);
-              }}
-              options={[
-                { value: '', label: 'All Actions' },
-                { value: 'created', label: 'Created' },
-                { value: 'updated', label: 'Updated' },
-                { value: 'deleted', label: 'Deleted' },
-                { value: 'booking_created', label: 'Booking Created' },
-                { value: 'login', label: 'Login' },
-                { value: 'logout', label: 'Logout' },
-                { value: 'approved', label: 'Approved' },
-                { value: 'rejected', label: 'Rejected' },
-                { value: 'viewed', label: 'Viewed' },
-              ]}
-            />
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-            <div className="flex min-w-0 flex-col gap-2 sm:flex-row sm:items-center">
-              <FilterSelect
-                value={status}
-                onChange={(v) => {
-                  setStatus(v as '' | ActivityLogStatus);
-                  setPage(1);
-                }}
-                options={[
-                  { value: '', label: 'All Status' },
-                  { value: 'success', label: 'Success' },
-                  { value: 'failed', label: 'Failed' },
-                  { value: 'info', label: 'Info' },
-                ]}
-              />
-              <div className="grid w-full min-w-0 grid-cols-1 gap-2 sm:flex sm:w-auto sm:items-center">
-                <label className="inline-flex h-11 min-w-0 items-center gap-2 rounded-full border border-border bg-surface px-3.5 text-sm text-text-secondary">
-                  <CalendarDays
-                    className="h-4 w-4 shrink-0 text-text-muted"
-                    aria-hidden
-                  />
-                  <span className="shrink-0 text-xs text-text-muted">From</span>
-                  <input
-                    type="date"
-                    value={from}
-                    onChange={(e) => {
-                      setFrom(e.target.value);
-                      setPage(1);
-                    }}
-                    className="min-w-0 flex-1 bg-transparent text-text-primary focus:outline-none"
-                  />
-                </label>
-                <label className="inline-flex h-11 min-w-0 items-center gap-2 rounded-full border border-border bg-surface px-3.5 text-sm text-text-secondary">
-                  <CalendarDays
-                    className="h-4 w-4 shrink-0 text-text-muted"
-                    aria-hidden
-                  />
-                  <span className="shrink-0 text-xs text-text-muted">To</span>
-                  <input
-                    type="date"
-                    value={to}
-                    onChange={(e) => {
-                      setTo(e.target.value);
-                      setPage(1);
-                    }}
-                    className="min-w-0 flex-1 bg-transparent text-text-primary focus:outline-none"
-                  />
-                </label>
-              </div>
-            </div>
-            <div className="flex shrink-0 flex-wrap gap-2">
-              <Button variant="ghost" size="sm" onClick={resetFilters}>
-                <RefreshCw className="h-4 w-4" aria-hidden />
-                Reset Filters
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => toast('Export CSV coming soon', 'info')}
-              >
-                <Download className="h-4 w-4" aria-hidden />
-                Export
-              </Button>
-            </div>
-          </div>
+        }
+      >
+        <FilterSelect
+          value={user}
+          onChange={(v) => {
+            setUser(v);
+            setPage(1);
+          }}
+          options={[
+            { value: '', label: 'All Users' },
+            ...users.map(([email, name]) => ({
+              value: email,
+              label: name,
+            })),
+          ]}
+        />
+        <FilterSelect
+          value={role}
+          onChange={(v) => {
+            setRole(v as '' | ActivityLogRole);
+            setPage(1);
+          }}
+          options={[
+            { value: '', label: 'All Roles' },
+            { value: 'super_admin', label: 'Super Admin' },
+            { value: 'general_admin', label: 'General Admin' },
+            { value: 'staff', label: 'Staff' },
+            { value: 'rbo', label: 'RBO' },
+            { value: 'customer', label: 'Customer' },
+          ]}
+        />
+        <FilterSelect
+          value={module}
+          onChange={(v) => {
+            setModule(v as '' | ActivityLogModule);
+            setPage(1);
+          }}
+          options={[
+            { value: '', label: 'All Modules' },
+            ...modules.map((m) => ({ value: m, label: m })),
+          ]}
+        />
+        <FilterSelect
+          value={action}
+          onChange={(v) => {
+            setAction(v as '' | ActivityLogActionKind);
+            setPage(1);
+          }}
+          options={[
+            { value: '', label: 'All Actions' },
+            { value: 'created', label: 'Created' },
+            { value: 'updated', label: 'Updated' },
+            { value: 'deleted', label: 'Deleted' },
+            { value: 'booking_created', label: 'Booking Created' },
+            { value: 'login', label: 'Login' },
+            { value: 'logout', label: 'Logout' },
+            { value: 'approved', label: 'Approved' },
+            { value: 'rejected', label: 'Rejected' },
+            { value: 'viewed', label: 'Viewed' },
+          ]}
+        />
+        <FilterSelect
+          value={status}
+          onChange={(v) => {
+            setStatus(v as '' | ActivityLogStatus);
+            setPage(1);
+          }}
+          options={[
+            { value: '', label: 'All Status' },
+            { value: 'success', label: 'Success' },
+            { value: 'failed', label: 'Failed' },
+            { value: 'info', label: 'Info' },
+          ]}
+        />
+        <label className="inline-flex h-11 min-w-0 items-center gap-2 rounded-full border border-border bg-surface px-3.5 text-sm text-text-secondary">
+          <CalendarDays
+            className="h-4 w-4 shrink-0 text-text-muted"
+            aria-hidden
+          />
+          <span className="shrink-0 text-xs text-text-muted">From</span>
+          <input
+            type="date"
+            value={from}
+            onChange={(e) => {
+              setFrom(e.target.value);
+              setPage(1);
+            }}
+            className="min-w-0 flex-1 bg-transparent text-text-primary focus:outline-none"
+          />
+        </label>
+        <label className="inline-flex h-11 min-w-0 items-center gap-2 rounded-full border border-border bg-surface px-3.5 text-sm text-text-secondary">
+          <CalendarDays
+            className="h-4 w-4 shrink-0 text-text-muted"
+            aria-hidden
+          />
+          <span className="shrink-0 text-xs text-text-muted">To</span>
+          <input
+            type="date"
+            value={to}
+            onChange={(e) => {
+              setTo(e.target.value);
+              setPage(1);
+            }}
+            className="min-w-0 flex-1 bg-transparent text-text-primary focus:outline-none"
+          />
+        </label>
+        <div className="flex flex-wrap gap-2 self-end">
+          <Button variant="ghost" size="sm" onClick={resetFilters}>
+            <RefreshCw className="h-4 w-4" aria-hidden />
+            Reset page filters
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => toast('Export CSV coming soon', 'info')}
+          >
+            <Download className="h-4 w-4" aria-hidden />
+            Export
+          </Button>
         </div>
-      </Card>
+      </ListFilterBar>
 
       {pageRows.length === 0 ? (
         <EmptyState title="No activities match filters" />

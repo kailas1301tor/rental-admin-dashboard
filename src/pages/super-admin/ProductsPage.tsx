@@ -8,13 +8,13 @@ import {
   Pencil,
   Plus,
   Search,
-  SlidersHorizontal,
   Star,
   TrendingUp,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useApiSWR } from '@/api/swr-helpers';
 import { ENDPOINTS } from '@/api/endpoints';
+import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import {
@@ -29,8 +29,10 @@ import {
   searchControlClass,
 } from '@/components/ui/control-styles';
 import { ProductMobileCard } from '@/pages/super-admin/products/ProductMobileCard';
+import { categoryPathLabel } from '@/lib/category-helpers';
 import { BOOKING_VALUE_LABEL, BOOKING_VALUE_MONTH_LABEL } from '@/lib/metrics';
 import { cn, formatInr } from '@/lib/utils';
+import { useListFilters } from '@/hooks/useListFilters';
 import type { Category, Product, ProductStatus, RboVendor } from '@/types';
 
 const PAGE_SIZE = 10;
@@ -46,9 +48,11 @@ export function ProductsPage() {
   const { toast } = useToast();
   const [q, setQ] = useState('');
   const [rboId, setRboId] = useState('');
-  const [categoryId, setCategoryId] = useState('');
   const [status, setStatus] = useState<'' | ProductStatus>('');
   const [page, setPage] = useState(1);
+
+  const { filters, setFilters, reset, matchesDistrict, matchesTaxonomy } =
+    useListFilters();
 
   const { data, error, isLoading, mutate } = useApiSWR<Product[]>(
     ENDPOINTS.products,
@@ -56,16 +60,13 @@ export function ProductsPage() {
   const { data: rbos } = useApiSWR<RboVendor[]>(ENDPOINTS.rbos);
   const { data: categories } = useApiSWR<Category[]>(ENDPOINTS.categories);
 
+  const catList = categories ?? [];
+
   const rboMap = useMemo(() => {
     const m = new Map<string, string>();
     for (const r of rbos ?? []) m.set(r.id, r.businessName);
     return m;
   }, [rbos]);
-  const catMap = useMemo(() => {
-    const m = new Map<string, string>();
-    for (const c of categories ?? []) m.set(c.id, c.name);
-    return m;
-  }, [categories]);
   const catIndex = useMemo(() => {
     const m = new Map<string, number>();
     (categories ?? []).forEach((c, i) => m.set(c.id, i));
@@ -102,12 +103,13 @@ export function ProductsPage() {
   const filtered = useMemo(() => {
     const query = q.trim().toLowerCase();
     return list.filter((p) => {
+      if (!matchesDistrict(p.districtId)) return false;
+      if (!matchesTaxonomy([p.categoryId], catList)) return false;
       if (rboId && p.rboId !== rboId) return false;
-      if (categoryId && p.categoryId !== categoryId) return false;
       if (status && p.status !== status) return false;
       if (!query) return true;
       const vendor = rboMap.get(p.rboId)?.toLowerCase() ?? '';
-      const cat = catMap.get(p.categoryId)?.toLowerCase() ?? '';
+      const cat = categoryPathLabel(catList, p.categoryId).toLowerCase();
       return (
         p.name.toLowerCase().includes(query) ||
         p.id.toLowerCase().includes(query) ||
@@ -115,7 +117,16 @@ export function ProductsPage() {
         cat.includes(query)
       );
     });
-  }, [list, q, rboId, categoryId, status, rboMap, catMap]);
+  }, [
+    list,
+    q,
+    rboId,
+    status,
+    rboMap,
+    matchesDistrict,
+    matchesTaxonomy,
+    catList,
+  ]);
 
   const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
@@ -126,14 +137,6 @@ export function ProductsPage() {
   const rangeStart =
     filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
   const rangeEnd = Math.min(safePage * PAGE_SIZE, filtered.length);
-
-  function resetFilters() {
-    setQ('');
-    setRboId('');
-    setCategoryId('');
-    setStatus('');
-    setPage(1);
-  }
 
   if (isLoading && !data) return <ListPageSkeleton kpiCount={5} />;
   if (error) {
@@ -193,8 +196,12 @@ export function ProductsPage() {
         />
       </div>
 
-      <Card className="!p-4">
-        <div className="space-y-3">
+      <ListFilterBar
+        filters={filters}
+        onChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
+        onReset={reset}
+        categories={catList}
+        search={
           <label className="relative block w-full">
             <span className="sr-only">Search products</span>
             <Search
@@ -211,77 +218,45 @@ export function ProductsPage() {
               className={searchControlClass}
             />
           </label>
-          <div className="flex flex-col gap-3 xl:flex-row xl:items-center">
-            <div className="grid min-w-0 flex-1 grid-cols-1 gap-2 sm:grid-cols-3">
-              <FilterSelect
-                value={rboId}
-                onChange={(v) => {
-                  setRboId(v);
-                  setPage(1);
-                }}
-                options={[
-                  { value: '', label: 'All vendors' },
-                  ...(rbos ?? []).map((r) => ({
-                    value: r.id,
-                    label: r.businessName,
-                  })),
-                ]}
-              />
-              <FilterSelect
-                value={categoryId}
-                onChange={(v) => {
-                  setCategoryId(v);
-                  setPage(1);
-                }}
-                options={[
-                  { value: '', label: 'All categories' },
-                  ...(categories ?? []).map((c) => ({
-                    value: c.id,
-                    label: c.name,
-                  })),
-                ]}
-              />
-              <FilterSelect
-                value={status}
-                onChange={(v) => {
-                  setStatus(v as '' | ProductStatus);
-                  setPage(1);
-                }}
-                options={[
-                  { value: '', label: 'All status' },
-                  { value: 'active', label: 'Active' },
-                  { value: 'frozen', label: 'Frozen' },
-                  { value: 'disabled', label: 'Disabled' },
-                ]}
-              />
-            </div>
-            <div className="flex shrink-0 flex-wrap gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() =>
-                  toast('Advanced filters ship with the API', 'info')
-                }
-              >
-                <SlidersHorizontal className="h-4 w-4" aria-hidden />
-                More filters
-              </Button>
-              <Button variant="outline" size="sm" onClick={resetFilters}>
-                Reset
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                className="hidden sm:inline-flex"
-                onClick={() => toast('Export CSV coming soon', 'info')}
-              >
-                <Download className="h-4 w-4" aria-hidden />
-                Export
-              </Button>
-            </div>
-          </div>
-        </div>
-      </Card>
+        }
+      >
+        <FilterSelect
+          value={rboId}
+          onChange={(v) => {
+            setRboId(v);
+            setPage(1);
+          }}
+          options={[
+            { value: '', label: 'All vendors' },
+            ...(rbos ?? []).map((r) => ({
+              value: r.id,
+              label: r.businessName,
+            })),
+          ]}
+        />
+        <FilterSelect
+          value={status}
+          onChange={(v) => {
+            setStatus(v as '' | ProductStatus);
+            setPage(1);
+          }}
+          options={[
+            { value: '', label: 'All status' },
+            { value: 'active', label: 'Active' },
+            { value: 'frozen', label: 'Frozen' },
+            { value: 'disabled', label: 'Disabled' },
+          ]}
+        />
+        <Button
+          variant="outline"
+          size="sm"
+          className="self-end"
+          onClick={() => toast('Export CSV coming soon', 'info')}
+        >
+          <Download className="h-4 w-4" aria-hidden />
+          Export
+        </Button>
+      </ListFilterBar>
 
       {pageRows.length === 0 ? (
         <EmptyState title="No products match filters" />
@@ -295,7 +270,7 @@ export function ProductsPage() {
                   key={p.id}
                   product={p}
                   rboName={rboMap.get(p.rboId) ?? p.rboId}
-                  categoryName={catMap.get(p.categoryId) ?? p.categoryId}
+                  categoryName={categoryPathLabel(catList, p.categoryId)}
                   categoryToneIdx={toneIdx}
                   onMore={() =>
                     toast('More actions available on product detail', 'info')
@@ -359,7 +334,7 @@ export function ProductsPage() {
                             CAT_TONES[toneIdx % CAT_TONES.length],
                           )}
                         >
-                          {catMap.get(p.categoryId) ?? p.categoryId}
+                          {categoryPathLabel(catList, p.categoryId)}
                         </span>
                       </Td>
                       <Td className="tabular-nums">

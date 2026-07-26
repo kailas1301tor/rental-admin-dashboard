@@ -3,9 +3,9 @@ import { apiPatch, apiPost } from '@/api/axios-helpers';
 import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
+import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
-import { FilterBar } from '@/components/ui/FilterBar';
 import { Input } from '@/components/ui/Input';
 import { Modal } from '@/components/ui/Modal';
 import { Select } from '@/components/ui/Select';
@@ -17,36 +17,42 @@ import {
 import { ListPageSkeleton } from '@/components/ui/skeletons';
 import { Table, TableShell, Td, Th } from '@/components/ui/Table';
 import { useToast } from '@/components/ui/Toast';
+import { useListFilters } from '@/hooks/useListFilters';
 import { StaffMobileCard } from '@/pages/super-admin/staff/StaffMobileCard';
-import { departmentLabel, HOD_DEPARTMENTS } from '@/lib/departments';
+import { departmentLabel } from '@/lib/departments';
 import { formatDateTime } from '@/lib/utils';
-import type { HodDepartment, PlatformStaff, PlatformStaffWrite } from '@/types';
+import type { Department, PlatformStaff, PlatformStaffWrite } from '@/types';
 
 type FormState = {
   name: string;
   email: string;
   phone: string;
-  department: HodDepartment | '';
+  departmentId: string;
 };
 
-const empty: FormState = { name: '', email: '', phone: '', department: '' };
+const empty: FormState = { name: '', email: '', phone: '', departmentId: '' };
 
 export function StaffPage() {
   const { toast } = useToast();
   const { data, error, isLoading, mutate } = useApiSWR<PlatformStaff[]>(
     ENDPOINTS.staff,
   );
+  const { data: deptData } = useApiSWR<Department[]>(ENDPOINTS.departments);
+  const { filters, setFilters, reset, matchesDistrict } = useListFilters();
   const [query, setQuery] = useState('');
-  const [dept, setDept] = useState<'' | HodDepartment>('');
+  const [dept, setDept] = useState('');
   const [status, setStatus] = useState<'' | 'active' | 'frozen'>('');
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<PlatformStaff | null>(null);
   const [form, setForm] = useState<FormState>(empty);
   const [saving, setSaving] = useState(false);
 
+  const deptList = deptData ?? [];
+
   const filtered = useMemo(() => {
     return (data ?? []).filter((row) => {
-      if (dept && row.department !== dept) return false;
+      if (!matchesDistrict(row.districtId)) return false;
+      if (dept && row.departmentId !== dept) return false;
       if (status && row.status !== status) return false;
       const q = query.trim().toLowerCase();
       if (!q) return true;
@@ -56,7 +62,7 @@ export function StaffPage() {
         row.phone.includes(q)
       );
     });
-  }, [data, dept, status, query]);
+  }, [data, dept, status, query, matchesDistrict]);
 
   function openCreate() {
     setEditing(null);
@@ -70,14 +76,14 @@ export function StaffPage() {
       name: row.name,
       email: row.email,
       phone: row.phone,
-      department: row.department,
+      departmentId: row.departmentId,
     });
     setOpen(true);
   }
 
   async function onSave(e: FormEvent) {
     e.preventDefault();
-    if (!form.department) {
+    if (!form.departmentId) {
       toast('Select a department', 'error');
       return;
     }
@@ -87,7 +93,7 @@ export function StaffPage() {
         name: form.name,
         email: form.email,
         phone: form.phone,
-        department: form.department,
+        departmentId: form.departmentId,
       };
       if (editing) {
         await apiPatch(`${ENDPOINTS.staff}/${editing.id}`, body);
@@ -130,22 +136,29 @@ export function StaffPage() {
         actions={<Button onClick={openCreate}>Add staff</Button>}
       />
 
-      <FilterBar>
-        <Input
-          label="Search"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Name, email, phone…"
-        />
+      <ListFilterBar
+        filters={filters}
+        onChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
+        onReset={reset}
+        showTaxonomy={false}
+        search={
+          <Input
+            label="Search"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+            placeholder="Name, email, phone…"
+          />
+        }
+      >
         <Select
           label="Department"
           value={dept}
-          onChange={(e) => setDept(e.target.value as '' | HodDepartment)}
+          onChange={(e) => setDept(e.target.value)}
         >
           <option value="">All</option>
-          {HOD_DEPARTMENTS.map((d) => (
-            <option key={d} value={d}>
-              {departmentLabel(d)}
+          {deptList.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.name}
             </option>
           ))}
         </Select>
@@ -158,20 +171,7 @@ export function StaffPage() {
           <option value="active">Active</option>
           <option value="frozen">Frozen</option>
         </Select>
-        <div className="flex items-end">
-          <Button
-            variant="secondary"
-            className="w-full"
-            onClick={() => {
-              setQuery('');
-              setDept('');
-              setStatus('');
-            }}
-          >
-            Clear
-          </Button>
-        </div>
-      </FilterBar>
+      </ListFilterBar>
 
       {filtered.length === 0 ? (
         <EmptyState title="No staff match filters" actionLabel="Add staff" onAction={openCreate} />
@@ -182,6 +182,7 @@ export function StaffPage() {
               <StaffMobileCard
                 key={row.id}
                 staff={row}
+                deptList={deptList}
                 onEdit={() => openEdit(row)}
                 onToggleFreeze={() => void toggleFreeze(row)}
               />
@@ -208,7 +209,7 @@ export function StaffPage() {
                       <div>{row.email}</div>
                       <div className="text-xs text-text-muted">{row.phone}</div>
                     </Td>
-                    <Td>{departmentLabel(row.department)}</Td>
+                    <Td>{departmentLabel(row.departmentId, deptList)}</Td>
                     <Td>
                       <Badge tone={row.status === 'active' ? 'success' : 'warning'}>
                         {row.status}
@@ -272,21 +273,23 @@ export function StaffPage() {
           />
           <Select
             label="Department"
-            value={form.department}
+            value={form.departmentId}
             onChange={(e) =>
               setForm((f) => ({
                 ...f,
-                department: e.target.value as HodDepartment | '',
+                departmentId: e.target.value,
               }))
             }
             required
           >
             <option value="">Select</option>
-            {HOD_DEPARTMENTS.map((d) => (
-              <option key={d} value={d}>
-                {departmentLabel(d)}
-              </option>
-            ))}
+            {deptList
+              .filter((d) => d.status === 'active')
+              .map((d) => (
+                <option key={d.id} value={d.id}>
+                  {d.name}
+                </option>
+              ))}
           </Select>
         </form>
       </Modal>

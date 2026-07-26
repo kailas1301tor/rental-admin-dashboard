@@ -1,34 +1,12 @@
-import type { HodDepartment } from '@/types';
+import type { Department } from '@/types';
 
-export const HOD_DEPARTMENTS: HodDepartment[] = [
-  'onboarding_compliance_marketing',
-  'user_verification',
-  'operations',
-  'deal_desk',
-  'technical',
-  'accounts',
-  'audit',
-];
-
-export function departmentLabel(dept: HodDepartment): string {
-  switch (dept) {
-    case 'onboarding_compliance_marketing':
-      return 'Onboarding, Compliance & Marketing';
-    case 'user_verification':
-      return 'User Verification & Escalation';
-    case 'operations':
-      return 'Operations';
-    case 'deal_desk':
-      return 'Call Center / Deal Desk';
-    case 'technical':
-      return 'Technical';
-    case 'accounts':
-      return 'Accounts';
-    case 'audit':
-      return 'Audit';
-    default:
-      return dept;
-  }
+export function departmentLabel(
+  id: string | null | undefined,
+  departments?: Department[],
+): string {
+  if (!id) return '—';
+  const match = departments?.find((d) => d.id === id);
+  return match?.name ?? id;
 }
 
 export function adminTierLabel(tier: string): string {

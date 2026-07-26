@@ -5,7 +5,6 @@ import {
   CheckCircle2,
   ChevronDown,
   Download,
-  Filter,
   IndianRupee,
   LayoutDashboard,
   LineChart as LineChartIcon,
@@ -36,6 +35,7 @@ import {
 } from 'recharts';
 import { useApiSWR } from '@/api/swr-helpers';
 import { ENDPOINTS } from '@/api/endpoints';
+import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import {
   CHART_AXIS,
   CHART_COLORS,
@@ -58,14 +58,24 @@ import { BookingVolumeChart } from '@/pages/super-admin/reports/BookingVolumeCha
 import {
   buildBookingVolumeSeries,
 } from '@/lib/booking-volume-series';
+import {
+  businessTypes,
+  matchesTaxonomyFilters,
+} from '@/lib/category-helpers';
 import { BOOKING_VALUE_HINT, BOOKING_VALUE_LABEL } from '@/lib/metrics';
+import { matchesDistricts } from '@/lib/kerala-districts';
 import { cn, formatDateTime, formatInr, formatInrCrore } from '@/lib/utils';
+import { useListFilters } from '@/hooks/useListFilters';
 import type {
+  Category,
+  Product,
+  RboVendor,
   ReportBookings,
   ReportOverview,
   ReportProducts,
   ReportRbos,
 } from '@/types';
+import type { ListFiltersState } from '@/hooks/useListFilters';
 
 type Tab =
   | 'overview'
@@ -109,10 +119,38 @@ export function ReportsPage() {
   const [chartKind, setChartKind] = useState<ChartKind>('line');
   const [applied, setApplied] = useState({ from: '2025-05-13', to: '2025-05-20' });
 
+  const { filters, setFilters, reset } = useListFilters();
+
   const overview = useApiSWR<ReportOverview>(ENDPOINTS.reportOverview);
   const bookings = useApiSWR<ReportBookings>(ENDPOINTS.reportBookings);
   const products = useApiSWR<ReportProducts>(ENDPOINTS.reportProducts);
   const rbos = useApiSWR<ReportRbos>(ENDPOINTS.reportRbos);
+  const { data: categoryData } = useApiSWR<Category[]>(ENDPOINTS.categories);
+  const { data: productData } = useApiSWR<Product[]>(ENDPOINTS.products);
+  const { data: rboData } = useApiSWR<RboVendor[]>(ENDPOINTS.rbos);
+
+  const catList = categoryData ?? [];
+
+  const scopedOverview = useMemo(() => {
+    if (!overview.data) return undefined;
+    return scopeReportOverview(
+      overview.data,
+      filters,
+      productData ?? [],
+      rboData ?? [],
+      catList,
+    );
+  }, [overview.data, filters, productData, rboData, catList]);
+
+  const scopedProducts = useMemo(() => {
+    if (!products.data) return undefined;
+    return scopeReportProducts(products.data, filters, productData ?? [], catList);
+  }, [products.data, filters, productData, catList]);
+
+  const scopedRbos = useMemo(() => {
+    if (!rbos.data) return undefined;
+    return scopeReportRbos(rbos.data, filters, rboData ?? [], catList);
+  }, [rbos.data, filters, rboData, catList]);
 
   const rangeLabel = useMemo(() => {
     const fmt = (iso: string) =>
@@ -201,15 +239,6 @@ export function ReportsPage() {
 
           <div className="flex flex-wrap gap-2 sm:col-span-2 xl:col-span-1 xl:ml-auto">
             <Button
-              variant="outline"
-              size="sm"
-              onClick={() => toast('Advanced filters ship with the API', 'info')}
-            >
-              <Filter className="h-4 w-4" aria-hidden />
-              Filters
-            </Button>
-
-            <Button
               size="sm"
               onClick={() => {
                 setApplied({ from, to });
@@ -232,8 +261,15 @@ export function ReportsPage() {
         </p>
       </Card>
 
-      {overview.data ? (
-        <KpiRow data={overview.data} compareWith={compareWith} />
+      <ListFilterBar
+        filters={filters}
+        onChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
+        onReset={reset}
+        categories={catList}
+      />
+
+      {scopedOverview ? (
+        <KpiRow data={scopedOverview} compareWith={compareWith} />
       ) : overview.isLoading ? (
         <div
           className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
@@ -288,7 +324,7 @@ export function ReportsPage() {
 
       {tab === 'overview' ? (
         <OverviewTab
-          state={overview}
+          state={{ ...overview, data: scopedOverview }}
           chartKind={chartKind}
           onChartKind={setChartKind}
         />
@@ -307,7 +343,7 @@ export function ReportsPage() {
         />
       ) : null}
       {tab === 'revenue' ? (
-        <RevenueTab state={overview} />
+        <RevenueTab state={{ ...overview, data: scopedOverview }} />
       ) : null}
       {tab === 'users' ? (
         <PlaceholderTab
@@ -315,10 +351,197 @@ export function ReportsPage() {
           description="Signup and retention charts ship with the users analytics API."
         />
       ) : null}
-      {tab === 'products' ? <ProductsTab state={products} /> : null}
-      {tab === 'vendors' ? <RbosTab state={rbos} /> : null}
+      {tab === 'products' ? (
+        <ProductsTab state={{ ...products, data: scopedProducts }} />
+      ) : null}
+      {tab === 'vendors' ? <RbosTab state={{ ...rbos, data: scopedRbos }} /> : null}
     </div>
   );
+}
+
+function reportScopeRatio(
+  items: Product[],
+  filters: ListFiltersState,
+  categories: Category[],
+): number {
+  const hasDistrict = filters.districts.length > 0;
+  const hasTaxonomy =
+    filters.businessTypeIds.length > 0 ||
+    filters.businessCategoryIds.length > 0;
+  if (!hasDistrict && !hasTaxonomy) return 1;
+
+  const totalWeight = items.reduce((s, p) => s + p.bookingCount, 0);
+  if (totalWeight === 0) return 1;
+
+  const matchedWeight = items
+    .filter((p) => {
+      if (!matchesDistricts(filters.districts, p.districtId)) return false;
+      return matchesTaxonomyFilters(
+        [p.categoryId],
+        categories,
+        filters.businessTypeIds,
+        filters.businessCategoryIds,
+      );
+    })
+    .reduce((s, p) => s + p.bookingCount, 0);
+
+  return matchedWeight / totalWeight;
+}
+
+function scopeReportOverview(
+  data: ReportOverview,
+  filters: ListFiltersState,
+  products: Product[],
+  rbos: RboVendor[],
+  categories: Category[],
+): ReportOverview {
+  const ratio = reportScopeRatio(products, filters, categories);
+  const hasFilters =
+    filters.districts.length > 0 ||
+    filters.businessTypeIds.length > 0 ||
+    filters.businessCategoryIds.length > 0;
+
+  const matchingRboNames = new Set(
+    rbos
+      .filter((r) => {
+        if (!matchesDistricts(filters.districts, r.districtId)) return false;
+        return matchesTaxonomyFilters(
+          r.categoryIds,
+          categories,
+          filters.businessTypeIds,
+          filters.businessCategoryIds,
+        );
+      })
+      .map((r) => r.businessName),
+  );
+
+  const topCategories = data.topCategories.filter((row) => {
+    if (!hasFilters) return true;
+    const cat = categories.find((c) => c.name === row.name);
+    if (!cat) return true;
+    return matchesTaxonomyFilters(
+      [cat.id],
+      categories,
+      filters.businessTypeIds,
+      filters.businessCategoryIds,
+    );
+  });
+
+  const salesByCategory = data.salesByCategory.filter((row) => {
+    if (!hasFilters) return true;
+    const type = businessTypes(categories).find((c) => c.name === row.name);
+    if (!type) return true;
+    return matchesTaxonomyFilters(
+      [type.id],
+      categories,
+      filters.businessTypeIds,
+      filters.businessCategoryIds,
+    );
+  });
+
+  const topRbos =
+    hasFilters && matchingRboNames.size > 0
+      ? data.topRbos.filter((r) => matchingRboNames.has(r.name))
+      : hasFilters
+        ? []
+        : data.topRbos;
+
+  const scale = (n: number) => Math.round(n * ratio);
+
+  return {
+    ...data,
+    kpis: {
+      ...data.kpis,
+      gmvInr: scale(data.kpis.gmvInr),
+      bookings: scale(data.kpis.bookings),
+      completedBookings: scale(data.kpis.completedBookings),
+      cancellations: scale(data.kpis.cancellations),
+      activeRentals: scale(data.kpis.activeRentals),
+    },
+    gmvSeries: data.gmvSeries.map((row) => ({
+      ...row,
+      gmvInr: scale(row.gmvInr),
+    })),
+    bookingsByStatus: data.bookingsByStatus.map((row) => ({
+      ...row,
+      value: scale(row.value),
+    })),
+    topCategories,
+    salesByCategory,
+    topRbos,
+  };
+}
+
+function scopeReportProducts(
+  data: ReportProducts,
+  filters: ListFiltersState,
+  products: Product[],
+  categories: Category[],
+): ReportProducts {
+  const allowedIds = new Set(
+    products
+      .filter((p) => {
+        if (!matchesDistricts(filters.districts, p.districtId)) return false;
+        return matchesTaxonomyFilters(
+          [p.categoryId],
+          categories,
+          filters.businessTypeIds,
+          filters.businessCategoryIds,
+        );
+      })
+      .map((p) => p.id),
+  );
+
+  const hasFilters =
+    filters.districts.length > 0 ||
+    filters.businessTypeIds.length > 0 ||
+    filters.businessCategoryIds.length > 0;
+  if (!hasFilters) return data;
+
+  const pick = <T extends { id: string }>(rows: T[]) =>
+    rows.filter((r) => allowedIds.has(r.id));
+
+  return {
+    topByGmv: pick(data.topByGmv),
+    negativeReview: pick(data.negativeReview),
+    highReview: pick(data.highReview),
+  };
+}
+
+function scopeReportRbos(
+  data: ReportRbos,
+  filters: ListFiltersState,
+  rbos: RboVendor[],
+  categories: Category[],
+): ReportRbos {
+  const allowedIds = new Set(
+    rbos
+      .filter((r) => {
+        if (!matchesDistricts(filters.districts, r.districtId)) return false;
+        return matchesTaxonomyFilters(
+          r.categoryIds,
+          categories,
+          filters.businessTypeIds,
+          filters.businessCategoryIds,
+        );
+      })
+      .map((r) => r.id),
+  );
+
+  const hasFilters =
+    filters.districts.length > 0 ||
+    filters.businessTypeIds.length > 0 ||
+    filters.businessCategoryIds.length > 0;
+  if (!hasFilters) return data;
+
+  const pick = <T extends { id: string }>(rows: T[]) =>
+    rows.filter((r) => allowedIds.has(r.id));
+
+  return {
+    leaderboard: pick(data.leaderboard),
+    badReview: pick(data.badReview),
+    goodReview: pick(data.goodReview),
+  };
 }
 
 type SWRLike<T> = {
