@@ -649,7 +649,7 @@ export async function mockRequest<T>(
     if (parentId) {
       const parent = mockFlatCategories.find((c) => c.id === parentId);
       if (!parent || parent.parentId !== null) {
-        throw { message: 'Invalid parent business type', status: 400 };
+        throw { message: 'Invalid parent category', status: 400 };
       }
     }
     const created: Category = {

@@ -54,28 +54,23 @@ export function categoryPathLabel(
 export function matchesTaxonomyFilters(
   categoryIds: string[],
   categories: Category[],
-  businessTypeIds: string[],
   businessCategoryIds: string[],
 ): boolean {
-  if (businessTypeIds.length === 0 && businessCategoryIds.length === 0) {
+  if (businessCategoryIds.length === 0) {
     return true;
   }
   if (categoryIds.length === 0) return false;
 
   for (const id of categoryIds) {
-    const sub = categoryById(categories, id);
-    if (!sub) continue;
-    if (
-      businessCategoryIds.length > 0 &&
-      businessCategoryIds.includes(id)
-    ) {
-      return true;
-    }
-    if (businessTypeIds.length > 0 && sub.parentId) {
-      if (businessTypeIds.includes(sub.parentId)) return true;
-    }
-    if (businessTypeIds.length > 0 && sub.parentId === null) {
-      if (businessTypeIds.includes(id)) return true;
+    const cat = categoryById(categories, id);
+    if (!cat) continue;
+    if (businessCategoryIds.includes(id)) return true;
+    if (cat.parentId === null) {
+      const hasMatchingChild = businessCategoryIds.some((cid) => {
+        const sub = categoryById(categories, cid);
+        return sub?.parentId === id;
+      });
+      if (hasMatchingChild) return true;
     }
   }
   return false;

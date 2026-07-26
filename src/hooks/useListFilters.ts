@@ -5,13 +5,11 @@ import type { Category } from '@/types';
 
 export interface ListFiltersState {
   districts: string[];
-  businessTypeIds: string[];
   businessCategoryIds: string[];
 }
 
 const EMPTY: ListFiltersState = {
   districts: [],
-  businessTypeIds: [],
   businessCategoryIds: [],
 };
 
@@ -26,7 +24,6 @@ export function useListFilters(initial?: Partial<ListFiltersState>) {
   const hasActiveFilters = useMemo(
     () =>
       filters.districts.length > 0 ||
-      filters.businessTypeIds.length > 0 ||
       filters.businessCategoryIds.length > 0,
     [filters],
   );
@@ -42,10 +39,9 @@ export function useListFilters(initial?: Partial<ListFiltersState>) {
       matchesTaxonomyFilters(
         categoryIds,
         categories,
-        filters.businessTypeIds,
         filters.businessCategoryIds,
       ),
-    [filters.businessTypeIds, filters.businessCategoryIds],
+    [filters.businessCategoryIds],
   );
 
   return {

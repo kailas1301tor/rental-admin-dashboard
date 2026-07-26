@@ -365,9 +365,7 @@ function reportScopeRatio(
   categories: Category[],
 ): number {
   const hasDistrict = filters.districts.length > 0;
-  const hasTaxonomy =
-    filters.businessTypeIds.length > 0 ||
-    filters.businessCategoryIds.length > 0;
+  const hasTaxonomy = filters.businessCategoryIds.length > 0;
   if (!hasDistrict && !hasTaxonomy) return 1;
 
   const totalWeight = items.reduce((s, p) => s + p.bookingCount, 0);
@@ -379,7 +377,6 @@ function reportScopeRatio(
       return matchesTaxonomyFilters(
         [p.categoryId],
         categories,
-        filters.businessTypeIds,
         filters.businessCategoryIds,
       );
     })
@@ -398,7 +395,6 @@ function scopeReportOverview(
   const ratio = reportScopeRatio(products, filters, categories);
   const hasFilters =
     filters.districts.length > 0 ||
-    filters.businessTypeIds.length > 0 ||
     filters.businessCategoryIds.length > 0;
 
   const matchingRboNames = new Set(
@@ -408,7 +404,6 @@ function scopeReportOverview(
         return matchesTaxonomyFilters(
           r.categoryIds,
           categories,
-          filters.businessTypeIds,
           filters.businessCategoryIds,
         );
       })
@@ -422,7 +417,6 @@ function scopeReportOverview(
     return matchesTaxonomyFilters(
       [cat.id],
       categories,
-      filters.businessTypeIds,
       filters.businessCategoryIds,
     );
   });
@@ -434,7 +428,6 @@ function scopeReportOverview(
     return matchesTaxonomyFilters(
       [type.id],
       categories,
-      filters.businessTypeIds,
       filters.businessCategoryIds,
     );
   });
@@ -485,7 +478,6 @@ function scopeReportProducts(
         return matchesTaxonomyFilters(
           [p.categoryId],
           categories,
-          filters.businessTypeIds,
           filters.businessCategoryIds,
         );
       })
@@ -494,7 +486,6 @@ function scopeReportProducts(
 
   const hasFilters =
     filters.districts.length > 0 ||
-    filters.businessTypeIds.length > 0 ||
     filters.businessCategoryIds.length > 0;
   if (!hasFilters) return data;
 
@@ -521,7 +512,6 @@ function scopeReportRbos(
         return matchesTaxonomyFilters(
           r.categoryIds,
           categories,
-          filters.businessTypeIds,
           filters.businessCategoryIds,
         );
       })
@@ -530,7 +520,6 @@ function scopeReportRbos(
 
   const hasFilters =
     filters.districts.length > 0 ||
-    filters.businessTypeIds.length > 0 ||
     filters.businessCategoryIds.length > 0;
   if (!hasFilters) return data;
 

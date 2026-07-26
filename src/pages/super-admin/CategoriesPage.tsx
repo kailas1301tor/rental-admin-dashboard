@@ -38,7 +38,7 @@ import { cn, formatDateTime } from '@/lib/utils';
 import type { Category, Product } from '@/types';
 
 type StatusFilter = 'all' | 'active' | 'frozen' | 'archived';
-type LevelFilter = 'business_type' | 'subcategory';
+type LevelFilter = 'category' | 'subcategory';
 
 export function CategoriesPage() {
   const { toast } = useToast();
@@ -117,7 +117,6 @@ export function CategoriesPage() {
         !matchesTaxonomyFilters(
           [root.id],
           rows,
-          filters.businessTypeIds,
           filters.businessCategoryIds,
         )
       ) {
@@ -170,7 +169,7 @@ export function CategoriesPage() {
     setEditing(cat);
     setName(cat.name);
     setDescription(cat.description ?? '');
-    setLevel(cat.parentId === null ? 'business_type' : 'subcategory');
+    setLevel(cat.parentId === null ? 'category' : 'subcategory');
     setParentId(cat.parentId ?? '');
     setOpen(true);
   }
@@ -178,7 +177,7 @@ export function CategoriesPage() {
   async function onSave(e: FormEvent) {
     e.preventDefault();
     if (level === 'subcategory' && !parentId && !editing?.parentId) {
-      toast('Select a business type for the subcategory', 'error');
+      toast('Select a parent category for this subcategory', 'error');
       return;
     }
     setSaving(true);
@@ -186,7 +185,7 @@ export function CategoriesPage() {
       const payload = {
         name,
         description,
-        parentId: level === 'business_type' ? null : parentId || editing?.parentId,
+        parentId: level === 'category' ? null : parentId || editing?.parentId,
       };
       if (editing) {
         await apiPatch(`${ENDPOINTS.categories}/${editing.id}`, payload);
@@ -254,14 +253,14 @@ export function CategoriesPage() {
             Categories
           </h1>
           <p className="mt-1 max-w-xl text-sm text-text-secondary">
-            Business types and subcategories where products attach. Expand a type
-            to manage its subcategories.
+            Categories and subcategories where products are listed. Expand a
+            category to manage its subcategories.
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => openCreate('business_type')}>
+          <Button variant="outline" onClick={() => openCreate('category')}>
             <Plus className="h-4 w-4" aria-hidden />
-            Add business type
+            Add category
           </Button>
           <Button onClick={() => openCreate('subcategory')}>
             <Plus className="h-4 w-4" aria-hidden />
@@ -272,7 +271,7 @@ export function CategoriesPage() {
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
         <KpiCard
-          label="Business types"
+          label="Categories"
           value={String(kpis.roots)}
           icon={LayoutGrid}
           hint={`${kpis.activeRoots} active`}
@@ -307,7 +306,7 @@ export function CategoriesPage() {
             label="Search"
             value={query}
             onChange={(e) => setQuery(e.target.value)}
-            placeholder="Search types or subcategories…"
+            placeholder="Search categories or subcategories…"
           />
         }
       >
@@ -331,8 +330,8 @@ export function CategoriesPage() {
       {filteredRoots.length === 0 ? (
         <EmptyState
           title="No categories match filters"
-          actionLabel="Add business type"
-          onAction={() => openCreate('business_type')}
+          actionLabel="Add category"
+          onAction={() => openCreate('category')}
         />
       ) : (
         <div className="space-y-3">
@@ -345,7 +344,6 @@ export function CategoriesPage() {
                 !matchesTaxonomyFilters(
                   [sub.id, root.id],
                   rows,
-                  filters.businessTypeIds,
                   filters.businessCategoryIds,
                 )
               ) {
@@ -389,7 +387,7 @@ export function CategoriesPage() {
                           {root.name}
                         </p>
                         <span className="rounded-full bg-canvas px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-text-muted">
-                          Business type
+                          Category
                         </span>
                         <StatusPill status={root.status} />
                       </div>
@@ -399,9 +397,9 @@ export function CategoriesPage() {
                         </p>
                       ) : null}
                       <p className="mt-1 text-xs text-text-muted">
-                        {children.length} subcategor
-                        {children.length === 1 ? 'y' : 'ies'} ·{' '}
-                        {formatDateTime(root.createdAt)}
+                        {children.length}{' '}
+                        {children.length === 1 ? 'subcategory' : 'subcategories'}{' '}
+                        · {formatDateTime(root.createdAt)}
                       </p>
                     </div>
                   </button>
@@ -479,8 +477,8 @@ export function CategoriesPage() {
         title={
           editing
             ? 'Edit category'
-            : level === 'business_type'
-              ? 'Add business type'
+            : level === 'category'
+              ? 'Add category'
               : 'Add subcategory'
         }
         footer={
@@ -502,22 +500,22 @@ export function CategoriesPage() {
               onChange={(e) => {
                 const next = e.target.value as LevelFilter;
                 setLevel(next);
-                if (next === 'business_type') setParentId('');
+                if (next === 'category') setParentId('');
               }}
             >
-              <option value="business_type">Business type (root)</option>
+              <option value="category">Category</option>
               <option value="subcategory">Subcategory</option>
             </Select>
           ) : null}
           {level === 'subcategory' ? (
             <Select
-              label="Business type"
+              label="Parent category"
               value={parentId}
               onChange={(e) => setParentId(e.target.value)}
               required
               disabled={Boolean(editing)}
             >
-              <option value="">Select business type</option>
+              <option value="">Select parent category</option>
               {roots
                 .filter((r) => r.status !== 'archived')
                 .map((r) => (
@@ -586,7 +584,7 @@ function CategoryActions({
       {showAddSub && onAddSub ? (
         <Button size="sm" variant="outline" onClick={onAddSub}>
           <Plus className="h-3.5 w-3.5" aria-hidden />
-          Subcategory
+          Add subcategory
         </Button>
       ) : null}
       <Button size="sm" variant="outline" onClick={() => onEdit(cat)}>

@@ -2,7 +2,6 @@ import type { ReactNode } from 'react';
 import { RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { BusinessCategorySelect } from '@/components/filters/BusinessCategorySelect';
-import { BusinessTypeSelect } from '@/components/filters/BusinessTypeSelect';
 import { DistrictMultiSelect } from '@/components/filters/DistrictMultiSelect';
 import type { ListFiltersState } from '@/hooks/useListFilters';
 import type { Category } from '@/types';
@@ -13,6 +12,7 @@ export function ListFilterBar({
   onChange,
   onReset,
   categories = [],
+  showDistrict = true,
   showTaxonomy = true,
   search,
   children,
@@ -22,14 +22,14 @@ export function ListFilterBar({
   onChange: (patch: Partial<ListFiltersState>) => void;
   onReset: () => void;
   categories?: Category[];
+  showDistrict?: boolean;
   showTaxonomy?: boolean;
   search?: ReactNode;
   children?: ReactNode;
   className?: string;
 }) {
   const hasActive =
-    filters.districts.length > 0 ||
-    filters.businessTypeIds.length > 0 ||
+    (showDistrict && filters.districts.length > 0) ||
     filters.businessCategoryIds.length > 0;
 
   return (
@@ -41,31 +41,20 @@ export function ListFilterBar({
     >
       <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
         {search}
-        <DistrictMultiSelect
-          value={filters.districts}
-          onChange={(districts) => onChange({ districts })}
-        />
+        {showDistrict ? (
+          <DistrictMultiSelect
+            value={filters.districts}
+            onChange={(districts) => onChange({ districts })}
+          />
+        ) : null}
         {showTaxonomy ? (
-          <>
-            <BusinessTypeSelect
-              categories={categories}
-              value={filters.businessTypeIds}
-              onChange={(businessTypeIds) =>
-                onChange({
-                  businessTypeIds,
-                  businessCategoryIds: [],
-                })
-              }
-            />
-            <BusinessCategorySelect
-              categories={categories}
-              businessTypeIds={filters.businessTypeIds}
-              value={filters.businessCategoryIds}
-              onChange={(businessCategoryIds) =>
-                onChange({ businessCategoryIds })
-              }
-            />
-          </>
+          <BusinessCategorySelect
+            categories={categories}
+            value={filters.businessCategoryIds}
+            onChange={(businessCategoryIds) =>
+              onChange({ businessCategoryIds })
+            }
+          />
         ) : null}
         {children}
       </div>

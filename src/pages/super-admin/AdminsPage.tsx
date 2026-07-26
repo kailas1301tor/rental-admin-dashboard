@@ -1,5 +1,5 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
-import { Lock, Pencil, Plus, Trash2 } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { apiDelete, apiPatch, apiPost } from '@/api/axios-helpers';
 import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
@@ -17,13 +17,12 @@ import {
   ErrorState,
 } from '@/components/ui/States';
 import { ListPageSkeleton } from '@/components/ui/skeletons';
-import { Table, TableShell, Td, Th } from '@/components/ui/Table';
 import { useToast } from '@/components/ui/Toast';
 import { useListFilters } from '@/hooks/useListFilters';
-import { AdminMobileCard } from '@/pages/super-admin/admins/AdminMobileCard';
+import { AdminCard } from '@/pages/super-admin/admins/AdminCard';
 import { adminTierLabel, departmentLabel } from '@/lib/departments';
 import { districtLabel } from '@/lib/kerala-districts';
-import { cn, formatDateTime } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import type {
   AdminTier,
   Department,
@@ -53,15 +52,6 @@ const emptyForm: FormState = {
   password: '',
   departmentId: '',
 };
-
-function initials(name: string) {
-  return name
-    .split(' ')
-    .map((p) => p[0])
-    .join('')
-    .slice(0, 2)
-    .toUpperCase();
-}
 
 export function AdminsPage() {
   const { toast } = useToast();
@@ -624,159 +614,18 @@ function AdminTable({
   }
 
   return (
-    <>
-      <div className="space-y-3 lg:hidden">
-        {rows.map((admin) => (
-          <AdminMobileCard
-            key={admin.id}
-            admin={admin}
-            subtitle={adminSubtitle(admin, deptList, showDepartment)}
-            readOnly={readOnly}
-            onEdit={onEdit}
-            onFreeze={onFreeze}
-            onArchive={onArchive}
-          />
-        ))}
-      </div>
-
-      <TableShell className="hidden lg:block">
-        <Table>
-          <thead>
-            <tr>
-              <Th>Admin</Th>
-              <Th>Contact</Th>
-              <Th>Status</Th>
-              <Th>Last active</Th>
-              <Th className="text-right">Action</Th>
-            </tr>
-          </thead>
-          <tbody>
-            {rows.map((admin) => (
-              <tr key={admin.id}>
-                <Td>
-                  <div className="flex items-center gap-3">
-                    <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-muted text-xs font-semibold text-accent">
-                      {initials(admin.name)}
-                    </span>
-                    <div className="min-w-0">
-                      <p className="truncate font-medium text-text-primary">
-                        {admin.name}
-                      </p>
-                      <p className="truncate text-xs text-text-muted">
-                        {adminSubtitle(admin, deptList, showDepartment)}
-                      </p>
-                    </div>
-                  </div>
-                </Td>
-                <Td>
-                  <p className="text-sm text-text-primary">{admin.email}</p>
-                  <p className="text-xs text-text-muted">{admin.phone}</p>
-                </Td>
-                <Td>
-                  <StatusPill status={admin.status} />
-                </Td>
-                <Td className="text-sm text-text-secondary">
-                  {admin.lastActiveAt ? formatDateTime(admin.lastActiveAt) : '—'}
-                </Td>
-                <Td>
-                  {readOnly ? (
-                    <p className="text-right text-text-muted">—</p>
-                  ) : (
-                    <RowActions
-                      admin={admin}
-                      onEdit={onEdit}
-                      onFreeze={onFreeze}
-                      onArchive={onArchive}
-                    />
-                  )}
-                </Td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
-      </TableShell>
-    </>
-  );
-}
-
-function RowActions({
-  admin,
-  onEdit,
-  onFreeze,
-  onArchive,
-}: {
-  admin: PlatformAdmin;
-  onEdit: (a: PlatformAdmin) => void;
-  onFreeze: (a: PlatformAdmin) => void;
-  onArchive: (a: PlatformAdmin) => void;
-}) {
-  return (
-    <div className="flex flex-wrap justify-end gap-1.5">
-      <Button
-        size="sm"
-        variant="outline"
-        className="px-2.5"
-        onClick={() => onEdit(admin)}
-        aria-label={`Edit ${admin.name}`}
-      >
-        <Pencil className="h-3.5 w-3.5" aria-hidden />
-        <span className="hidden sm:inline">Edit</span>
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        className="px-2.5"
-        onClick={() => onFreeze(admin)}
-        aria-label={
-          admin.status === 'frozen'
-            ? `Unfreeze ${admin.name}`
-            : `Freeze ${admin.name}`
-        }
-      >
-        <Lock className="h-3.5 w-3.5 text-accent" aria-hidden />
-        <span className="hidden sm:inline">
-          {admin.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
-        </span>
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        className="px-2.5 text-danger hover:border-danger hover:text-danger"
-        onClick={() => onArchive(admin)}
-        aria-label={`Delete ${admin.name}`}
-      >
-        <Trash2 className="h-3.5 w-3.5" aria-hidden />
-        <span className="hidden sm:inline">Delete</span>
-      </Button>
+    <div className="space-y-3">
+      {rows.map((admin) => (
+        <AdminCard
+          key={admin.id}
+          admin={admin}
+          subtitle={adminSubtitle(admin, deptList, showDepartment)}
+          readOnly={readOnly}
+          onEdit={onEdit}
+          onFreeze={onFreeze}
+          onArchive={onArchive}
+        />
+      ))}
     </div>
-  );
-}
-
-function StatusPill({ status }: { status: PlatformAdmin['status'] }) {
-  const active = status === 'active';
-  return (
-    <span
-      className={cn(
-        'inline-flex items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize',
-        active
-          ? 'border-success/30 bg-success-muted text-success'
-          : status === 'frozen'
-            ? 'border-warning/30 bg-warning-muted text-warning'
-            : 'border-border bg-canvas text-text-secondary',
-      )}
-    >
-      <span
-        className={cn(
-          'h-1.5 w-1.5 rounded-full',
-          active
-            ? 'bg-success'
-            : status === 'frozen'
-              ? 'bg-warning'
-              : 'bg-text-muted',
-        )}
-        aria-hidden
-      />
-      {status}
-    </span>
   );
 }

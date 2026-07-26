@@ -87,7 +87,7 @@ export function NeedsActionQueue({
       <Tabs
         value={tab}
         onChange={onTabChange}
-        className="mb-3 w-full max-w-full flex-wrap"
+        className="mb-3"
         items={[
           { id: 'overrides', label: `Overrides (${overrides.length})` },
           { id: 'onboarding', label: `Onboarding (${onboarding.length})` },

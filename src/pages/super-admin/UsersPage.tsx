@@ -65,7 +65,6 @@ export function UsersPage() {
   const { toast } = useToast();
   const [q, setQ] = useState('');
   const [status, setStatus] = useState<'' | MarketplaceUserStatus>('');
-  const [city, setCity] = useState('');
   const [rboId, setRboId] = useState('');
   const [page, setPage] = useState(1);
 
@@ -93,12 +92,6 @@ export function UsersPage() {
 
   const list = data ?? [];
 
-  const cities = useMemo(() => {
-    return [...new Set(list.map((u) => u.city))].sort((a, b) =>
-      a.localeCompare(b),
-    );
-  }, [list]);
-
   const kpis = useMemo(() => {
     const total = list.length;
     const active = list.filter((u) => u.status === 'active').length;
@@ -123,7 +116,6 @@ export function UsersPage() {
       const categoryIds = linkedRbo?.categoryIds ?? [];
       if (!matchesTaxonomy(categoryIds, catList)) return false;
       if (status && u.status !== status) return false;
-      if (city && u.city !== city) return false;
       if (rboId === '__none__' && u.rboId !== null) return false;
       if (rboId && rboId !== '__none__' && u.rboId !== rboId) return false;
       if (!query) return true;
@@ -143,7 +135,6 @@ export function UsersPage() {
     list,
     q,
     status,
-    city,
     rboId,
     rboMap,
     rboById,
@@ -244,17 +235,6 @@ export function UsersPage() {
             { value: '', label: 'All Status' },
             { value: 'active', label: 'Active' },
             { value: 'inactive', label: 'Inactive' },
-          ]}
-        />
-        <FilterSelect
-          value={city}
-          onChange={(v) => {
-            setCity(v);
-            setPage(1);
-          }}
-          options={[
-            { value: '', label: 'All Cities' },
-            ...cities.map((c) => ({ value: c, label: c })),
           ]}
         />
         <FilterSelect

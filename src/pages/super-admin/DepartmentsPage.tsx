@@ -1,12 +1,11 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, Lock, Pencil, Plus, Trash2, Users } from 'lucide-react';
+import { Building2, Plus, Users } from 'lucide-react';
 import { apiDelete, apiPatch, apiPost } from '@/api/axios-helpers';
 import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
 import { ListFilterBar } from '@/components/filters/ListFilterBar';
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { Input } from '@/components/ui/Input';
@@ -18,10 +17,10 @@ import {
   PageHeader,
 } from '@/components/ui/States';
 import { ListPageSkeleton } from '@/components/ui/skeletons';
-import { Table, TableShell, Td, Th } from '@/components/ui/Table';
 import { useToast } from '@/components/ui/Toast';
+import { DepartmentCard } from '@/pages/super-admin/departments/DepartmentCard';
 import { useListFilters } from '@/hooks/useListFilters';
-import { cn, formatDateTime } from '@/lib/utils';
+import { cn } from '@/lib/utils';
 import type {
   Department,
   DepartmentWrite,
@@ -206,6 +205,7 @@ export function DepartmentsPage() {
         filters={filters}
         onChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
         onReset={reset}
+        showDistrict={false}
         showTaxonomy={false}
         search={
           <Input
@@ -244,111 +244,29 @@ export function DepartmentsPage() {
           onAction={openCreate}
         />
       ) : (
-        <TableShell>
-          <Table>
-            <thead>
-              <tr>
-                <Th>Department</Th>
-                <Th>HOD</Th>
-                <Th>Staff</Th>
-                <Th>Status</Th>
-                <Th>Created</Th>
-                <Th className="text-right">Actions</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((dept) => {
-                const hod = dept.hodAdminId
-                  ? adminMap.get(dept.hodAdminId)
-                  : undefined;
-                const staffCount = staffCountByDept.get(dept.id) ?? 0;
-                return (
-                  <tr key={dept.id}>
-                    <Td>
-                      <p className="font-medium text-text-primary">{dept.name}</p>
-                      {dept.description ? (
-                        <p className="mt-0.5 max-w-xs truncate text-xs text-text-muted">
-                          {dept.description}
-                        </p>
-                      ) : null}
-                    </Td>
-                    <Td>
-                      {hod ? (
-                        <Link
-                          to="/admins"
-                          className="text-sm text-accent hover:underline"
-                        >
-                          {hod.name}
-                        </Link>
-                      ) : (
-                        <span className="text-sm text-text-muted">Vacant</span>
-                      )}
-                    </Td>
-                    <Td className="tabular-nums">{staffCount}</Td>
-                    <Td>
-                      <Badge
-                        tone={
-                          dept.status === 'active'
-                            ? 'success'
-                            : dept.status === 'frozen'
-                              ? 'warning'
-                              : 'neutral'
-                        }
-                      >
-                        {dept.status}
-                      </Badge>
-                    </Td>
-                    <Td className="text-sm text-text-secondary">
-                      {formatDateTime(dept.createdAt)}
-                    </Td>
-                    <Td>
-                      <div className="flex flex-wrap justify-end gap-1.5">
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => openEdit(dept)}
-                        >
-                          <Pencil className="h-3.5 w-3.5" aria-hidden />
-                          Edit
-                        </Button>
-                        {!dept.hodAdminId && dept.status === 'active' ? (
-                          <Button
-                            size="sm"
-                            variant="outline"
-                            onClick={() => {
-                              setAssignOpen(dept);
-                              setHodId('');
-                            }}
-                          >
-                            Assign HOD
-                          </Button>
-                        ) : null}
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          onClick={() => void toggleFreeze(dept)}
-                        >
-                          <Lock className="h-3.5 w-3.5" aria-hidden />
-                          {dept.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
-                        </Button>
-                        <Button
-                          size="sm"
-                          variant="outline"
-                          className="text-danger hover:border-danger"
-                          disabled={staffCount > 0}
-                          onClick={() => setConfirmArchive(dept)}
-                        >
-                          <Trash2 className="h-3.5 w-3.5" aria-hidden />
-                          Archive
-                        </Button>
-                      </div>
-                    </Td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </Table>
-        </TableShell>
+        <div className="space-y-3">
+          {rows.map((dept) => {
+            const hod = dept.hodAdminId
+              ? adminMap.get(dept.hodAdminId)
+              : undefined;
+            const staffCount = staffCountByDept.get(dept.id) ?? 0;
+            return (
+              <DepartmentCard
+                key={dept.id}
+                dept={dept}
+                hod={hod}
+                staffCount={staffCount}
+                onEdit={openEdit}
+                onAssignHod={(d) => {
+                  setAssignOpen(d);
+                  setHodId('');
+                }}
+                onToggleFreeze={(d) => void toggleFreeze(d)}
+                onArchive={setConfirmArchive}
+              />
+            );
+          })}
+        </div>
       )}
 
       <Modal
