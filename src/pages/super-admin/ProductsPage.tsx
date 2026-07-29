@@ -14,6 +14,7 @@ import {
 import { Link } from 'react-router-dom';
 import { useApiSWR } from '@/api/swr-helpers';
 import { ENDPOINTS } from '@/api/endpoints';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -22,7 +23,13 @@ import {
   ErrorState,
 } from '@/components/ui/States';
 import { ListPageSkeleton } from '@/components/ui/skeletons';
-import { Table, TableShell, Td, Th } from '@/components/ui/Table';
+import { Table, TableShell, Th } from '@/components/ui/Table';
+import {
+  ClickableTableRow,
+  ClickableTd,
+  stopRowNavigation,
+  TableActionsCell,
+} from '@/components/ui/clickable-row';
 import { useToast } from '@/components/ui/Toast';
 import {
   filterSelectClass,
@@ -153,14 +160,16 @@ export function ProductsPage() {
             performance.
           </p>
         </div>
-        <Button
-          onClick={() =>
-            toast('Add Product opens when create API is ready', 'info')
-          }
-        >
-          <Plus className="h-4 w-4" aria-hidden />
-          Add Product
-        </Button>
+        <PermissionGate module="products">
+          <Button
+            onClick={() =>
+              toast('Add Product opens when create API is ready', 'info')
+            }
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            Add Product
+          </Button>
+        </PermissionGate>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
@@ -298,8 +307,12 @@ export function ProductsPage() {
                 {pageRows.map((p) => {
                   const toneIdx = catIndex.get(p.categoryId) ?? 0;
                   return (
-                    <tr key={p.id} className="hover:bg-accent-muted/30">
-                      <Td>
+                    <ClickableTableRow
+                      key={p.id}
+                      to={`/products/${p.id}`}
+                      ariaLabel={`View ${p.name}`}
+                    >
+                      <ClickableTd>
                         <div className="flex items-center gap-3">
                           <img
                             src={p.images[0]}
@@ -307,27 +320,25 @@ export function ProductsPage() {
                             className="h-11 w-11 rounded-lg object-cover"
                           />
                           <div className="min-w-0">
-                            <Link
-                              to={`/products/${p.id}`}
-                              className="block truncate font-medium text-text-primary hover:text-accent"
-                            >
+                            <p className="block truncate font-medium text-text-primary">
                               {p.name}
-                            </Link>
+                            </p>
                             <p className="truncate text-xs text-text-muted">
                               {p.id.toUpperCase()}
                             </p>
                           </div>
                         </div>
-                      </Td>
-                      <Td>
+                      </ClickableTd>
+                      <ClickableTd>
                         <Link
                           to={`/rbos/${p.rboId}`}
+                          onClick={stopRowNavigation}
                           className="text-sm text-text-primary hover:text-accent"
                         >
                           {rboMap.get(p.rboId) ?? p.rboId}
                         </Link>
-                      </Td>
-                      <Td>
+                      </ClickableTd>
+                      <ClickableTd>
                         <span
                           className={cn(
                             'inline-flex rounded-full border px-2.5 py-0.5 text-[11px] font-medium',
@@ -336,21 +347,22 @@ export function ProductsPage() {
                         >
                           {categoryPathLabel(catList, p.categoryId)}
                         </span>
-                      </Td>
-                      <Td className="tabular-nums">
+                      </ClickableTd>
+                      <ClickableTd className="tabular-nums">
                         {formatInr(p.pricePerDayInr)}
-                      </Td>
-                      <Td className="tabular-nums">{p.bookingCount}</Td>
-                      <Td>
+                      </ClickableTd>
+                      <ClickableTd className="tabular-nums">{p.bookingCount}</ClickableTd>
+                      <ClickableTd>
                         <StarRating value={p.ratingAvg} />
-                      </Td>
-                      <Td>
+                      </ClickableTd>
+                      <ClickableTd>
                         <StatusPill status={p.status} />
-                      </Td>
-                      <Td>
+                      </ClickableTd>
+                      <TableActionsCell>
                         <div className="flex items-center justify-end gap-1">
                           <Link
                             to={`/products/${p.id}`}
+                            onClick={stopRowNavigation}
                             className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border text-text-secondary hover:border-accent hover:text-accent"
                             aria-label={`Edit ${p.name}`}
                           >
@@ -370,8 +382,8 @@ export function ProductsPage() {
                             <MoreVertical className="h-4 w-4" aria-hidden />
                           </button>
                         </div>
-                      </Td>
-                    </tr>
+                      </TableActionsCell>
+                    </ClickableTableRow>
                   );
                 })}
               </tbody>

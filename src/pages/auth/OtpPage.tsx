@@ -47,6 +47,7 @@ export function OtpPage() {
           <p className="mt-1 text-sm text-text-secondary">
             Dynamic SMS/Email OTP sent to{' '}
             <span className="font-medium text-text-primary">{pendingEmail}</span>
+            . Module access is loaded from your profile after verification.
           </p>
           <form className="mt-6 space-y-4" onSubmit={onSubmit}>
             <Input

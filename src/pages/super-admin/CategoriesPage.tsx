@@ -14,6 +14,7 @@ import { apiDelete, apiPatch, apiPost } from '@/api/axios-helpers';
 import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -258,14 +259,18 @@ export function CategoriesPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <Button variant="outline" onClick={() => openCreate('category')}>
-            <Plus className="h-4 w-4" aria-hidden />
-            Add category
-          </Button>
-          <Button onClick={() => openCreate('subcategory')}>
-            <Plus className="h-4 w-4" aria-hidden />
-            Add subcategory
-          </Button>
+          <PermissionGate module="categories">
+            <Button variant="outline" onClick={() => openCreate('category')}>
+              <Plus className="h-4 w-4" aria-hidden />
+              Add category
+            </Button>
+          </PermissionGate>
+          <PermissionGate module="categories">
+            <Button onClick={() => openCreate('subcategory')}>
+              <Plus className="h-4 w-4" aria-hidden />
+              Add subcategory
+            </Button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -330,8 +335,13 @@ export function CategoriesPage() {
       {filteredRoots.length === 0 ? (
         <EmptyState
           title="No categories match filters"
-          actionLabel="Add category"
-          onAction={() => openCreate('category')}
+          action={
+            <PermissionGate module="categories">
+              <Button className="mt-3" onClick={() => openCreate('category')}>
+                Add category
+              </Button>
+            </PermissionGate>
+          }
         />
       ) : (
         <div className="space-y-3">
@@ -396,6 +406,9 @@ export function CategoriesPage() {
                           {root.description}
                         </p>
                       ) : null}
+                      {!isOpen && children.length > 0 ? (
+                        <SubcategoryChipRow items={children} />
+                      ) : null}
                       <p className="mt-1 text-xs text-text-muted">
                         {children.length}{' '}
                         {children.length === 1 ? 'subcategory' : 'subcategories'}{' '}
@@ -418,13 +431,15 @@ export function CategoriesPage() {
                     {children.length === 0 ? (
                       <p className="px-4 py-6 text-center text-sm text-text-muted">
                         No subcategories yet.{' '}
-                        <button
-                          type="button"
-                          className="text-accent hover:underline"
-                          onClick={() => openCreate('subcategory', root.id)}
-                        >
-                          Add one
-                        </button>
+                        <PermissionGate module="categories">
+                          <button
+                            type="button"
+                            className="text-accent hover:underline"
+                            onClick={() => openCreate('subcategory', root.id)}
+                          >
+                            Add one
+                          </button>
+                        </PermissionGate>
                       </p>
                     ) : (
                       <ul className="divide-y divide-border">
@@ -564,6 +579,38 @@ export function CategoriesPage() {
   );
 }
 
+function SubcategoryChipRow({ items }: { items: Category[] }) {
+  const maxVisible = 8;
+  const visible = items.slice(0, maxVisible);
+  const overflow = items.length - visible.length;
+
+  return (
+    <div className="mt-2 flex flex-wrap gap-1.5" aria-label="Subcategories">
+      {visible.map((sub) => (
+        <span
+          key={sub.id}
+          className={cn(
+            'inline-flex max-w-[12rem] items-center rounded-full border px-2.5 py-0.5 text-[11px] font-medium',
+            sub.status === 'active'
+              ? 'border-border bg-surface text-text-secondary'
+              : sub.status === 'frozen'
+                ? 'border-accent/30 bg-accent-muted/60 text-accent'
+                : 'border-danger/30 bg-danger-muted/60 text-danger',
+          )}
+          title={sub.description ?? sub.name}
+        >
+          <span className="truncate">{sub.name}</span>
+        </span>
+      ))}
+      {overflow > 0 ? (
+        <span className="inline-flex items-center rounded-full border border-border bg-canvas px-2.5 py-0.5 text-[11px] font-medium text-text-muted">
+          +{overflow} more
+        </span>
+      ) : null}
+    </div>
+  );
+}
+
 function CategoryActions({
   cat,
   onEdit,
@@ -580,36 +627,38 @@ function CategoryActions({
   showAddSub?: boolean;
 }) {
   return (
-    <div className="flex flex-wrap gap-1.5">
-      {showAddSub && onAddSub ? (
-        <Button size="sm" variant="outline" onClick={onAddSub}>
-          <Plus className="h-3.5 w-3.5" aria-hidden />
-          Add subcategory
+    <PermissionGate module="categories">
+      <div className="flex flex-wrap gap-1.5">
+        {showAddSub && onAddSub ? (
+          <Button size="sm" variant="outline" onClick={onAddSub}>
+            <Plus className="h-3.5 w-3.5" aria-hidden />
+            Add subcategory
+          </Button>
+        ) : null}
+        <Button size="sm" variant="outline" onClick={() => onEdit(cat)}>
+          <Pencil className="h-3.5 w-3.5" aria-hidden />
+          Edit
         </Button>
-      ) : null}
-      <Button size="sm" variant="outline" onClick={() => onEdit(cat)}>
-        <Pencil className="h-3.5 w-3.5" aria-hidden />
-        Edit
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        onClick={() => void onFreeze(cat)}
-        disabled={cat.status === 'archived'}
-      >
-        <Snowflake className="h-3.5 w-3.5 text-accent" aria-hidden />
-        {cat.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
-      </Button>
-      <Button
-        size="sm"
-        variant="outline"
-        className="text-danger hover:border-danger"
-        onClick={() => onDelete(cat)}
-      >
-        <Trash2 className="h-3.5 w-3.5" aria-hidden />
-        Delete
-      </Button>
-    </div>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => void onFreeze(cat)}
+          disabled={cat.status === 'archived'}
+        >
+          <Snowflake className="h-3.5 w-3.5 text-accent" aria-hidden />
+          {cat.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
+        </Button>
+        <Button
+          size="sm"
+          variant="outline"
+          className="text-danger hover:border-danger"
+          onClick={() => onDelete(cat)}
+        >
+          <Trash2 className="h-3.5 w-3.5" aria-hidden />
+          Delete
+        </Button>
+      </div>
+    </PermissionGate>
   );
 }
 

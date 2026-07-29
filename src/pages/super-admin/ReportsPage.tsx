@@ -52,7 +52,6 @@ import { Skeleton } from '@/components/ui/Skeleton';
 import { SectionSkeleton } from '@/components/ui/skeletons';
 import { Table, TableShell, Td, Th } from '@/components/ui/Table';
 import { useToast } from '@/components/ui/Toast';
-import { filterSelectClass } from '@/components/ui/control-styles';
 import { type BookingSeriesGranularity } from '@/lib/booking-series';
 import { BookingVolumeChart } from '@/pages/super-admin/reports/BookingVolumeChart';
 import {
@@ -88,7 +87,6 @@ type Tab =
 
 type ChartKind = 'line' | 'area' | 'bar';
 type CompareWith = 'previous' | 'yoy' | 'none';
-type GroupBy = 'day' | 'week' | 'month';
 
 const TABS: Array<{ id: Tab; label: string; icon: typeof LayoutDashboard }> = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -114,8 +112,6 @@ export function ReportsPage() {
   const [tab, setTab] = useState<Tab>('overview');
   const [from, setFrom] = useState('2025-05-13');
   const [to, setTo] = useState('2025-05-20');
-  const [compareWith, setCompareWith] = useState<CompareWith>('previous');
-  const [groupBy, setGroupBy] = useState<GroupBy>('day');
   const [chartKind, setChartKind] = useState<ChartKind>('line');
   const [applied, setApplied] = useState({ from: '2025-05-13', to: '2025-05-20' });
 
@@ -215,29 +211,7 @@ export function ReportsPage() {
             />
           </label>
 
-          <select
-            value={compareWith}
-            onChange={(e) => setCompareWith(e.target.value as CompareWith)}
-            className={cn(filterSelectClass, 'xl:min-w-[10.5rem] xl:flex-none')}
-            aria-label="Compare with"
-          >
-            <option value="previous">Previous Period</option>
-            <option value="yoy">Same period last year</option>
-            <option value="none">No comparison</option>
-          </select>
-
-          <select
-            value={groupBy}
-            onChange={(e) => setGroupBy(e.target.value as GroupBy)}
-            className={cn(filterSelectClass, 'xl:min-w-[10.5rem] xl:flex-none')}
-            aria-label="Group by"
-          >
-            <option value="day">Day</option>
-            <option value="week">Week</option>
-            <option value="month">Month</option>
-          </select>
-
-          <div className="flex flex-wrap gap-2 sm:col-span-2 xl:col-span-1 xl:ml-auto">
+          <div className="flex flex-wrap gap-2 sm:col-span-2 xl:ml-auto">
             <Button
               size="sm"
               onClick={() => {
@@ -249,16 +223,7 @@ export function ReportsPage() {
             </Button>
           </div>
         </div>
-        <p className="mt-2 text-xs text-text-muted">
-          Showing {rangeLabel}
-          {compareWith === 'previous'
-            ? ' · vs previous period'
-            : compareWith === 'yoy'
-              ? ' · vs same period last year'
-              : ''}
-          {' · '}
-          grouped by {groupBy}
-        </p>
+        <p className="mt-2 text-xs text-text-muted">Showing {rangeLabel}</p>
       </Card>
 
       <ListFilterBar
@@ -269,7 +234,7 @@ export function ReportsPage() {
       />
 
       {scopedOverview ? (
-        <KpiRow data={scopedOverview} compareWith={compareWith} />
+        <KpiRow data={scopedOverview} compareWith="previous" />
       ) : overview.isLoading ? (
         <div
           className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4"
@@ -816,7 +781,39 @@ function OverviewTab({
             Top Performing Categories
           </h2>
         </div>
-        <TableShell className="rounded-none border-0">
+        <div className="space-y-3 p-4 lg:hidden">
+          {d.topCategories.map((row) => (
+            <div
+              key={row.name}
+              className="rounded-xl border border-border bg-surface p-4 shadow-sm"
+            >
+              <p className="font-medium text-text-primary">{row.name}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+                <span className="tabular-nums text-text-secondary">
+                  {row.bookings} bookings
+                </span>
+                <span className="tabular-nums text-text-primary">
+                  {formatInr(row.gmvInr)}
+                </span>
+                <span
+                  className={cn(
+                    'inline-flex items-center gap-1 text-xs font-medium',
+                    row.changePct >= 0 ? 'text-success' : 'text-danger',
+                  )}
+                >
+                  {row.changePct >= 0 ? (
+                    <TrendingUp className="h-3 w-3" aria-hidden />
+                  ) : (
+                    <TrendingDown className="h-3 w-3" aria-hidden />
+                  )}
+                  {row.changePct > 0 ? '+' : ''}
+                  {row.changePct}%
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+        <TableShell className="hidden rounded-none border-0 lg:block">
           <Table>
             <thead>
               <tr>
@@ -1259,7 +1256,25 @@ function SimpleProductTable({
   return (
     <Card>
       <CardHeader title={title} />
-      <TableShell>
+      <div className="space-y-3 p-4 lg:hidden">
+        {rows.map((r) => (
+          <div
+            key={r.id}
+            className="rounded-xl border border-border bg-surface p-4 shadow-sm"
+          >
+            <p className="font-medium text-text-primary">{r.name}</p>
+            <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
+              <span className="tabular-nums text-text-secondary">
+                Rating {r.ratingAvg.toFixed(1)}
+              </span>
+              <span className="tabular-nums text-text-primary">
+                {r.reviewCount} reviews
+              </span>
+            </div>
+          </div>
+        ))}
+      </div>
+      <TableShell className="hidden lg:block">
         <Table>
           <thead>
             <tr>
@@ -1296,7 +1311,25 @@ function RbosTab({ state }: { state: SWRLike<ReportRbos> }) {
     <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
       <Card className="xl:col-span-3">
         <CardHeader title="Vendor leaderboard" />
-        <TableShell>
+        <div className="space-y-3 p-4 lg:hidden">
+          {d.leaderboard.map((r) => (
+            <div
+              key={r.id}
+              className="rounded-xl border border-border bg-surface p-4 shadow-sm"
+            >
+              <p className="font-medium text-text-primary">{r.name}</p>
+              <div className="mt-2 flex flex-wrap items-center gap-4 text-sm">
+                <span className="tabular-nums text-text-primary">
+                  {formatInr(r.gmvInr)}
+                </span>
+                <span className="tabular-nums text-text-secondary">
+                  {r.ratingAvg.toFixed(1)} rating
+                </span>
+              </div>
+            </div>
+          ))}
+        </div>
+        <TableShell className="hidden lg:block">
           <Table>
             <thead>
               <tr>

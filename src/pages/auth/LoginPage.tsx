@@ -47,10 +47,11 @@ export function LoginPage() {
         <Card className="w-full max-w-md">
           <p className="font-display text-xl text-accent">Rental</p>
           <h1 className="mt-2 text-2xl font-semibold text-text-primary">
-            Super Admin sign in
+            Admin sign in
           </h1>
           <p className="mt-1 text-sm text-text-secondary">
-            Username/password, CAPTCHA, then OTP — as required for admin tiers.
+            Username/password, CAPTCHA, then OTP — Super Admin, General Admin,
+            or Department Admin.
           </p>
           <form className="mt-6 space-y-4" onSubmit={onSubmit}>
             <Input
@@ -86,6 +87,27 @@ export function LoginPage() {
           <p className="mt-4 text-center text-xs text-text-muted">
             Mock auth · any OTP with 4+ digits works after login
           </p>
+          <div className="mt-3 rounded-lg border border-border bg-canvas px-3 py-2.5 text-left text-[11px] text-text-muted">
+            <p className="font-medium text-text-secondary">Demo accounts</p>
+            <ul className="mt-1.5 space-y-1">
+              <li>
+                <span className="text-text-primary">super@platform.admin</span>{' '}
+                — Super Admin (full access)
+              </li>
+              <li>
+                <span className="text-text-primary">ananya.k@platform.admin</span>{' '}
+                — General Admin (manage ops modules)
+              </li>
+              <li>
+                <span className="text-text-primary">rahul.d@platform.admin</span>{' '}
+                — General Admin (view-only subset)
+              </li>
+              <li>
+                <span className="text-text-primary">meera.j@platform.admin</span>{' '}
+                — Department Admin (HOD)
+              </li>
+            </ul>
+          </div>
           <p className="mt-2 text-center text-xs">
             <Link className="text-accent hover:underline" to="/otp">
               Already have an OTP challenge?

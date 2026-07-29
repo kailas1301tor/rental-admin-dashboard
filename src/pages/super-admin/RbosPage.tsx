@@ -13,6 +13,7 @@ import {
 import { Link, useSearchParams } from 'react-router-dom';
 import { useApiSWR } from '@/api/swr-helpers';
 import { ENDPOINTS } from '@/api/endpoints';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -21,7 +22,13 @@ import {
   ErrorState,
 } from '@/components/ui/States';
 import { ListPageSkeleton } from '@/components/ui/skeletons';
-import { Table, TableShell, Td, Th } from '@/components/ui/Table';
+import { Table, TableShell, Th } from '@/components/ui/Table';
+import {
+  ClickableTableRow,
+  ClickableTd,
+  stopRowNavigation,
+  TableActionsCell,
+} from '@/components/ui/clickable-row';
 import { useToast } from '@/components/ui/Toast';
 import {
   filterSelectClass,
@@ -178,14 +185,16 @@ export function RbosPage() {
             Manage registered business owners, onboarding, and vendor status.
           </p>
         </div>
-        <Button
-          onClick={() =>
-            toast('Add RBO opens when vendor create API is ready', 'info')
-          }
-        >
-          <Plus className="h-4 w-4" aria-hidden />
-          Add RBO
-        </Button>
+        <PermissionGate module="rbos">
+          <Button
+            onClick={() =>
+              toast('Add RBO opens when vendor create API is ready', 'info')
+            }
+          >
+            <Plus className="h-4 w-4" aria-hidden />
+            Add RBO
+          </Button>
+        </PermissionGate>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
@@ -375,35 +384,36 @@ export function RbosPage() {
                 </thead>
                 <tbody>
                   {pageRows.map((r) => (
-                    <tr key={r.id} className="hover:bg-accent-muted/30">
-                      <Td>
+                    <ClickableTableRow
+                      key={r.id}
+                      to={`/rbos/${r.id}`}
+                      ariaLabel={`View ${r.businessName}`}
+                    >
+                      <ClickableTd>
                         <div className="flex items-center gap-3">
                           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-accent-muted text-xs font-semibold text-accent">
                             {initials(r.businessName)}
                           </span>
                           <div className="min-w-0">
-                            <Link
-                              to={`/rbos/${r.id}`}
-                              className="block truncate font-medium text-text-primary hover:text-accent"
-                            >
+                            <p className="block truncate font-medium text-text-primary">
                               {r.businessName}
-                            </Link>
+                            </p>
                             <p className="truncate text-xs text-text-muted">
                               {r.id}
                             </p>
                           </div>
                         </div>
-                      </Td>
-                      <Td className="text-sm text-text-primary">
+                      </ClickableTd>
+                      <ClickableTd className="text-sm text-text-primary">
                         {r.ownerName}
-                      </Td>
-                      <Td>
+                      </ClickableTd>
+                      <ClickableTd>
                         <p className="text-sm text-text-primary">{r.phone}</p>
                         <p className="truncate text-xs text-text-muted">
                           {r.email}
                         </p>
-                      </Td>
-                      <Td>
+                      </ClickableTd>
+                      <ClickableTd>
                         <div className="flex max-w-[14rem] flex-wrap gap-1">
                           {r.categoryIds.length === 0 ? (
                             <span className="text-xs text-text-muted">—</span>
@@ -421,20 +431,21 @@ export function RbosPage() {
                             ))
                           )}
                         </div>
-                      </Td>
-                      <Td>
+                      </ClickableTd>
+                      <ClickableTd>
                         <StarRating value={r.ratingAvg} />
-                      </Td>
-                      <Td className="text-sm text-text-secondary">
+                      </ClickableTd>
+                      <ClickableTd className="text-sm text-text-secondary">
                         {formatDateTime(r.createdAt)}
-                      </Td>
-                      <Td>
+                      </ClickableTd>
+                      <ClickableTd>
                         <StatusPill status={r.status} />
-                      </Td>
-                      <Td>
+                      </ClickableTd>
+                      <TableActionsCell>
                         <div className="flex items-center justify-end gap-1.5">
                           <Link
                             to={`/rbos/${r.id}`}
+                            onClick={stopRowNavigation}
                             className="inline-flex h-9 items-center rounded-full border border-border-strong px-3 text-sm font-medium text-text-primary transition-colors hover:border-accent hover:text-accent"
                           >
                             View
@@ -453,8 +464,8 @@ export function RbosPage() {
                             <MoreHorizontal className="h-4 w-4" aria-hidden />
                           </button>
                         </div>
-                      </Td>
-                    </tr>
+                      </TableActionsCell>
+                    </ClickableTableRow>
                   ))}
                 </tbody>
               </Table>

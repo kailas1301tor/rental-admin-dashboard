@@ -16,6 +16,8 @@ import { apiPatch } from '@/api/axios-helpers';
 import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
+import { PermissionGate } from '@/components/auth/PermissionGate';
+import { BookingMobileCard } from '@/components/ui/BookingMobileCard';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import {
@@ -128,29 +130,35 @@ export function ProductDetailPage() {
             <MoreHorizontal className="h-4 w-4" aria-hidden />
             More actions
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() =>
-              void setStatus(product.status === 'frozen' ? 'active' : 'frozen')
-            }
-          >
-            <Snowflake className="h-4 w-4" aria-hidden />
-            {product.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="border-accent/50 text-accent hover:bg-accent-muted"
-            onClick={() => void setStatus('disabled')}
-          >
-            <Power className="h-4 w-4" aria-hidden />
-            Disable
-          </Button>
-          {product.status !== 'active' ? (
-            <Button size="sm" onClick={() => void setStatus('active')}>
-              Activate
+          <PermissionGate module="products">
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() =>
+                void setStatus(product.status === 'frozen' ? 'active' : 'frozen')
+              }
+            >
+              <Snowflake className="h-4 w-4" aria-hidden />
+              {product.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
             </Button>
+          </PermissionGate>
+          <PermissionGate module="products">
+            <Button
+              size="sm"
+              variant="outline"
+              className="border-accent/50 text-accent hover:bg-accent-muted"
+              onClick={() => void setStatus('disabled')}
+            >
+              <Power className="h-4 w-4" aria-hidden />
+              Disable
+            </Button>
+          </PermissionGate>
+          {product.status !== 'active' ? (
+            <PermissionGate module="products">
+              <Button size="sm" onClick={() => void setStatus('active')}>
+                Activate
+              </Button>
+            </PermissionGate>
           ) : null}
         </div>
       </div>
@@ -449,7 +457,19 @@ function BookingsTable({
 }) {
   if (bookings.length === 0) return <EmptyState title="No bookings" />;
   return (
-    <TableShell>
+    <>
+      <div className="space-y-3 lg:hidden">
+        {bookings.map((b) => (
+          <BookingMobileCard
+            key={b.id}
+            booking={b}
+            showCustomer
+            showRbo={false}
+          />
+        ))}
+      </div>
+
+      <TableShell className="hidden lg:block">
       <Table>
         <thead>
           <tr>
@@ -490,6 +510,7 @@ function BookingsTable({
         </tbody>
       </Table>
     </TableShell>
+    </>
   );
 }
 

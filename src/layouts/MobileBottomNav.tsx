@@ -1,10 +1,14 @@
 import { Menu } from 'lucide-react';
 import { NavLink, useLocation } from 'react-router-dom';
 import { MOBILE_BOTTOM_NAV } from '@/layouts/nav';
+import { useFilteredNav } from '@/layouts/useFilteredNav';
 import { cn } from '@/lib/utils';
 
-function isPrimaryMobileRoute(pathname: string): boolean {
-  return MOBILE_BOTTOM_NAV.some((item) =>
+function isPrimaryMobileRoute(
+  pathname: string,
+  routes: Array<{ to: string; end?: boolean }>,
+): boolean {
+  return routes.some((item) =>
     item.end
       ? pathname === item.to
       : pathname === item.to || pathname.startsWith(`${item.to}/`),
@@ -19,15 +23,24 @@ export function MobileBottomNav({
   onMoreClick: () => void;
 }) {
   const { pathname } = useLocation();
-  const moreActive = !isPrimaryMobileRoute(pathname);
+  const navItems = useFilteredNav();
+  const mobileTabs = MOBILE_BOTTOM_NAV.filter((item) =>
+    navItems.some((n) => n.to === item.to),
+  );
+  const moreActive = !isPrimaryMobileRoute(pathname, mobileTabs);
 
   return (
     <nav
       className="fixed inset-x-0 bottom-0 z-40 border-t border-border bg-surface/95 pb-[env(safe-area-inset-bottom)] backdrop-blur-lg lg:hidden"
       aria-label="Primary mobile"
     >
-      <div className="grid h-16 grid-cols-5">
-        {MOBILE_BOTTOM_NAV.map((item) => {
+      <div
+        className="grid h-16"
+        style={{
+          gridTemplateColumns: `repeat(${mobileTabs.length + 1}, minmax(0, 1fr))`,
+        }}
+      >
+        {mobileTabs.map((item) => {
           const Icon = item.icon;
           const showBadge = item.to === '/login-alerts' && alertCount > 0;
           return (

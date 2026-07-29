@@ -17,8 +17,13 @@ import {
 } from '@/mocks/marketplace';
 import { buildDashboardKpisForRange } from '@/mocks/dashboard-kpis-range';
 import { mockDepartments } from '@/mocks/departments';
+import {
+  fullManagePermissions,
+  mockUserPermissions,
+} from '@/mocks/permissions';
 import { defaultDashboardRange } from '@/lib/date-range';
 import {
+  authUserFromAdmin,
   buildMockSession,
   delay,
   mockAnalytics,
@@ -33,6 +38,8 @@ import {
   mockSettings,
 } from '@/mocks/super-admin';
 import type {
+  AdminPermissionRow,
+  AdminProfile,
   AnalyticsSummary,
   ApprovalOverrideItem,
   Category,
@@ -57,9 +64,69 @@ import type {
   UserAddress,
   UserDevice,
   UserPaymentMethod,
+  UserPermissions,
 } from '@/types';
+import { sanitizePermissions } from '@/auth/permissions';
 
 type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
+
+const USER_KEY = 'rental_admin_user';
+
+function getMockSessionUserId(): string {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    if (!raw) return 'sa-1';
+    const parsed = JSON.parse(raw) as { id?: string };
+    return parsed.id ?? 'sa-1';
+  } catch {
+    return 'sa-1';
+  }
+}
+
+function getMockSessionUserRole(): string {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    if (!raw) return 'super_admin';
+    const parsed = JSON.parse(raw) as { role?: string };
+    return parsed.role ?? 'super_admin';
+  } catch {
+    return 'super_admin';
+  }
+}
+
+function assertSuperAdmin(): void {
+  if (getMockSessionUserRole() !== 'super_admin') {
+    throw { message: 'Forbidden', status: 403 };
+  }
+}
+
+function buildAdminProfile(userId: string): AdminProfile {
+  const admin = mockPlatformAdmins.find((a) => a.id === userId);
+  if (!admin) {
+    throw { message: 'Profile not found', status: 404 };
+  }
+  const permissions =
+    admin.tier === 'super_admin'
+      ? fullManagePermissions()
+      : { ...(mockUserPermissions[userId] ?? {}) };
+  return {
+    user: authUserFromAdmin(admin),
+    permissions,
+  };
+}
+
+function buildPermissionRows(): AdminPermissionRow[] {
+  return mockPlatformAdmins
+    .filter((a) => a.tier !== 'super_admin' && a.status !== 'archived')
+    .map((admin) => ({
+      userId: admin.id,
+      name: admin.name,
+      email: admin.email,
+      tier: admin.tier as 'general_admin' | 'department_admin',
+      departmentId: admin.departmentId,
+      permissions: { ...(mockUserPermissions[admin.id] ?? {}) },
+    }));
+}
 
 function buildRboMetrics(rboId: string): RboVendorMetrics {
   const bookings = mockBookings.filter((b) => b.rboId === rboId);
@@ -363,6 +430,29 @@ export async function mockRequest<T>(
       throw { message: 'Invalid OTP', status: 401 };
     }
     return buildMockSession(payload.email ?? 'super@platform.admin') as T;
+  }
+
+  if (method === 'get' && matchPath(url, ENDPOINTS.profile)) {
+    return buildAdminProfile(getMockSessionUserId()) as T;
+  }
+
+  if (method === 'get' && matchPath(url, ENDPOINTS.adminPermissions)) {
+    assertSuperAdmin();
+    return buildPermissionRows() as T;
+  }
+
+  if (method === 'patch' && url.startsWith(`${ENDPOINTS.adminPermissions}/`)) {
+    assertSuperAdmin();
+    const userId = pathId(url, ENDPOINTS.adminPermissions);
+    if (!userId) throw { message: 'User not found', status: 404 };
+    const admin = mockPlatformAdmins.find((a) => a.id === userId);
+    if (!admin || admin.tier === 'super_admin') {
+      throw { message: 'Cannot edit permissions for this user', status: 400 };
+    }
+    const payload = body as { permissions?: UserPermissions };
+    const next = sanitizePermissions(payload.permissions ?? {});
+    mockUserPermissions[userId] = next;
+    return next as T;
   }
 
   if (method === 'get' && matchPath(url, ENDPOINTS.dashboardKpis)) {

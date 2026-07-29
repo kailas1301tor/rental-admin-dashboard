@@ -3,6 +3,7 @@ import { apiPatch } from '@/api/axios-helpers';
 import { useApiSWR } from '@/api/swr-helpers';
 import { ENDPOINTS } from '@/api/endpoints';
 import { getErrorMessage } from '@/api/axios-client';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -155,41 +156,43 @@ export function ApprovalOverridesPage() {
                   ) : null}
                 </div>
                 {item.status === 'pending' || item.status === 'info_requested' ? (
-                  <div className="flex flex-wrap gap-2">
-                    <Button
-                      size="sm"
-                      isLoading={busyId === item.id}
-                      onClick={() => {
-                        void act(item, 'approved');
-                      }}
-                    >
-                      Approve
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="danger"
-                      isLoading={busyId === item.id}
-                      onClick={() => {
-                        void act(item, 'rejected');
-                      }}
-                    >
-                      Reject
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      isLoading={busyId === item.id}
-                      onClick={() => {
-                        void act(
-                          item,
-                          'info_requested',
-                          'Please provide clarifying documents',
-                        );
-                      }}
-                    >
-                      Request info
-                    </Button>
-                  </div>
+                  <PermissionGate module="approval_overrides">
+                    <div className="flex flex-wrap gap-2">
+                      <Button
+                        size="sm"
+                        isLoading={busyId === item.id}
+                        onClick={() => {
+                          void act(item, 'approved');
+                        }}
+                      >
+                        Approve
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="danger"
+                        isLoading={busyId === item.id}
+                        onClick={() => {
+                          void act(item, 'rejected');
+                        }}
+                      >
+                        Reject
+                      </Button>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        isLoading={busyId === item.id}
+                        onClick={() => {
+                          void act(
+                            item,
+                            'info_requested',
+                            'Please provide clarifying documents',
+                          );
+                        }}
+                      >
+                        Request info
+                      </Button>
+                    </div>
+                  </PermissionGate>
                 ) : null}
               </div>
             </Card>

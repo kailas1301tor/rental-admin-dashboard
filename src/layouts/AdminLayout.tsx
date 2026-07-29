@@ -2,28 +2,31 @@ import { useMemo, useState } from 'react';
 import { Outlet, useLocation } from 'react-router-dom';
 import { useApiSWR } from '@/api/swr-helpers';
 import { ENDPOINTS } from '@/api/endpoints';
+import { portalLabel } from '@/auth/permissions';
+import { useAuth } from '@/auth/AuthContext';
 import { MobileBottomNav } from '@/layouts/MobileBottomNav';
 import { MobileNavDrawer } from '@/layouts/MobileNavDrawer';
 import { Sidebar } from '@/layouts/Sidebar';
 import { TopBar } from '@/layouts/TopBar';
-import { SUPER_ADMIN_NAV } from '@/layouts/nav';
+import { APP_NAV } from '@/layouts/nav';
 import type { DashboardKpis } from '@/types';
 
 export function AdminLayout() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const location = useLocation();
+  const { user } = useAuth();
   const { data: kpis } = useApiSWR<DashboardKpis>(ENDPOINTS.dashboardKpis);
 
   const title = useMemo(() => {
-    const exact = SUPER_ADMIN_NAV.find(
+    const exact = APP_NAV.find(
       (item) => item.end && location.pathname === item.to,
     );
     if (exact) return exact.label;
-    const match = SUPER_ADMIN_NAV.find(
+    const match = APP_NAV.find(
       (item) => !item.end && location.pathname.startsWith(item.to),
     );
-    return match?.label ?? 'Super Admin';
-  }, [location.pathname]);
+    return match?.label ?? portalLabel(user?.role);
+  }, [location.pathname, user?.role]);
 
   const navBadges = useMemo(
     () => ({

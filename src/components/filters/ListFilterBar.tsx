@@ -7,6 +7,21 @@ import type { ListFiltersState } from '@/hooks/useListFilters';
 import type { Category } from '@/types';
 import { cn } from '@/lib/utils';
 
+function FilterField({
+  label,
+  children,
+}: {
+  label: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="flex min-w-0 flex-col gap-1.5 text-sm">
+      <span className="font-medium text-text-primary">{label}</span>
+      <div className="min-w-0">{children}</div>
+    </div>
+  );
+}
+
 export function ListFilterBar({
   filters,
   onChange,
@@ -39,22 +54,26 @@ export function ListFilterBar({
         className,
       )}
     >
-      <div className="grid grid-cols-1 gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="grid grid-cols-1 items-end gap-3 sm:grid-cols-2 xl:grid-cols-4 [&>*]:min-w-0">
         {search}
         {showDistrict ? (
-          <DistrictMultiSelect
-            value={filters.districts}
-            onChange={(districts) => onChange({ districts })}
-          />
+          <FilterField label="District">
+            <DistrictMultiSelect
+              value={filters.districts}
+              onChange={(districts) => onChange({ districts })}
+            />
+          </FilterField>
         ) : null}
         {showTaxonomy ? (
-          <BusinessCategorySelect
-            categories={categories}
-            value={filters.businessCategoryIds}
-            onChange={(businessCategoryIds) =>
-              onChange({ businessCategoryIds })
-            }
-          />
+          <FilterField label="Subcategory">
+            <BusinessCategorySelect
+              categories={categories}
+              value={filters.businessCategoryIds}
+              onChange={(businessCategoryIds) =>
+                onChange({ businessCategoryIds })
+              }
+            />
+          </FilterField>
         ) : null}
         {children}
       </div>

@@ -11,7 +11,9 @@ import {
 import { Link, useParams } from 'react-router-dom';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 import { Badge } from '@/components/ui/Badge';
+import { BookingMobileCard } from '@/components/ui/BookingMobileCard';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import {
@@ -151,15 +153,17 @@ export function UserDetailPage() {
           >
             <MoreHorizontal className="h-4 w-4" aria-hidden />
           </Button>
-          <Button
-            size="sm"
-            onClick={() =>
-              toast('Edit User opens when the API is ready', 'info')
-            }
-          >
-            <Pencil className="h-4 w-4" aria-hidden />
-            Edit User
-          </Button>
+          <PermissionGate module="users">
+            <Button
+              size="sm"
+              onClick={() =>
+                toast('Edit User opens when the API is ready', 'info')
+              }
+            >
+              <Pencil className="h-4 w-4" aria-hidden />
+              Edit User
+            </Button>
+          </PermissionGate>
         </div>
       </div>
 
@@ -169,15 +173,17 @@ export function UserDetailPage() {
             <span className="flex h-24 w-24 items-center justify-center rounded-full bg-accent-muted text-2xl font-semibold text-accent">
               {initials(user.name)}
             </span>
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                toast('Avatar upload opens when the API is ready', 'info')
-              }
-            >
-              Change Avatar
-            </Button>
+            <PermissionGate module="users">
+              <Button
+                size="sm"
+                variant="outline"
+                onClick={() =>
+                  toast('Avatar upload opens when the API is ready', 'info')
+                }
+              >
+                Change Avatar
+              </Button>
+            </PermissionGate>
           </div>
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:col-span-10 lg:grid-cols-3">
@@ -589,7 +595,20 @@ function RecentBookingsTable({
           <EmptyState title="No bookings yet" />
         </div>
       ) : (
-        <TableShell className="border-0 rounded-none">
+        <>
+          <div className="space-y-3 p-4 lg:hidden">
+            {bookings.map((b) => (
+              <BookingMobileCard
+                key={b.id}
+                booking={b}
+                rboName={rboName(b.rboId)}
+                showRbo
+                onView={onViewBooking}
+              />
+            ))}
+          </div>
+
+          <TableShell className="hidden border-0 rounded-none lg:block">
           <Table>
             <thead>
               <tr>
@@ -640,6 +659,7 @@ function RecentBookingsTable({
             </tbody>
           </Table>
         </TableShell>
+        </>
       )}
       <div className="border-t border-border px-4 py-3 text-center">
         <button
@@ -668,7 +688,20 @@ function BookingsTable({
     return <EmptyState title="No bookings for this user" />;
   }
   return (
-    <TableShell>
+    <>
+      <div className="space-y-3 lg:hidden">
+        {bookings.map((b) => (
+          <BookingMobileCard
+            key={b.id}
+            booking={b}
+            rboName={rboName(b.rboId)}
+            showRbo
+            onView={onView}
+          />
+        ))}
+      </div>
+
+      <TableShell className="hidden lg:block">
       <Table>
         <thead>
           <tr>
@@ -710,6 +743,7 @@ function BookingsTable({
         </tbody>
       </Table>
     </TableShell>
+    </>
   );
 }
 

@@ -1,9 +1,10 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Plus } from 'lucide-react';
-import { apiDelete, apiPatch, apiPost } from '@/api/axios-helpers';
+import { apiPatch, apiPost } from '@/api/axios-helpers';
 import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -64,9 +65,6 @@ export function AdminsPage() {
   const [editing, setEditing] = useState<PlatformAdmin | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [saving, setSaving] = useState(false);
-  const [confirmArchive, setConfirmArchive] = useState<PlatformAdmin | null>(
-    null,
-  );
 
   const deptList = deptData ?? [];
   const HOD_CAP = deptList.length;
@@ -192,18 +190,6 @@ export function AdminsPage() {
     }
   }
 
-  async function archiveAdmin() {
-    if (!confirmArchive) return;
-    try {
-      await apiDelete(`${ENDPOINTS.admins}/${confirmArchive.id}`);
-      await mutate();
-      toast('Admin archived', 'success');
-      setConfirmArchive(null);
-    } catch (err) {
-      toast(getErrorMessage(err), 'error');
-    }
-  }
-
   if (isLoading && !data) return <ListPageSkeleton kpiCount={4} />;
   if (error) {
     return (
@@ -220,10 +206,12 @@ export function AdminsPage() {
             Manage platform administrators, roles, and access permissions.
           </p>
         </div>
-        <Button onClick={openCreate} disabled={!canAdd}>
-          <Plus className="h-4 w-4" aria-hidden />
-          Add Admin
-        </Button>
+        <PermissionGate module="admins">
+          <Button onClick={openCreate} disabled={!canAdd}>
+            <Plus className="h-4 w-4" aria-hidden />
+            Add Admin
+          </Button>
+        </PermissionGate>
       </div>
 
       <ListFilterBar
@@ -281,7 +269,6 @@ export function AdminsPage() {
           readOnly
           onEdit={openEdit}
           onFreeze={toggleFreeze}
-          onArchive={setConfirmArchive}
         />
       </TierSection>
 
@@ -300,7 +287,6 @@ export function AdminsPage() {
           deptList={deptList}
           onEdit={openEdit}
           onFreeze={toggleFreeze}
-          onArchive={setConfirmArchive}
         />
       </TierSection>
 
@@ -320,7 +306,6 @@ export function AdminsPage() {
           showDepartment
           onEdit={openEdit}
           onFreeze={toggleFreeze}
-          onArchive={setConfirmArchive}
         />
         {vacantDepartments.length > 0 && !editing ? (
           <div className="mt-4 grid gap-2 sm:grid-cols-2">
@@ -335,21 +320,23 @@ export function AdminsPage() {
                   </p>
                   <p className="text-xs text-text-muted">Vacant seat</p>
                 </div>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  onClick={() => {
-                    setEditing(null);
-                    setForm({
-                      ...emptyForm,
-                      tier: 'department_admin',
-                      departmentId: dept.id,
-                    });
-                    setOpen(true);
-                  }}
-                >
-                  Assign
-                </Button>
+                <PermissionGate module="admins">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={() => {
+                      setEditing(null);
+                      setForm({
+                        ...emptyForm,
+                        tier: 'department_admin',
+                        departmentId: dept.id,
+                      });
+                      setOpen(true);
+                    }}
+                  >
+                    Assign
+                  </Button>
+                </PermissionGate>
               </div>
             ))}
           </div>
@@ -468,28 +455,6 @@ export function AdminsPage() {
           />
         </form>
       </Modal>
-
-      <Modal
-        open={Boolean(confirmArchive)}
-        onClose={() => setConfirmArchive(null)}
-        title="Archive admin?"
-        description="Soft-delete for audit. Account will no longer appear in active hierarchy."
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setConfirmArchive(null)}>
-              Cancel
-            </Button>
-            <Button variant="danger" onClick={() => void archiveAdmin()}>
-              Archive
-            </Button>
-          </>
-        }
-      >
-        <p className="text-sm text-text-secondary">
-          Archive <strong>{confirmArchive?.name}</strong> (
-          {confirmArchive?.email})?
-        </p>
-      </Modal>
     </div>
   );
 }
@@ -599,7 +564,6 @@ function AdminTable({
   showDepartment,
   onEdit,
   onFreeze,
-  onArchive,
 }: {
   rows: PlatformAdmin[];
   deptList: Department[];
@@ -607,7 +571,6 @@ function AdminTable({
   showDepartment?: boolean;
   onEdit: (a: PlatformAdmin) => void;
   onFreeze: (a: PlatformAdmin) => void;
-  onArchive: (a: PlatformAdmin) => void;
 }) {
   if (rows.length === 0) {
     return <EmptyState title="No admins in this tier" />;
@@ -623,7 +586,6 @@ function AdminTable({
           readOnly={readOnly}
           onEdit={onEdit}
           onFreeze={onFreeze}
-          onArchive={onArchive}
         />
       ))}
     </div>

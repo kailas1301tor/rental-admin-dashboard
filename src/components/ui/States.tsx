@@ -25,11 +25,13 @@ export function EmptyState({
   description,
   actionLabel,
   onAction,
+  action,
 }: {
   title: string;
   description?: string;
   actionLabel?: string;
   onAction?: () => void;
+  action?: React.ReactNode;
 }) {
   return (
     <div className="flex flex-col items-center justify-center gap-2 rounded-xl border border-dashed border-border bg-surface px-6 py-12 text-center">
@@ -37,11 +39,12 @@ export function EmptyState({
       {description ? (
         <p className="max-w-md text-sm text-text-secondary">{description}</p>
       ) : null}
-      {actionLabel && onAction ? (
-        <Button className="mt-3" onClick={onAction}>
-          {actionLabel}
-        </Button>
-      ) : null}
+      {action ??
+        (actionLabel && onAction ? (
+          <Button className="mt-3" onClick={onAction}>
+            {actionLabel}
+          </Button>
+        ) : null)}
     </div>
   );
 }

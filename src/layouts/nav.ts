@@ -5,6 +5,7 @@ import {
   ContactRound,
   FileText,
   History,
+  KeyRound,
   LayoutDashboard,
   Layers3,
   Package,
@@ -14,6 +15,7 @@ import {
   UserCog,
   Users,
 } from 'lucide-react';
+import type { PermissionModule } from '@/types';
 
 export type NavSection =
   | 'operations'
@@ -28,6 +30,8 @@ export interface NavItem {
   end?: boolean;
   icon: LucideIcon;
   section: NavSection;
+  permission?: PermissionModule;
+  superAdminOnly?: boolean;
 }
 
 export const NAV_SECTIONS: Array<{ id: NavSection; label: string }> = [
@@ -38,33 +42,128 @@ export const NAV_SECTIONS: Array<{ id: NavSection; label: string }> = [
   { id: 'system', label: 'System' },
 ];
 
-export const SUPER_ADMIN_NAV: NavItem[] = [
-  { to: '/', label: 'Dashboard', end: true, icon: LayoutDashboard, section: 'operations' },
-  { to: '/admins', label: 'Admins', icon: UserCog, section: 'operations' },
-  { to: '/staff', label: 'Staff', icon: Users, section: 'operations' },
-  { to: '/departments', label: 'Departments', icon: Building2, section: 'operations' },
-  { to: '/rbos', label: 'RBOs', icon: Store, section: 'operations' },
-  { to: '/products', label: 'Products', icon: Package, section: 'operations' },
-  { to: '/categories', label: 'Categories', icon: Layers3, section: 'operations' },
-  { to: '/users', label: 'Users', icon: ContactRound, section: 'user_management' },
-  { to: '/login-alerts', label: 'Login Alerts', icon: ShieldAlert, section: 'oversight' },
+export const APP_NAV: NavItem[] = [
+  {
+    to: '/',
+    label: 'Dashboard',
+    end: true,
+    icon: LayoutDashboard,
+    section: 'operations',
+    permission: 'dashboard',
+  },
+  {
+    to: '/admins',
+    label: 'Admins',
+    icon: UserCog,
+    section: 'operations',
+    permission: 'admins',
+  },
+  {
+    to: '/staff',
+    label: 'Staff',
+    icon: Users,
+    section: 'operations',
+    permission: 'staff',
+  },
+  {
+    to: '/departments',
+    label: 'Departments',
+    icon: Building2,
+    section: 'operations',
+    permission: 'departments',
+  },
+  {
+    to: '/rbos',
+    label: 'RBOs',
+    icon: Store,
+    section: 'operations',
+    permission: 'rbos',
+  },
+  {
+    to: '/products',
+    label: 'Products',
+    icon: Package,
+    section: 'operations',
+    permission: 'products',
+  },
+  {
+    to: '/categories',
+    label: 'Categories',
+    icon: Layers3,
+    section: 'operations',
+    permission: 'categories',
+  },
+  {
+    to: '/users',
+    label: 'Users',
+    icon: ContactRound,
+    section: 'user_management',
+    permission: 'users',
+  },
+  {
+    to: '/login-alerts',
+    label: 'Login Alerts',
+    icon: ShieldAlert,
+    section: 'oversight',
+    permission: 'login_alerts',
+  },
   {
     to: '/approval-overrides',
     label: 'Approval Overrides',
     icon: ClipboardCheck,
     section: 'oversight',
+    permission: 'approval_overrides',
   },
-  { to: '/reports', label: 'Reports', icon: FileText, section: 'insights' },
-  { to: '/activity-log', label: 'Activity Log', icon: History, section: 'insights' },
-  { to: '/settings', label: 'Settings', icon: Settings, section: 'system' },
+  {
+    to: '/reports',
+    label: 'Reports',
+    icon: FileText,
+    section: 'insights',
+    permission: 'reports',
+  },
+  {
+    to: '/activity-log',
+    label: 'Activity Log',
+    icon: History,
+    section: 'insights',
+    permission: 'activity_log',
+  },
+  {
+    to: '/settings',
+    label: 'Settings',
+    icon: Settings,
+    section: 'system',
+    permission: 'settings',
+  },
+  {
+    to: '/permissions',
+    label: 'Permissions',
+    icon: KeyRound,
+    section: 'system',
+    superAdminOnly: true,
+  },
 ];
+
+/** @deprecated Use APP_NAV */
+export const SUPER_ADMIN_NAV = APP_NAV;
 
 /** Primary destinations for the mobile bottom tab bar. */
 export const MOBILE_BOTTOM_NAV: Array<
-  Pick<NavItem, 'to' | 'label' | 'end' | 'icon'>
+  Pick<NavItem, 'to' | 'label' | 'end' | 'icon' | 'permission'>
 > = [
-  { to: '/', label: 'Home', end: true, icon: LayoutDashboard },
-  { to: '/rbos', label: 'RBOs', icon: Store },
-  { to: '/products', label: 'Products', icon: Package },
-  { to: '/login-alerts', label: 'Alerts', icon: ShieldAlert },
+  {
+    to: '/',
+    label: 'Home',
+    end: true,
+    icon: LayoutDashboard,
+    permission: 'dashboard',
+  },
+  { to: '/rbos', label: 'RBOs', icon: Store, permission: 'rbos' },
+  { to: '/products', label: 'Products', icon: Package, permission: 'products' },
+  {
+    to: '/login-alerts',
+    label: 'Alerts',
+    icon: ShieldAlert,
+    permission: 'login_alerts',
+  },
 ];

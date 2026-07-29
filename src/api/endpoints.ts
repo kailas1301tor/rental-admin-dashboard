@@ -1,10 +1,12 @@
 export const ENDPOINTS = {
   authLogin: '/auth/login',
   authVerifyOtp: '/auth/verify-otp',
+  profile: '/auth/profile',
   dashboardKpis: '/super-admin/dashboard/kpis',
   loginAlerts: '/super-admin/login-alerts',
   generalAdmins: '/super-admin/general-admins',
   admins: '/super-admin/admins',
+  adminPermissions: '/super-admin/permissions',
   staff: '/super-admin/staff',
   users: '/super-admin/users',
   categories: '/super-admin/categories',

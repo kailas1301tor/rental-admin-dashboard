@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
-import { Lock, Pencil, Trash2 } from 'lucide-react';
+import { Lock, Pencil } from 'lucide-react';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { cn, formatDateTime } from '@/lib/utils';
@@ -11,14 +12,12 @@ export function AdminCard({
   readOnly,
   onEdit,
   onFreeze,
-  onArchive,
 }: {
   admin: PlatformAdmin;
   subtitle: string;
   readOnly?: boolean;
   onEdit: (admin: PlatformAdmin) => void;
   onFreeze: (admin: PlatformAdmin) => void;
-  onArchive: (admin: PlatformAdmin) => void;
 }) {
   return (
     <Card className="!p-0 overflow-hidden">
@@ -63,25 +62,18 @@ export function AdminCard({
           <p className="text-sm text-text-muted">View only — no actions</p>
         </div>
       ) : (
-        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border bg-canvas/40 px-4 py-3 sm:px-5">
-          <Button size="sm" variant="outline" onClick={() => onEdit(admin)}>
-            <Pencil className="h-3.5 w-3.5" aria-hidden />
-            Edit
-          </Button>
-          <Button size="sm" variant="outline" onClick={() => onFreeze(admin)}>
-            <Lock className="h-3.5 w-3.5" aria-hidden />
-            {admin.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
-          </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            className="text-danger hover:border-danger"
-            onClick={() => onArchive(admin)}
-          >
-            <Trash2 className="h-3.5 w-3.5" aria-hidden />
-            Delete
-          </Button>
-        </div>
+        <PermissionGate module="admins">
+          <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border bg-canvas/40 px-4 py-3 sm:px-5">
+            <Button size="sm" variant="outline" onClick={() => onEdit(admin)}>
+              <Pencil className="h-3.5 w-3.5" aria-hidden />
+              Edit
+            </Button>
+            <Button size="sm" variant="outline" onClick={() => onFreeze(admin)}>
+              <Lock className="h-3.5 w-3.5" aria-hidden />
+              {admin.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
+            </Button>
+          </div>
+        </PermissionGate>
       )}
     </Card>
   );

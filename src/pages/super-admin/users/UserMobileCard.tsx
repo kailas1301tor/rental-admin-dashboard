@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from 'react';
-import { ChevronDown, Eye, MapPin, MoreVertical } from 'lucide-react';
+import { type ReactNode } from 'react';
+import { MapPin, MoreVertical } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { NavigableListCard } from '@/components/ui/NavigableListCard';
 import { cn, formatDateTime } from '@/lib/utils';
 import type { MarketplaceUser, MarketplaceUserStatus } from '@/types';
 
@@ -15,61 +16,43 @@ export function UserMobileCard({
   rboName: string | null;
   onMore: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        aria-expanded={open}
-        className="flex w-full items-start gap-3 p-4 text-left transition-colors active:bg-accent-muted/30"
-      >
-        <span
-          className={cn(
-            'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
-            avatarTone,
-          )}
-          aria-hidden
-        >
-          {initials(user.name)}
-        </span>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="truncate font-medium text-text-primary">
-                {user.name}
-              </p>
-              <p className="mt-0.5 truncate text-xs text-text-muted">
-                {user.id.toUpperCase()}
-              </p>
+    <NavigableListCard
+      to={`/users/${user.id}`}
+      label={`View ${user.name}`}
+      summary={
+        <div className="flex items-start gap-3">
+          <span
+            className={cn(
+              'flex h-10 w-10 shrink-0 items-center justify-center rounded-full text-xs font-semibold',
+              avatarTone,
+            )}
+            aria-hidden
+          >
+            {initials(user.name)}
+          </span>
+          <div className="min-w-0 flex-1">
+            <p className="truncate font-medium text-text-primary">
+              {user.name}
+            </p>
+            <p className="mt-0.5 truncate text-xs text-text-muted">
+              {user.id.toUpperCase()}
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <StatusPill status={user.status} />
+              <span className="inline-flex items-center gap-1 text-xs text-text-muted">
+                <MapPin className="h-3 w-3 shrink-0" aria-hidden />
+                {user.city}, {user.state}
+              </span>
             </div>
-            <ChevronDown
-              className={cn(
-                'mt-0.5 h-4 w-4 shrink-0 text-text-muted transition-transform duration-200',
-                open && 'rotate-180',
-              )}
-              aria-hidden
-            />
+            <p className="mt-2 truncate text-sm text-text-secondary">
+              {user.email}
+            </p>
           </div>
-
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <StatusPill status={user.status} />
-            <span className="inline-flex items-center gap-1 text-xs text-text-muted">
-              <MapPin className="h-3 w-3 shrink-0" aria-hidden />
-              {user.city}, {user.state}
-            </span>
-          </div>
-
-          <p className="mt-2 truncate text-sm text-text-secondary">
-            {user.email}
-          </p>
         </div>
-      </button>
-
-      {open ? (
-        <div className="space-y-3 border-t border-border bg-canvas/40 px-4 py-3">
+      }
+      details={
+        <>
           <DetailField label="Email" value={user.email} breakAll />
           <DetailField label="Phone" value={user.phone} />
           <DetailField
@@ -92,14 +75,12 @@ export function UserMobileCard({
             label="Joined"
             value={formatDateTime(user.joinedAt)}
           />
-
           <div className="flex flex-wrap gap-2 pt-1">
             <Link
               to={`/users/${user.id}`}
-              className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-surface px-3 text-sm font-medium text-text-secondary hover:border-accent hover:text-accent"
+              className="inline-flex h-9 items-center rounded-full border border-border bg-surface px-3 text-sm font-medium text-text-secondary hover:border-accent hover:text-accent"
             >
-              <Eye className="h-3.5 w-3.5" aria-hidden />
-              View
+              View profile
             </Link>
             <button
               type="button"
@@ -110,9 +91,9 @@ export function UserMobileCard({
               <MoreVertical className="h-4 w-4" aria-hidden />
             </button>
           </div>
-        </div>
-      ) : null}
-    </div>
+        </>
+      }
+    />
   );
 }
 

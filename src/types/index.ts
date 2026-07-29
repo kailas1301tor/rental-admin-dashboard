@@ -1,4 +1,8 @@
-export type AdminRole = 'super_admin' | 'general_admin_1' | 'general_admin_2';
+export type AdminRole =
+  | 'super_admin'
+  | 'general_admin_1'
+  | 'general_admin_2'
+  | 'department_admin';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -614,3 +618,11 @@ export interface ApiErrorShape {
   status?: number;
   code?: string;
 }
+
+export type {
+  AdminPermissionRow,
+  AdminProfile,
+  PermissionLevel,
+  PermissionModule,
+  UserPermissions,
+} from '@/types/permissions';

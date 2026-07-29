@@ -4,14 +4,17 @@ import type {
   ActivityLogEntry,
   AuditLogRow,
   AuthSession,
+  AuthUser,
   CategoryNode,
   ContactViewRow,
   DashboardKpis,
   GeneralAdmin,
   LoginAttempt,
+  PlatformAdmin,
   PlatformSettings,
   PlatformSummaryRow,
 } from '@/types';
+import { mockPlatformAdmins } from '@/mocks/marketplace';
 
 export const mockKpis: DashboardKpis = {
   vendors: 1284,
@@ -774,15 +777,39 @@ export const mockSettings: PlatformSettings = {
   marketingEmails: false,
 };
 
-export function buildMockSession(email: string): AuthSession {
+function tierToRole(
+  tier: PlatformAdmin['tier'],
+  slot?: number,
+): AuthUser['role'] {
+  if (tier === 'super_admin') return 'super_admin';
+  if (tier === 'department_admin') return 'department_admin';
+  return slot === 2 ? 'general_admin_2' : 'general_admin_1';
+}
+
+export function authUserFromAdmin(admin: PlatformAdmin): AuthUser {
   return {
-    token: `mock-jwt-${Date.now()}`,
-    user: {
-      id: 'sa-1',
-      name: 'Super Admin',
-      email: email || 'super@platform.admin',
-      role: 'super_admin',
-    },
+    id: admin.id,
+    name: admin.name,
+    email: admin.email,
+    role: tierToRole(admin.tier, admin.slot),
+  };
+}
+
+export function findPlatformAdminByEmail(email: string): PlatformAdmin | undefined {
+  return mockPlatformAdmins.find(
+    (a) =>
+      a.email.toLowerCase() === email.toLowerCase() && a.status !== 'archived',
+  );
+}
+
+export function buildMockSession(email: string): AuthSession {
+  const resolved =
+    findPlatformAdminByEmail(email) ??
+    mockPlatformAdmins.find((a) => a.tier === 'super_admin')!;
+  const user = authUserFromAdmin(resolved);
+  return {
+    token: `mock-jwt-${resolved.id}-${Date.now()}`,
+    user,
   };
 }
 

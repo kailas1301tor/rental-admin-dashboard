@@ -13,6 +13,7 @@ import { ListPageSkeleton } from '@/components/ui/skeletons';
 import { Table, TableShell, Td, Th } from '@/components/ui/Table';
 import { cn, formatDateTime } from '@/lib/utils';
 import { useListFilters } from '@/hooks/useListFilters';
+import { LoginAlertMobileCard } from '@/pages/super-admin/login-alerts/LoginAlertMobileCard';
 import type { LoginAttempt } from '@/types';
 
 type RoleTab =
@@ -185,7 +186,14 @@ export function LoginAlertsPage() {
         {filtered.length === 0 ? (
           <EmptyState title="No login attempts match filters" />
         ) : (
-          <TableShell>
+          <>
+            <div className="space-y-3 lg:hidden">
+              {filtered.map((row) => (
+                <LoginAlertMobileCard key={row.id} row={row} />
+              ))}
+            </div>
+
+            <TableShell className="hidden lg:block">
             <Table>
               <thead>
                 <tr>
@@ -237,6 +245,7 @@ export function LoginAlertsPage() {
               </tbody>
             </Table>
           </TableShell>
+          </>
         )}
       </div>
     </div>

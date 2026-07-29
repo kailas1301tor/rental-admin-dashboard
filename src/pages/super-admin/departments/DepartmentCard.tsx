@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2, Lock, Pencil, Trash2, UserPlus } from 'lucide-react';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -91,32 +92,34 @@ export function DepartmentCard({
         </dl>
       </div>
 
-      <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border bg-canvas/40 px-4 py-3 sm:px-5">
-        <Button size="sm" variant="outline" onClick={() => onEdit(dept)}>
-          <Pencil className="h-3.5 w-3.5" aria-hidden />
-          Edit
-        </Button>
-        {showAssignHod ? (
-          <Button size="sm" variant="outline" onClick={() => onAssignHod(dept)}>
-            <UserPlus className="h-3.5 w-3.5" aria-hidden />
-            Assign HOD
+      <PermissionGate module="departments">
+        <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border bg-canvas/40 px-4 py-3 sm:px-5">
+          <Button size="sm" variant="outline" onClick={() => onEdit(dept)}>
+            <Pencil className="h-3.5 w-3.5" aria-hidden />
+            Edit
           </Button>
-        ) : null}
-        <Button size="sm" variant="outline" onClick={() => onToggleFreeze(dept)}>
-          <Lock className="h-3.5 w-3.5" aria-hidden />
-          {dept.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
-        </Button>
-        <Button
-          size="sm"
-          variant="outline"
-          className="text-danger hover:border-danger"
-          disabled={staffCount > 0}
-          onClick={() => onArchive(dept)}
-        >
-          <Trash2 className="h-3.5 w-3.5" aria-hidden />
-          Archive
-        </Button>
-      </div>
+          {showAssignHod ? (
+            <Button size="sm" variant="outline" onClick={() => onAssignHod(dept)}>
+              <UserPlus className="h-3.5 w-3.5" aria-hidden />
+              Assign HOD
+            </Button>
+          ) : null}
+          <Button size="sm" variant="outline" onClick={() => onToggleFreeze(dept)}>
+            <Lock className="h-3.5 w-3.5" aria-hidden />
+            {dept.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            className="text-danger hover:border-danger"
+            disabled={staffCount > 0}
+            onClick={() => onArchive(dept)}
+          >
+            <Trash2 className="h-3.5 w-3.5" aria-hidden />
+            Archive
+          </Button>
+        </div>
+      </PermissionGate>
     </Card>
   );
 }

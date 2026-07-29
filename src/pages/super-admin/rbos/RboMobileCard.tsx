@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from 'react';
-import { ChevronDown, MoreHorizontal, Star } from 'lucide-react';
+import { type ReactNode } from 'react';
+import { MoreHorizontal, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { NavigableListCard } from '@/components/ui/NavigableListCard';
 import { cn, formatDateTime } from '@/lib/utils';
 import type { RboStatus, RboVendor } from '@/types';
 
@@ -20,52 +21,36 @@ export function RboMobileCard({
   categoryNames: string[];
   onMore: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        aria-expanded={open}
-        className="flex w-full items-start gap-3 p-4 text-left transition-colors active:bg-accent-muted/30"
-      >
-        <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-muted text-xs font-semibold text-accent">
-          {initials(vendor.businessName)}
-        </span>
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
+    <NavigableListCard
+      to={`/rbos/${vendor.id}`}
+      label={`View ${vendor.businessName}`}
+      summary={
+        <>
+          <div className="flex items-start gap-3">
+            <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-accent-muted text-xs font-semibold text-accent">
+              {initials(vendor.businessName)}
+            </span>
+            <div className="min-w-0 flex-1">
               <p className="line-clamp-2 font-medium text-text-primary">
                 {vendor.businessName}
               </p>
               <p className="mt-0.5 truncate text-xs text-text-muted">
                 {vendor.ownerName}
               </p>
+              <div className="mt-2 flex flex-wrap items-center gap-2">
+                <StatusPill status={vendor.status} />
+                <StarRating value={vendor.ratingAvg} compact />
+              </div>
+              <p className="mt-2 truncate text-sm text-text-secondary">
+                {vendor.phone}
+              </p>
             </div>
-            <ChevronDown
-              className={cn(
-                'mt-0.5 h-4 w-4 shrink-0 text-text-muted transition-transform duration-200',
-                open && 'rotate-180',
-              )}
-              aria-hidden
-            />
           </div>
-
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <StatusPill status={vendor.status} />
-            <StarRating value={vendor.ratingAvg} compact />
-          </div>
-
-          <p className="mt-2 truncate text-sm text-text-secondary">
-            {vendor.phone}
-          </p>
-        </div>
-      </button>
-
-      {open ? (
-        <div className="space-y-3 border-t border-border bg-canvas/40 px-4 py-3">
+        </>
+      }
+      details={
+        <>
           <DetailField label="Owner" value={vendor.ownerName} />
           <DetailField label="Email" value={vendor.email} breakAll />
           <DetailField label="Phone" value={vendor.phone} />
@@ -95,7 +80,6 @@ export function RboMobileCard({
             label="Joined"
             value={formatDateTime(vendor.createdAt)}
           />
-
           <div className="flex flex-wrap gap-2 pt-1">
             <Link
               to={`/rbos/${vendor.id}`}
@@ -112,9 +96,9 @@ export function RboMobileCard({
               <MoreHorizontal className="h-4 w-4" aria-hidden />
             </button>
           </div>
-        </div>
-      ) : null}
-    </div>
+        </>
+      }
+    />
   );
 }
 

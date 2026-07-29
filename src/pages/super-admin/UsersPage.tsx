@@ -21,7 +21,13 @@ import {
   ErrorState,
 } from '@/components/ui/States';
 import { ListPageSkeleton } from '@/components/ui/skeletons';
-import { Table, TableShell, Td, Th } from '@/components/ui/Table';
+import { Table, TableShell, Th } from '@/components/ui/Table';
+import {
+  ClickableTableRow,
+  ClickableTd,
+  stopRowNavigation,
+  TableActionsCell,
+} from '@/components/ui/clickable-row';
 import { useToast } from '@/components/ui/Toast';
 import {
   filterSelectClass,
@@ -303,8 +309,12 @@ export function UsersPage() {
                       (safePage * PAGE_SIZE + idx) % AVATAR_TONES.length
                     ];
                   return (
-                    <tr key={user.id} className="hover:bg-accent-muted/30">
-                      <Td>
+                    <ClickableTableRow
+                      key={user.id}
+                      to={`/users/${user.id}`}
+                      ariaLabel={`View ${user.name}`}
+                    >
+                      <ClickableTd>
                         <div className="flex items-center gap-3">
                           <span
                             className={cn(
@@ -324,8 +334,8 @@ export function UsersPage() {
                             </p>
                           </div>
                         </div>
-                      </Td>
-                      <Td>
+                      </ClickableTd>
+                      <ClickableTd>
                         <div className="min-w-0">
                           <p className="truncate text-sm text-text-primary">
                             {user.email}
@@ -334,8 +344,8 @@ export function UsersPage() {
                             {user.phone}
                           </p>
                         </div>
-                      </Td>
-                      <Td>
+                      </ClickableTd>
+                      <ClickableTd>
                         <div className="flex items-start gap-1.5">
                           <MapPin
                             className="mt-0.5 h-3.5 w-3.5 shrink-0 text-text-muted"
@@ -350,11 +360,12 @@ export function UsersPage() {
                             </p>
                           </div>
                         </div>
-                      </Td>
-                      <Td>
+                      </ClickableTd>
+                      <ClickableTd>
                         {user.rboId ? (
                           <Link
                             to={`/rbos/${user.rboId}`}
+                            onClick={stopRowNavigation}
                             className="text-sm text-text-primary hover:text-accent"
                           >
                             {rboMap.get(user.rboId) ?? user.rboId}
@@ -362,17 +373,18 @@ export function UsersPage() {
                         ) : (
                           <span className="text-sm text-text-muted">—</span>
                         )}
-                      </Td>
-                      <Td className="whitespace-nowrap text-sm text-text-secondary">
+                      </ClickableTd>
+                      <ClickableTd className="whitespace-nowrap text-sm text-text-secondary">
                         {formatDateTime(user.joinedAt)}
-                      </Td>
-                      <Td>
+                      </ClickableTd>
+                      <ClickableTd>
                         <StatusPill status={user.status} />
-                      </Td>
-                      <Td>
+                      </ClickableTd>
+                      <TableActionsCell>
                         <div className="flex items-center justify-end gap-1">
                           <Link
                             to={`/users/${user.id}`}
+                            onClick={stopRowNavigation}
                             className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border px-3 text-sm font-medium text-text-secondary hover:border-accent hover:text-accent"
                           >
                             <Eye className="h-3.5 w-3.5" aria-hidden />
@@ -389,8 +401,8 @@ export function UsersPage() {
                             <MoreVertical className="h-4 w-4" aria-hidden />
                           </button>
                         </div>
-                      </Td>
-                    </tr>
+                      </TableActionsCell>
+                    </ClickableTableRow>
                   );
                 })}
               </tbody>

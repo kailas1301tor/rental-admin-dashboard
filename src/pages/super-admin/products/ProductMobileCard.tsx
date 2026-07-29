@@ -1,6 +1,7 @@
-import { useState, type ReactNode } from 'react';
-import { ChevronDown, MoreVertical, Pencil, Star } from 'lucide-react';
+import { type ReactNode } from 'react';
+import { MoreVertical, Pencil, Star } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { NavigableListCard } from '@/components/ui/NavigableListCard';
 import { cn, formatInr } from '@/lib/utils';
 import type { Product, ProductStatus } from '@/types';
 
@@ -24,61 +25,40 @@ export function ProductMobileCard({
   categoryToneIdx: number;
   onMore: () => void;
 }) {
-  const [open, setOpen] = useState(false);
-
   return (
-    <div className="overflow-hidden rounded-xl border border-border bg-surface shadow-sm">
-      <button
-        type="button"
-        onClick={() => setOpen((prev) => !prev)}
-        aria-expanded={open}
-        className="flex w-full items-start gap-3 p-4 text-left transition-colors active:bg-accent-muted/30"
-      >
-        <img
-          src={product.images[0]}
-          alt=""
-          className="h-14 w-14 shrink-0 rounded-lg object-cover"
-        />
-
-        <div className="min-w-0 flex-1">
-          <div className="flex items-start justify-between gap-2">
-            <div className="min-w-0">
-              <p className="line-clamp-2 font-medium text-text-primary">
-                {product.name}
-              </p>
-              <p className="mt-0.5 truncate text-xs text-text-muted">
-                {product.id.toUpperCase()}
-              </p>
+    <NavigableListCard
+      to={`/products/${product.id}`}
+      label={`View ${product.name}`}
+      summary={
+        <div className="flex items-start gap-3">
+          <img
+            src={product.images[0]}
+            alt=""
+            className="h-14 w-14 shrink-0 rounded-lg object-cover"
+          />
+          <div className="min-w-0 flex-1">
+            <p className="line-clamp-2 font-medium text-text-primary">
+              {product.name}
+            </p>
+            <p className="mt-0.5 truncate text-xs text-text-muted">
+              {product.id.toUpperCase()}
+            </p>
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <CategoryBadge label={categoryName} toneIdx={categoryToneIdx} />
+              <StatusPill status={product.status} />
             </div>
-            <ChevronDown
-              className={cn(
-                'mt-0.5 h-4 w-4 shrink-0 text-text-muted transition-transform duration-200',
-                open && 'rotate-180',
-              )}
-              aria-hidden
-            />
+            <p className="mt-2 truncate text-sm text-text-secondary">
+              {rboName}
+            </p>
+            <p className="mt-1 text-sm font-medium tabular-nums text-text-primary">
+              {formatInr(product.pricePerDayInr)}
+              <span className="font-normal text-text-muted"> / day</span>
+            </p>
           </div>
-
-          <div className="mt-2 flex flex-wrap items-center gap-2">
-            <CategoryBadge
-              label={categoryName}
-              toneIdx={categoryToneIdx}
-            />
-            <StatusPill status={product.status} />
-          </div>
-
-          <p className="mt-2 truncate text-sm text-text-secondary">
-            {rboName}
-          </p>
-          <p className="mt-1 text-sm font-medium tabular-nums text-text-primary">
-            {formatInr(product.pricePerDayInr)}
-            <span className="font-normal text-text-muted"> / day</span>
-          </p>
         </div>
-      </button>
-
-      {open ? (
-        <div className="space-y-3 border-t border-border bg-canvas/40 px-4 py-3">
+      }
+      details={
+        <>
           <DetailField label="RBO">
             <Link
               to={`/rbos/${product.rboId}`}
@@ -88,10 +68,7 @@ export function ProductMobileCard({
             </Link>
           </DetailField>
           <DetailField label="Category">
-            <CategoryBadge
-              label={categoryName}
-              toneIdx={categoryToneIdx}
-            />
+            <CategoryBadge label={categoryName} toneIdx={categoryToneIdx} />
           </DetailField>
           <DetailField
             label="Price per day"
@@ -104,7 +81,6 @@ export function ProductMobileCard({
           <DetailField label="Rating">
             <StarRating value={product.ratingAvg} />
           </DetailField>
-
           <div className="flex flex-wrap gap-2 pt-1">
             <Link
               to={`/products/${product.id}`}
@@ -122,9 +98,9 @@ export function ProductMobileCard({
               <MoreVertical className="h-4 w-4" aria-hidden />
             </button>
           </div>
-        </div>
-      ) : null}
-    </div>
+        </>
+      }
+    />
   );
 }
 

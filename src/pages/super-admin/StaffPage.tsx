@@ -3,6 +3,7 @@ import { apiPatch, apiPost } from '@/api/axios-helpers';
 import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -15,7 +16,12 @@ import {
   PageHeader,
 } from '@/components/ui/States';
 import { ListPageSkeleton } from '@/components/ui/skeletons';
-import { Table, TableShell, Td, Th } from '@/components/ui/Table';
+import { Table, TableShell, Th } from '@/components/ui/Table';
+import {
+  ClickableTableRow,
+  ClickableTd,
+  TableActionsCell,
+} from '@/components/ui/clickable-row';
 import { useToast } from '@/components/ui/Toast';
 import { useListFilters } from '@/hooks/useListFilters';
 import { StaffMobileCard } from '@/pages/super-admin/staff/StaffMobileCard';
@@ -133,7 +139,11 @@ export function StaffPage() {
       <PageHeader
         title="Staff"
         description="Platform departmental staff. Separate from RBO sub-staff."
-        actions={<Button onClick={openCreate}>Add staff</Button>}
+        actions={
+          <PermissionGate module="staff">
+            <Button onClick={openCreate}>Add staff</Button>
+          </PermissionGate>
+        }
       />
 
       <ListFilterBar
@@ -174,7 +184,16 @@ export function StaffPage() {
       </ListFilterBar>
 
       {filtered.length === 0 ? (
-        <EmptyState title="No staff match filters" actionLabel="Add staff" onAction={openCreate} />
+        <EmptyState
+          title="No staff match filters"
+          action={
+            <PermissionGate module="staff">
+              <Button className="mt-3" onClick={openCreate}>
+                Add staff
+              </Button>
+            </PermissionGate>
+          }
+        />
       ) : (
         <>
           <div className="space-y-3 lg:hidden">
@@ -203,32 +222,38 @@ export function StaffPage() {
               </thead>
               <tbody>
                 {filtered.map((row) => (
-                  <tr key={row.id}>
-                    <Td className="font-medium">{row.name}</Td>
-                    <Td>
+                  <ClickableTableRow
+                    key={row.id}
+                    onActivate={() => openEdit(row)}
+                    ariaLabel={`Edit ${row.name}`}
+                  >
+                    <ClickableTd className="font-medium">{row.name}</ClickableTd>
+                    <ClickableTd>
                       <div>{row.email}</div>
                       <div className="text-xs text-text-muted">{row.phone}</div>
-                    </Td>
-                    <Td>{departmentLabel(row.departmentId, deptList)}</Td>
-                    <Td>
+                    </ClickableTd>
+                    <ClickableTd>{departmentLabel(row.departmentId, deptList)}</ClickableTd>
+                    <ClickableTd>
                       <Badge tone={row.status === 'active' ? 'success' : 'warning'}>
                         {row.status}
                       </Badge>
-                    </Td>
-                    <Td className="text-text-secondary">
+                    </ClickableTd>
+                    <ClickableTd className="text-text-secondary">
                       {formatDateTime(row.createdAt)}
-                    </Td>
-                    <Td>
-                      <div className="flex flex-wrap gap-2">
-                        <Button size="sm" variant="outline" onClick={() => openEdit(row)}>
-                          Edit
-                        </Button>
-                        <Button size="sm" variant="secondary" onClick={() => void toggleFreeze(row)}>
-                          {row.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
-                        </Button>
-                      </div>
-                    </Td>
-                  </tr>
+                    </ClickableTd>
+                    <TableActionsCell>
+                      <PermissionGate module="staff">
+                        <div className="flex flex-wrap gap-2">
+                          <Button size="sm" variant="outline" onClick={() => openEdit(row)}>
+                            Edit
+                          </Button>
+                          <Button size="sm" variant="secondary" onClick={() => void toggleFreeze(row)}>
+                            {row.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
+                          </Button>
+                        </div>
+                      </PermissionGate>
+                    </TableActionsCell>
+                  </ClickableTableRow>
                 ))}
               </tbody>
             </Table>

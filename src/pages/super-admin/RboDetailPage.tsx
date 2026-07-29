@@ -17,6 +17,7 @@ import { apiPatch } from '@/api/axios-helpers';
 import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
+import { PermissionGate } from '@/components/auth/PermissionGate';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import {
@@ -25,7 +26,15 @@ import {
 } from '@/components/ui/States';
 import { DetailPageSkeleton } from '@/components/ui/skeletons';
 import { Table, TableShell, Td, Th } from '@/components/ui/Table';
+import {
+  ClickableTableRow,
+  ClickableTd,
+  TableActionsCell,
+} from '@/components/ui/clickable-row';
 import { useToast } from '@/components/ui/Toast';
+import { RboDetailProductMobileCard } from '@/pages/super-admin/rbos/RboDetailProductMobileCard';
+import { RboDetailReviewMobileCard } from '@/pages/super-admin/rbos/RboDetailReviewMobileCard';
+import { RboDetailStaffMobileCard } from '@/pages/super-admin/rbos/RboDetailStaffMobileCard';
 import { BOOKING_VALUE_LABEL } from '@/lib/metrics';
 import { categoryPathLabel } from '@/lib/category-helpers';
 import { cn, formatDateTime, formatInr } from '@/lib/utils';
@@ -203,18 +212,20 @@ export function RboDetailPage() {
 
             <div className="flex flex-wrap gap-2">
               {vendor.status === 'onboarding' ? (
-                <>
-                  <Button size="sm" onClick={() => void patchVendor('active')}>
-                    Approve
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="danger"
-                    onClick={() => void patchVendor('rejected')}
-                  >
-                    Reject
-                  </Button>
-                </>
+                <PermissionGate module="rbos">
+                  <>
+                    <Button size="sm" onClick={() => void patchVendor('active')}>
+                      Approve
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="danger"
+                      onClick={() => void patchVendor('rejected')}
+                    >
+                      Reject
+                    </Button>
+                  </>
+                </PermissionGate>
               ) : null}
               <Button
                 size="sm"
@@ -226,19 +237,21 @@ export function RboDetailPage() {
                 <MoreHorizontal className="h-4 w-4" aria-hidden />
                 More actions
               </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                className="border-accent/50 text-accent hover:bg-accent-muted"
-                onClick={() =>
-                  void patchVendor(
-                    vendor.status === 'frozen' ? 'active' : 'frozen',
-                  )
-                }
-              >
-                <Lock className="h-4 w-4" aria-hidden />
-                {vendor.status === 'frozen' ? 'Unfreeze RBO' : 'Freeze RBO'}
-              </Button>
+              <PermissionGate module="rbos">
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-accent/50 text-accent hover:bg-accent-muted"
+                  onClick={() =>
+                    void patchVendor(
+                      vendor.status === 'frozen' ? 'active' : 'frozen',
+                    )
+                  }
+                >
+                  <Lock className="h-4 w-4" aria-hidden />
+                  {vendor.status === 'frozen' ? 'Unfreeze RBO' : 'Freeze RBO'}
+                </Button>
+              </PermissionGate>
             </div>
           </div>
         </div>
@@ -510,7 +523,19 @@ function ProductsTab({
     return <EmptyState title="No products for this RBO" />;
   }
   return (
-    <TableShell>
+    <>
+      <div className="space-y-3 lg:hidden">
+        {products.map((p) => (
+          <RboDetailProductMobileCard
+            key={p.id}
+            product={p}
+            catList={catList}
+            onPatch={onPatch}
+          />
+        ))}
+      </div>
+
+      <TableShell className="hidden lg:block">
       <Table>
         <thead>
           <tr>
@@ -523,8 +548,12 @@ function ProductsTab({
         </thead>
         <tbody>
           {products.map((p) => (
-            <tr key={p.id}>
-              <Td>
+            <ClickableTableRow
+              key={p.id}
+              to={`/products/${p.id}`}
+              ariaLabel={`View ${p.name}`}
+            >
+              <ClickableTd>
                 <div className="flex items-center gap-3">
                   {p.images[0] ? (
                     <img
@@ -533,49 +562,47 @@ function ProductsTab({
                       className="h-10 w-10 rounded-lg object-cover"
                     />
                   ) : null}
-                  <Link
-                    to={`/products/${p.id}`}
-                    className="font-medium text-accent hover:underline"
-                  >
-                    {p.name}
-                  </Link>
+                  <p className="font-medium text-text-primary">{p.name}</p>
                 </div>
-              </Td>
-              <Td className="text-sm text-text-secondary">
+              </ClickableTd>
+              <ClickableTd className="text-sm text-text-secondary">
                 {categoryPathLabel(catList, p.categoryId)}
-              </Td>
-              <Td>{formatInr(p.pricePerDayInr)}</Td>
-              <Td>
+              </ClickableTd>
+              <ClickableTd>{formatInr(p.pricePerDayInr)}</ClickableTd>
+              <ClickableTd>
                 <ProductStatus status={p.status} />
-              </Td>
-              <Td>
-                <div className="flex flex-wrap justify-end gap-2">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                      void onPatch(
-                        p.id,
-                        p.status === 'frozen' ? 'active' : 'frozen',
-                      )
-                    }
-                  >
-                    {p.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
-                  </Button>
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => void onPatch(p.id, 'disabled')}
-                  >
-                    Disable
-                  </Button>
-                </div>
-              </Td>
-            </tr>
+              </ClickableTd>
+              <TableActionsCell>
+                <PermissionGate module="rbos">
+                  <div className="flex flex-wrap justify-end gap-2">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        void onPatch(
+                          p.id,
+                          p.status === 'frozen' ? 'active' : 'frozen',
+                        )
+                      }
+                    >
+                      {p.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() => void onPatch(p.id, 'disabled')}
+                    >
+                      Disable
+                    </Button>
+                  </div>
+                </PermissionGate>
+              </TableActionsCell>
+            </ClickableTableRow>
           ))}
         </tbody>
       </Table>
     </TableShell>
+    </>
   );
 }
 
@@ -588,7 +615,18 @@ function StaffTab({
 }) {
   if (staff.length === 0) return <EmptyState title="No RBO sub-staff" />;
   return (
-    <TableShell>
+    <>
+      <div className="space-y-3 lg:hidden">
+        {staff.map((s) => (
+          <RboDetailStaffMobileCard
+            key={s.id}
+            staff={s}
+            onPatch={onPatch}
+          />
+        ))}
+      </div>
+
+      <TableShell className="hidden lg:block">
       <Table>
         <thead>
           <tr>
@@ -614,26 +652,29 @@ function StaffTab({
                 <StatusDot active={s.status === 'active'} label={s.status} />
               </Td>
               <Td>
-                <div className="flex justify-end">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() =>
-                      void onPatch(
-                        s.id,
-                        s.status === 'frozen' ? 'active' : 'frozen',
-                      )
-                    }
-                  >
-                    {s.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
-                  </Button>
-                </div>
+                <PermissionGate module="rbos">
+                  <div className="flex justify-end">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      onClick={() =>
+                        void onPatch(
+                          s.id,
+                          s.status === 'frozen' ? 'active' : 'frozen',
+                        )
+                      }
+                    >
+                      {s.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
+                    </Button>
+                  </div>
+                </PermissionGate>
               </Td>
             </tr>
           ))}
         </tbody>
       </Table>
     </TableShell>
+    </>
   );
 }
 
@@ -672,7 +713,19 @@ function ReviewsTab({
       {filtered.length === 0 ? (
         <EmptyState title={`No ${direction} reviews`} />
       ) : (
-        <TableShell>
+        <>
+          <div className="space-y-3 lg:hidden">
+            {filtered.map((r) => (
+              <RboDetailReviewMobileCard
+                key={r.id}
+                review={r}
+                direction={direction}
+                onPatch={onPatch}
+              />
+            ))}
+          </div>
+
+          <TableShell className="hidden lg:block">
           <Table>
             <thead>
               <tr>
@@ -707,33 +760,36 @@ function ReviewsTab({
                     </span>
                   </Td>
                   <Td>
-                    <div className="flex flex-wrap justify-end gap-2">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() =>
-                          void onPatch(
-                            r.id,
-                            r.status === 'frozen' ? 'visible' : 'frozen',
-                          )
-                        }
-                      >
-                        {r.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => void onPatch(r.id, 'hidden')}
-                      >
-                        Hide
-                      </Button>
-                    </div>
+                    <PermissionGate module="rbos">
+                      <div className="flex flex-wrap justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() =>
+                            void onPatch(
+                              r.id,
+                              r.status === 'frozen' ? 'visible' : 'frozen',
+                            )
+                          }
+                        >
+                          {r.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => void onPatch(r.id, 'hidden')}
+                        >
+                          Hide
+                        </Button>
+                      </div>
+                    </PermissionGate>
                   </Td>
                 </tr>
               ))}
             </tbody>
           </Table>
         </TableShell>
+        </>
       )}
     </div>
   );

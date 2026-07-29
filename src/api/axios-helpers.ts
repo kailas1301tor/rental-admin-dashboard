@@ -43,3 +43,17 @@ export function apiPatch<T>(url: string, body?: unknown): Promise<T> {
 export function apiDelete<T>(url: string, body?: unknown): Promise<T> {
   return mutate<T>('delete', url, body);
 }
+
+export function apiGet<T>(url: string): Promise<T> {
+  if (useMocks()) {
+    return mockRequest<T>('get', url).catch((error) => {
+      throw normalizeApiError(error);
+    });
+  }
+  return axiosClient
+    .get<T>(url)
+    .then((r) => r.data)
+    .catch((error) => {
+      throw normalizeApiError(error);
+    });
+}
