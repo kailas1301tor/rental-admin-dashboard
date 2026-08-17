@@ -6,13 +6,18 @@ export type PermissionModule =
   | 'staff'
   | 'departments'
   | 'rbos'
-  | 'products'
+  | 'listings'
+  | 'bookings'
   | 'categories'
   | 'users'
   | 'login_alerts'
   | 'approval_overrides'
   | 'reports'
   | 'activity_log'
+  | 'reviews_moderation'
+  | 'support'
+  | 'deal_desk'
+  | 'notifications'
   | 'settings';
 
 export type PermissionLevel = 'view' | 'manage';

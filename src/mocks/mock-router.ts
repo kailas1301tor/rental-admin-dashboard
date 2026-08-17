@@ -18,6 +18,20 @@ import {
 import { buildDashboardKpisForRange } from '@/mocks/dashboard-kpis-range';
 import { mockDepartments } from '@/mocks/departments';
 import {
+  mockDealDeskInquiries,
+  mockDealDeskMessages,
+} from '@/mocks/deal-desk';
+import {
+  mockPlatformNotifications,
+} from '@/mocks/notifications';
+import {
+  mockServices,
+} from '@/mocks/services';
+import {
+  mockSupportConversations,
+  mockSupportMessages,
+} from '@/mocks/support';
+import {
   fullManagePermissions,
   mockUserPermissions,
 } from '@/mocks/permissions';
@@ -66,7 +80,68 @@ import type {
   UserPaymentMethod,
   UserPermissions,
 } from '@/types';
+import type {
+  BookingDetail,
+  BookingSummaryExtended,
+  DealDeskInquiry,
+  DealDeskMessage,
+  ModerationReview,
+  PlatformNotification,
+  Service,
+  ServiceDetail,
+  SupportConversation,
+  SupportMessage,
+} from '@/types/platform-ops';
 import { sanitizePermissions } from '@/auth/permissions';
+import {
+  buildKycDocumentsForVendor,
+  syncRboPortalMockState,
+} from '@/mocks/kyc-documents';
+import {
+  fetchDevSyncProducts,
+  fetchDevSyncServices,
+  fetchDevSyncSupportConversations,
+  fetchDevSyncSupportMessages,
+  patchDevSyncSupportConversation,
+  pushDevSyncSupportMessage,
+  pushProductStatusDevSync,
+  pushRboDevSync,
+  pushServiceStatusDevSync,
+} from '@/mocks/dev-sync-client';
+
+function mergeSupportConversations(
+  base: SupportConversation[],
+  synced: Array<Record<string, unknown>>,
+): SupportConversation[] {
+  const map = new Map<string, SupportConversation>();
+  for (const c of base) map.set(c.id, c);
+  for (const raw of synced) {
+    const c = raw as unknown as SupportConversation;
+    const existing = map.get(c.id);
+    map.set(c.id, existing ? { ...existing, ...c } : c);
+  }
+  return [...map.values()];
+}
+
+async function allSupportConversations(): Promise<SupportConversation[]> {
+  const synced = await fetchDevSyncSupportConversations();
+  return mergeSupportConversations(mockSupportConversations, synced);
+}
+
+async function messagesForConversation(id: string): Promise<SupportMessage[]> {
+  const local = mockSupportMessages.filter((m) => m.conversationId === id);
+  const synced = await fetchDevSyncSupportMessages(id);
+  const map = new Map<string, SupportMessage>();
+  for (const m of local) map.set(m.id, m);
+  for (const raw of synced) {
+    const m = raw as unknown as SupportMessage;
+    map.set(m.id, m);
+  }
+  return [...map.values()].sort(
+    (a, b) =>
+      new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime(),
+  );
+}
 
 type HttpMethod = 'get' | 'post' | 'put' | 'patch' | 'delete';
 
@@ -195,6 +270,27 @@ function seedFromId(id: string): number {
   let n = 0;
   for (let i = 0; i < id.length; i += 1) n = (n + id.charCodeAt(i) * (i + 1)) % 997;
   return n;
+}
+
+function toBookingExtended(
+  b: import('@/types').BookingSummary,
+): BookingSummaryExtended {
+  return {
+    id: b.id,
+    productId: b.productId,
+    serviceId: b.serviceId,
+    listingKind: b.serviceId ? 'service' : 'product',
+    rboId: b.rboId,
+    customerId: b.customerId,
+    customerName: b.customerName,
+    customerPhone: b.customerPhone,
+    status: b.status,
+    amountInr: b.amountInr,
+    paymentStatus: b.paymentStatus,
+    startAt: b.startAt,
+    endAt: b.endAt,
+    updatedAt: b.updatedAt,
+  };
 }
 
 function buildUserDetail(user: MarketplaceUser): MarketplaceUserDetail {
@@ -823,6 +919,12 @@ export async function mockRequest<T>(
       const vendor = mockRbos.find((r) => r.id === rboId);
       if (!vendor) throw { message: 'RBO not found', status: 404 };
       const products = mockProducts.filter((p) => p.rboId === rboId);
+      const kycStatus: RboDetail['kycStatus'] =
+        vendor.status === 'active'
+          ? 'verified'
+          : vendor.status === 'onboarding'
+            ? 'pending'
+            : 'rejected';
       const detail: RboDetail = {
         vendor,
         products,
@@ -830,13 +932,10 @@ export async function mockRequest<T>(
         reviews: mockReviews.filter((r) => r.rboId === rboId),
         metrics: buildRboMetrics(rboId),
         activity: buildRboActivity(vendor),
-        kycStatus:
-          vendor.status === 'active'
-            ? 'verified'
-            : vendor.status === 'onboarding'
-              ? 'pending'
-              : 'rejected',
+        kycStatus,
+        kycDocuments: buildKycDocumentsForVendor(rboId, kycStatus),
       };
+      pushRboDevSync(vendor.id, vendor.status);
       return detail as T;
     }
   }
@@ -849,6 +948,14 @@ export async function mockRequest<T>(
       if (index < 0) throw { message: 'RBO not found', status: 404 };
       const payload = body as Partial<RboVendor>;
       mockRbos[index] = { ...mockRbos[index], ...payload };
+      if (payload.status) {
+        const rejectionReason =
+          payload.status === 'rejected'
+            ? 'GST certificate is invalid or does not match business category.'
+            : undefined;
+        syncRboPortalMockState(id, payload.status, rejectionReason);
+        pushRboDevSync(id, payload.status, rejectionReason);
+      }
       return mockRbos[index] as T;
     }
     if (parts[1] === 'products' && parts[2]) {
@@ -877,6 +984,17 @@ export async function mockRequest<T>(
   // --- Products ---
   if (method === 'get' && matchPath(url, ENDPOINTS.products)) {
     let list = [...mockProducts];
+    const synced = await fetchDevSyncProducts();
+    for (const raw of synced) {
+      const sp = raw as unknown as Product;
+      if (!sp.id) continue;
+      const idx = list.findIndex((p) => p.id === sp.id);
+      if (idx >= 0) {
+        list[idx] = { ...list[idx], ...sp };
+      } else {
+        list.push(sp);
+      }
+    }
     const rboIdQ = queryParam(url, 'rboId');
     const categoryId = queryParam(url, 'categoryId');
     const status = queryParam(url, 'status');
@@ -890,7 +1008,13 @@ export async function mockRequest<T>(
 
   if (method === 'get' && url.startsWith(`${ENDPOINTS.products}/`)) {
     const id = pathId(url, ENDPOINTS.products);
-    const product = mockProducts.find((p) => p.id === id);
+    let product = mockProducts.find((p) => p.id === id);
+    if (!product) {
+      const synced = await fetchDevSyncProducts();
+      product = synced.find((p) => (p as unknown as Product).id === id) as
+        | Product
+        | undefined;
+    }
     if (!product) throw { message: 'Product not found', status: 404 };
     const rbo = mockRbos.find((r) => r.id === product.rboId);
     const category = mockFlatCategories.find((c) => c.id === product.categoryId);
@@ -951,11 +1075,452 @@ export async function mockRequest<T>(
 
   if (method === 'patch' && url.startsWith(`${ENDPOINTS.products}/`)) {
     const id = pathId(url, ENDPOINTS.products);
-    const index = mockProducts.findIndex((p) => p.id === id);
+    let index = mockProducts.findIndex((p) => p.id === id);
+    if (index < 0) {
+      const synced = await fetchDevSyncProducts();
+      const sp = synced.find((p) => (p as unknown as Product).id === id) as
+        | Product
+        | undefined;
+      if (sp) {
+        mockProducts.push(sp);
+        index = mockProducts.length - 1;
+      }
+    }
     if (index < 0) throw { message: 'Product not found', status: 404 };
     const payload = body as Partial<Product>;
     mockProducts[index] = { ...mockProducts[index], ...payload };
+    if (payload.status) {
+      pushProductStatusDevSync(
+        id!,
+        mockProducts[index].rboId,
+        payload.status,
+        payload.rejectionReason,
+      );
+    }
     return mockProducts[index] as T;
+  }
+
+  // --- Services ---
+  if (method === 'get' && matchPath(url, ENDPOINTS.services)) {
+    let list = [...mockServices];
+    const synced = await fetchDevSyncServices();
+    for (const raw of synced) {
+      const ss = raw as unknown as Service;
+      if (!ss.id) continue;
+      const idx = list.findIndex((s) => s.id === ss.id);
+      if (idx >= 0) {
+        list[idx] = { ...list[idx], ...ss };
+      } else {
+        list.push(ss);
+      }
+    }
+    const rboIdQ = queryParam(url, 'rboId');
+    const status = queryParam(url, 'status');
+    const q = queryParam(url, 'q')?.toLowerCase();
+    if (rboIdQ) list = list.filter((s) => s.rboId === rboIdQ);
+    if (status) list = list.filter((s) => s.status === status);
+    if (q) list = list.filter((s) => s.name.toLowerCase().includes(q));
+    return list as T;
+  }
+
+  if (method === 'get' && url.startsWith(`${ENDPOINTS.services}/`)) {
+    const id = pathId(url, ENDPOINTS.services);
+    let service = mockServices.find((s) => s.id === id);
+    if (!service) {
+      const synced = await fetchDevSyncServices();
+      service = synced.find((s) => (s as unknown as Service).id === id) as
+        | Service
+        | undefined;
+    }
+    if (!service) throw { message: 'Service not found', status: 404 };
+    const rbo = mockRbos.find((r) => r.id === service.rboId);
+    const category = mockFlatCategories.find((c) => c.id === service.categoryId);
+    if (!rbo || !category) throw { message: 'Related data missing', status: 500 };
+    const bookings = mockBookings.filter((b) => b.serviceId === id);
+    const revenue = bookings.reduce((s, b) => s + b.amountInr, 0);
+    return {
+      service,
+      rbo,
+      category,
+      reviews: mockReviews
+        .filter((r) => r.serviceId === id || r.productId === id)
+        .map((r) => ({
+          id: r.id,
+          rating: r.rating,
+          body: r.body,
+          author: r.author,
+          status: r.status,
+          createdAt: r.createdAt,
+        })),
+      bookings: bookings.map(toBookingExtended),
+      createdAt: '2025-03-01T00:00:00.000Z',
+      updatedAt: '2026-07-10T12:00:00.000Z',
+      insuranceCovered: false,
+      tags: [category.name, 'Service'],
+      metrics: {
+        bookingsDeltaPct: 12.2,
+        revenueDeltaPct: 15.5,
+        revenueInr: revenue || service.bookingCount * service.pricePerDayInr,
+      },
+      activity: [
+        {
+          id: `${id}-a1`,
+          title: 'Service listed',
+          detail: 'Service published to marketplace.',
+          actor: rbo.ownerName,
+          occurredAt: '2025-03-01T10:00:00.000Z',
+          tone: 'success',
+        },
+      ],
+    } as ServiceDetail as T;
+  }
+
+  if (method === 'patch' && url.startsWith(`${ENDPOINTS.services}/`)) {
+    const id = pathId(url, ENDPOINTS.services);
+    let index = mockServices.findIndex((s) => s.id === id);
+    if (index < 0) {
+      const synced = await fetchDevSyncServices();
+      const ss = synced.find((s) => (s as unknown as Service).id === id) as
+        | Service
+        | undefined;
+      if (ss) {
+        mockServices.push(ss);
+        index = mockServices.length - 1;
+      }
+    }
+    if (index < 0) throw { message: 'Service not found', status: 404 };
+    const payload = body as Partial<Service>;
+    mockServices[index] = { ...mockServices[index], ...payload };
+    if (payload.status) {
+      pushServiceStatusDevSync(
+        id!,
+        mockServices[index].rboId,
+        payload.status,
+        payload.rejectionReason,
+      );
+    }
+    return mockServices[index] as T;
+  }
+
+  // --- Bookings ---
+  if (method === 'get' && matchPath(url, ENDPOINTS.bookings)) {
+    let list = mockBookings.map(toBookingExtended);
+    const status = queryParam(url, 'status');
+    const rboIdQ = queryParam(url, 'rboId');
+    const q = queryParam(url, 'q')?.toLowerCase();
+    if (status) list = list.filter((b) => b.status === status);
+    if (rboIdQ) list = list.filter((b) => b.rboId === rboIdQ);
+    if (q) {
+      list = list.filter(
+        (b) =>
+          b.id.toLowerCase().includes(q) ||
+          b.customerName.toLowerCase().includes(q),
+      );
+    }
+    return list as T;
+  }
+
+  if (
+    method === 'get' &&
+    url.match(/\/super-admin\/bookings\/[^/]+\/invoice$/)
+  ) {
+    const id = url.split('/')[3];
+    return {
+      url: 'https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf',
+      filename: `invoice-${id}.pdf`,
+    } as T;
+  }
+
+  if (method === 'get' && url.startsWith(`${ENDPOINTS.bookings}/`)) {
+    const id = pathId(url, ENDPOINTS.bookings);
+    const bookingRaw = mockBookings.find((b) => b.id === id);
+    if (!bookingRaw) throw { message: 'Booking not found', status: 404 };
+    const booking = toBookingExtended(bookingRaw);
+    const rbo = mockRbos.find((r) => r.id === booking.rboId);
+    if (!rbo) throw { message: 'RBO not found', status: 500 };
+    const product =
+      booking.productId
+        ? mockProducts.find((p) => p.id === booking.productId)
+        : null;
+    const service =
+      booking.serviceId
+        ? mockServices.find((s) => s.id === booking.serviceId)
+        : null;
+    const customer = booking.customerId
+      ? mockMarketplaceUsers.find((u) => u.id === booking.customerId)
+      : null;
+    return {
+      booking,
+      product: product
+        ? { id: product.id, name: product.name, images: product.images }
+        : null,
+      service: service
+        ? { id: service.id, name: service.name, images: service.images }
+        : null,
+      rbo,
+      customer: customer
+        ? {
+            id: customer.id,
+            name: customer.name,
+            phone: customer.phone,
+            email: customer.email,
+          }
+        : null,
+    } as BookingDetail as T;
+  }
+
+  // --- Review moderation ---
+  if (method === 'get' && matchPath(url, ENDPOINTS.reviewsModeration)) {
+    const status = queryParam(url, 'status');
+    const rows: ModerationReview[] = mockReviews.map((r) => {
+      const product = mockProducts.find((p) => p.id === r.productId);
+      const service = r.serviceId
+        ? mockServices.find((s) => s.id === r.serviceId)
+        : null;
+      const rbo = mockRbos.find((v) => v.id === r.rboId);
+      const listingName =
+        service?.name ?? product?.name ?? r.productId;
+      return {
+        id: r.id,
+        productId: r.productId,
+        serviceId: r.serviceId,
+        listingKind: r.serviceId ? 'service' : 'product',
+        listingName,
+        rboId: r.rboId,
+        rboName: rbo?.businessName ?? r.rboId,
+        author: r.author,
+        targetName: r.targetName,
+        rating: r.rating,
+        body: r.body,
+        status: r.status as ModerationReview['status'],
+        direction: r.direction,
+        usefulCount: r.usefulCount ?? 0,
+        reported: r.reported ?? false,
+        createdAt: r.createdAt,
+      };
+    });
+    if (status) return rows.filter((row) => row.status === status) as T;
+    return rows as T;
+  }
+
+  if (method === 'patch' && url.startsWith(`${ENDPOINTS.reviewsModeration}/`)) {
+    const id = pathId(url, ENDPOINTS.reviewsModeration);
+    const index = mockReviews.findIndex((r) => r.id === id);
+    if (index < 0) throw { message: 'Review not found', status: 404 };
+    const payload = body as Partial<Review>;
+    mockReviews[index] = { ...mockReviews[index], ...payload };
+    return mockReviews[index] as T;
+  }
+
+  // --- Support ---
+  if (method === 'get' && matchPath(url, ENDPOINTS.supportConversations)) {
+    const status = queryParam(url, 'status');
+    const participantType = queryParam(url, 'participantType');
+    let list = await allSupportConversations();
+    if (status) list = list.filter((c) => c.status === status);
+    if (participantType) {
+      list = list.filter((c) => c.participantType === participantType);
+    }
+    return list as T;
+  }
+
+  if (
+    method === 'get' &&
+    url.startsWith(`${ENDPOINTS.supportConversations}/`) &&
+    url.endsWith('/messages')
+  ) {
+    const id = url.split('/')[4];
+    return (await messagesForConversation(id)) as T;
+  }
+
+  if (
+    method === 'get' &&
+    url.startsWith(`${ENDPOINTS.supportConversations}/`) &&
+    !url.endsWith('/messages')
+  ) {
+    const id = pathId(url, ENDPOINTS.supportConversations);
+    const list = await allSupportConversations();
+    const conv = list.find((c) => c.id === id);
+    if (!conv) throw { message: 'Conversation not found', status: 404 };
+    return conv as T;
+  }
+
+  if (method === 'patch' && url.startsWith(`${ENDPOINTS.supportConversations}/`)) {
+    const id = pathId(url, ENDPOINTS.supportConversations);
+    const index = mockSupportConversations.findIndex((c) => c.id === id);
+    const payload = body as Partial<SupportConversation>;
+    const staff = payload.assignedStaffId
+      ? mockStaff.find((s) => s.id === payload.assignedStaffId)
+      : null;
+
+    if (index >= 0) {
+      mockSupportConversations[index] = {
+        ...mockSupportConversations[index],
+        ...payload,
+        assignedStaffName: staff?.name ?? payload.assignedStaffName ?? null,
+        updatedAt: new Date().toISOString(),
+      };
+      if (payload.assignedStaffId) {
+        mockSupportMessages.push({
+          id: `supm-sys-${Date.now()}`,
+          conversationId: id!,
+          authorRole: 'system',
+          authorId: 'system',
+          authorName: 'System',
+          body: `Assigned to ${staff?.name ?? payload.assignedStaffId}`,
+          createdAt: new Date().toISOString(),
+        });
+      }
+      patchDevSyncSupportConversation(id!, mockSupportConversations[index]);
+      return mockSupportConversations[index] as T;
+    }
+
+    const synced = await fetchDevSyncSupportConversations();
+    const raw = synced.find((c) => c.id === id);
+    if (!raw) throw { message: 'Conversation not found', status: 404 };
+    const updated = {
+      ...raw,
+      ...payload,
+      assignedStaffName: staff?.name ?? payload.assignedStaffName ?? null,
+      updatedAt: new Date().toISOString(),
+    };
+    patchDevSyncSupportConversation(id!, updated);
+    return updated as T;
+  }
+
+  if (
+    method === 'post' &&
+    url.match(/\/super-admin\/support\/conversations\/[^/]+\/messages$/)
+  ) {
+    const id = url.split('/')[4];
+    const payload = body as { body: string };
+    const staff = mockStaff.find((s) => s.id === getMockSessionUserId());
+    const msg: SupportMessage = {
+      id: `supm-${Date.now()}`,
+      conversationId: id,
+      authorRole: 'staff',
+      authorId: staff?.id ?? getMockSessionUserId(),
+      authorName: staff?.name ?? 'Admin',
+      body: payload.body,
+      createdAt: new Date().toISOString(),
+    };
+    mockSupportMessages.push(msg);
+    const cIdx = mockSupportConversations.findIndex((c) => c.id === id);
+    if (cIdx >= 0) {
+      mockSupportConversations[cIdx].lastMessageAt = msg.createdAt;
+      mockSupportConversations[cIdx].updatedAt = msg.createdAt;
+      mockSupportConversations[cIdx].unreadByStaff = 0;
+      mockSupportConversations[cIdx].unreadByParticipant += 1;
+      patchDevSyncSupportConversation(id, mockSupportConversations[cIdx]);
+    } else {
+      patchDevSyncSupportConversation(id, {
+        lastMessageAt: msg.createdAt,
+        updatedAt: msg.createdAt,
+        unreadByStaff: 0,
+        unreadByParticipant: 1,
+      });
+    }
+    pushDevSyncSupportMessage(id, msg);
+    return msg as T;
+  }
+
+  // --- Deal Desk ---
+  if (method === 'get' && matchPath(url, ENDPOINTS.dealDeskInquiries)) {
+    const status = queryParam(url, 'status');
+    let list = [...mockDealDeskInquiries];
+    if (status) list = list.filter((i) => i.status === status);
+    return list as T;
+  }
+
+  if (
+    method === 'get' &&
+    url.startsWith(`${ENDPOINTS.dealDeskInquiries}/`) &&
+    url.endsWith('/messages')
+  ) {
+    const id = url.split('/')[4];
+    const channel = queryParam(url, 'channel') as
+      | DealDeskMessage['channel']
+      | undefined;
+    let msgs = mockDealDeskMessages.filter((m) => m.inquiryId === id);
+    if (channel) msgs = msgs.filter((m) => m.channel === channel);
+    return msgs as T;
+  }
+
+  if (
+    method === 'get' &&
+    url.startsWith(`${ENDPOINTS.dealDeskInquiries}/`) &&
+    !url.endsWith('/messages')
+  ) {
+    const id = pathId(url, ENDPOINTS.dealDeskInquiries);
+    const inquiry = mockDealDeskInquiries.find((i) => i.id === id);
+    if (!inquiry) throw { message: 'Inquiry not found', status: 404 };
+    return inquiry as T;
+  }
+
+  if (method === 'patch' && url.startsWith(`${ENDPOINTS.dealDeskInquiries}/`)) {
+    const id = pathId(url, ENDPOINTS.dealDeskInquiries);
+    const index = mockDealDeskInquiries.findIndex((i) => i.id === id);
+    if (index < 0) throw { message: 'Inquiry not found', status: 404 };
+    const payload = body as Partial<DealDeskInquiry>;
+    const broker = payload.assignedBrokerId
+      ? mockStaff.find((s) => s.id === payload.assignedBrokerId)
+      : null;
+    mockDealDeskInquiries[index] = {
+      ...mockDealDeskInquiries[index],
+      ...payload,
+      assignedBrokerName: broker?.name ?? payload.assignedBrokerName ?? null,
+      updatedAt: new Date().toISOString(),
+    };
+    return mockDealDeskInquiries[index] as T;
+  }
+
+  if (
+    method === 'post' &&
+    url.match(/\/super-admin\/deal-desk\/inquiries\/[^/]+\/messages$/)
+  ) {
+    const id = url.split('/')[4];
+    const payload = body as {
+      body: string;
+      channel: DealDeskMessage['channel'];
+    };
+    const staff = mockStaff.find((s) => s.id === getMockSessionUserId());
+    const msg: DealDeskMessage = {
+      id: `ddm-${Date.now()}`,
+      inquiryId: id,
+      channel: payload.channel,
+      authorRole: payload.channel === 'broker_vendor' ? 'broker' : 'broker',
+      authorId: staff?.id ?? getMockSessionUserId(),
+      authorName: staff?.name ?? 'Broker',
+      body: payload.body,
+      createdAt: new Date().toISOString(),
+    };
+    mockDealDeskMessages.push(msg);
+    const iIdx = mockDealDeskInquiries.findIndex((i) => i.id === id);
+    if (iIdx >= 0) {
+      mockDealDeskInquiries[iIdx].lastMessageAt = msg.createdAt;
+      mockDealDeskInquiries[iIdx].updatedAt = msg.createdAt;
+      if (mockDealDeskInquiries[iIdx].status === 'open') {
+        mockDealDeskInquiries[iIdx].status = 'broker_active';
+      }
+    }
+    return msg as T;
+  }
+
+  // --- Notifications ---
+  if (method === 'get' && matchPath(url, ENDPOINTS.notifications)) {
+    return [...mockPlatformNotifications] as T;
+  }
+
+  if (method === 'patch' && url.startsWith(`${ENDPOINTS.notifications}/`)) {
+    const id = pathId(url, ENDPOINTS.notifications);
+    const index = mockPlatformNotifications.findIndex((n) => n.id === id);
+    if (index < 0) throw { message: 'Notification not found', status: 404 };
+    const payload = body as Partial<PlatformNotification>;
+    mockPlatformNotifications[index] = {
+      ...mockPlatformNotifications[index],
+      ...payload,
+    };
+    return mockPlatformNotifications[index] as T;
   }
 
   if (method === 'get' && matchPath(url, ENDPOINTS.approvalOverrides)) {

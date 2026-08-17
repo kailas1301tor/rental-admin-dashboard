@@ -18,7 +18,7 @@ export function RboDetailProductMobileCard({
 }) {
   return (
     <NavigableListCard
-      to={`/products/${product.id}`}
+      to={`/listings/products/${product.id}`}
       label={`View ${product.name}`}
       summary={
         <div className="flex items-start gap-3">
@@ -64,7 +64,7 @@ export function RboDetailProductMobileCard({
           </DetailField>
           <div className="flex flex-wrap gap-2 pt-1">
             <Link
-              to={`/products/${product.id}`}
+              to={`/listings/products/${product.id}`}
               className="inline-flex h-9 items-center rounded-full border border-border bg-surface px-3 text-sm font-medium text-text-secondary hover:border-accent hover:text-accent"
             >
               View product
@@ -81,13 +81,6 @@ export function RboDetailProductMobileCard({
                 }
               >
                 {product.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
-              </Button>
-              <Button
-                size="sm"
-                variant="outline"
-                onClick={() => void onPatch(product.id, 'disabled')}
-              >
-                Disable
               </Button>
             </PermissionGate>
           </div>

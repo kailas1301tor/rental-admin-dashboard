@@ -7,7 +7,6 @@ import {
   MoreHorizontal,
   Package,
   Pencil,
-  Power,
   Snowflake,
   Star,
 } from 'lucide-react';
@@ -62,14 +61,26 @@ export function ProductDetailPage() {
 
   const catList = categories ?? [];
 
-  async function setStatus(status: ProductStatus) {
+  async function setStatus(
+    status: ProductStatus,
+    rejectionReason?: string,
+  ) {
     try {
-      await apiPatch(`${ENDPOINTS.products}/${id}`, { status });
+      await apiPatch(`${ENDPOINTS.products}/${id}`, {
+        status,
+        rejectionReason,
+      });
       await mutate();
-      toast(`Product ${status}`, 'success');
+      toast(`Product ${status.replace('_', ' ')}`, 'success');
     } catch (err) {
       toast(getErrorMessage(err), 'error');
     }
+  }
+
+  async function rejectListing() {
+    const reason = window.prompt('Rejection reason for vendor:');
+    if (!reason?.trim()) return;
+    await setStatus('rejected', reason.trim());
   }
 
   if (isLoading && !data) return <DetailPageSkeleton />;
@@ -106,7 +117,7 @@ export function ProductDetailPage() {
     <div className="space-y-6">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <nav className="text-sm text-text-muted">
-          <Link to="/products" className="hover:text-accent">
+          <Link to="/listings?kind=product" className="hover:text-accent">
             Products
           </Link>
           <span className="mx-1.5">/</span>
@@ -114,11 +125,11 @@ export function ProductDetailPage() {
         </nav>
         <div className="flex flex-wrap gap-2">
           <Link
-            to="/products"
+            to="/listings?kind=product"
             className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border px-3 text-sm font-medium text-text-secondary hover:border-accent hover:text-text-primary"
           >
             <ArrowLeft className="h-4 w-4" aria-hidden />
-            Back to products
+            Back to listings
           </Link>
           <Button
             size="sm"
@@ -130,38 +141,54 @@ export function ProductDetailPage() {
             <MoreHorizontal className="h-4 w-4" aria-hidden />
             More actions
           </Button>
-          <PermissionGate module="products">
-            <Button
-              size="sm"
-              variant="outline"
-              onClick={() =>
-                void setStatus(product.status === 'frozen' ? 'active' : 'frozen')
-              }
-            >
-              <Snowflake className="h-4 w-4" aria-hidden />
-              {product.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
-            </Button>
+          <PermissionGate module="listings">
+            {product.status === 'pending_review' ? (
+              <>
+                <Button size="sm" onClick={() => void setStatus('active')}>
+                  <CheckCircle2 className="h-4 w-4" aria-hidden />
+                  Approve listing
+                </Button>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="border-danger/50 text-danger hover:bg-danger-muted"
+                  onClick={() => void rejectListing()}
+                >
+                  Reject
+                </Button>
+              </>
+            ) : (
+              <>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  onClick={() =>
+                    void setStatus(
+                      product.status === 'frozen' ? 'active' : 'frozen',
+                    )
+                  }
+                >
+                  <Snowflake className="h-4 w-4" aria-hidden />
+                  {product.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
+                </Button>
+              </>
+            )}
           </PermissionGate>
-          <PermissionGate module="products">
-            <Button
-              size="sm"
-              variant="outline"
-              className="border-accent/50 text-accent hover:bg-accent-muted"
-              onClick={() => void setStatus('disabled')}
-            >
-              <Power className="h-4 w-4" aria-hidden />
-              Disable
-            </Button>
-          </PermissionGate>
-          {product.status !== 'active' ? (
-            <PermissionGate module="products">
-              <Button size="sm" onClick={() => void setStatus('active')}>
-                Activate
-              </Button>
-            </PermissionGate>
-          ) : null}
         </div>
       </div>
+
+      {product.status === 'pending_review' ? (
+        <div className="rounded-xl border border-warning/40 bg-warning-muted px-4 py-3 text-sm text-warning">
+          This listing was submitted by a vendor and is awaiting your review.
+        </div>
+      ) : null}
+
+      {product.rejectionReason ? (
+        <div className="rounded-xl border border-danger/40 bg-danger-muted px-4 py-3 text-sm text-danger">
+          <span className="font-medium">Rejection reason:</span>{' '}
+          {product.rejectionReason}
+        </div>
+      ) : null}
 
       <Card className="!p-4 sm:!p-5">
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-12">
@@ -195,6 +222,16 @@ export function ProductDetailPage() {
                 </button>
               ))}
             </div>
+            {product.minimumDays != null ? (
+              <div className="mt-4 rounded-xl border border-border bg-canvas px-4 py-3">
+                <p className="text-xs font-medium uppercase tracking-wide text-text-muted">
+                  Minimum rental
+                </p>
+                <p className="mt-1 text-sm font-medium text-text-primary">
+                  {product.minimumDays} day{product.minimumDays === 1 ? '' : 's'}
+                </p>
+              </div>
+            ) : null}
             {product.videoUrl ? (
               <div className="mt-4">
                 <p className="mb-2 text-xs font-medium uppercase tracking-wide text-text-muted">
@@ -707,9 +744,13 @@ function StatusPill({ status }: { status: ProductStatus }) {
   const tone =
     status === 'active'
       ? 'border-success/30 bg-success-muted text-success'
-      : status === 'frozen'
+      : status === 'pending_review'
         ? 'border-warning/30 bg-warning-muted text-warning'
-        : 'border-danger/30 bg-danger-muted text-danger';
+        : status === 'frozen'
+          ? 'border-warning/30 bg-warning-muted text-warning'
+          : status === 'rejected'
+            ? 'border-danger/30 bg-danger-muted text-danger'
+            : 'border-border bg-canvas text-text-secondary';
   return (
     <span
       className={cn(
@@ -717,7 +758,7 @@ function StatusPill({ status }: { status: ProductStatus }) {
         tone,
       )}
     >
-      {status}
+      {status.replace('_', ' ')}
     </span>
   );
 }

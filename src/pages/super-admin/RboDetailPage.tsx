@@ -19,7 +19,7 @@ import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
 import { PermissionGate } from '@/components/auth/PermissionGate';
 import { Button } from '@/components/ui/Button';
-import { Card } from '@/components/ui/Card';
+import { Card, CardHeader } from '@/components/ui/Card';
 import {
   EmptyState,
   ErrorState,
@@ -35,11 +35,13 @@ import { useToast } from '@/components/ui/Toast';
 import { RboDetailProductMobileCard } from '@/pages/super-admin/rbos/RboDetailProductMobileCard';
 import { RboDetailReviewMobileCard } from '@/pages/super-admin/rbos/RboDetailReviewMobileCard';
 import { RboDetailStaffMobileCard } from '@/pages/super-admin/rbos/RboDetailStaffMobileCard';
+import { kycTypeLabel } from '@/mocks/kyc-documents';
 import { BOOKING_VALUE_LABEL } from '@/lib/metrics';
 import { categoryPathLabel } from '@/lib/category-helpers';
 import { cn, formatDateTime, formatInr } from '@/lib/utils';
 import type {
   Category,
+  KycDocument,
   Product,
   Review,
   RboActivityEvent,
@@ -120,7 +122,7 @@ export function RboDetailPage() {
   }
   if (!data) return <EmptyState title="RBO not found" />;
 
-  const { vendor, products, staff, reviews, metrics, activity, kycStatus } =
+  const { vendor, products, staff, reviews, metrics, activity, kycStatus, kycDocuments } =
     data;
   const city = vendor.address.split(',').slice(-2).join(',').trim();
 
@@ -290,6 +292,7 @@ export function RboDetailPage() {
           reviews={reviews}
           activity={activity}
           metrics={metrics}
+          kycDocuments={kycDocuments}
           catList={catList}
           onShowProducts={() => setTab('products')}
           onShowStaff={() => setTab('staff')}
@@ -325,6 +328,7 @@ function OverviewTab({
   reviews,
   activity,
   metrics,
+  kycDocuments,
   catList,
   onShowProducts,
   onShowStaff,
@@ -336,6 +340,7 @@ function OverviewTab({
   reviews: Review[];
   activity: RboActivityEvent[];
   metrics: RboDetail['metrics'];
+  kycDocuments: KycDocument[];
   catList: Category[];
   onShowProducts: () => void;
   onShowStaff: () => void;
@@ -379,6 +384,60 @@ function OverviewTab({
         />
       </div>
 
+      <Card>
+        <CardHeader
+          title="KYC documents"
+          description="Submitted verification documents (read-only)"
+        />
+        {kycDocuments.length === 0 ? (
+          <EmptyState title="No KYC documents" />
+        ) : (
+          <ul className="divide-y divide-border">
+            {kycDocuments.map((doc) => (
+              <li
+                key={doc.id}
+                className="flex flex-col gap-2 py-3 sm:flex-row sm:items-center sm:justify-between"
+              >
+                <div className="min-w-0">
+                  <p className="text-sm font-medium text-text-primary">
+                    {kycTypeLabel(doc.type)}
+                  </p>
+                  <p className="text-xs text-text-muted">
+                    {doc.fileName ?? 'Document'} ·{' '}
+                    {formatDateTime(doc.uploadedAt)}
+                  </p>
+                  {doc.rejectionReason ? (
+                    <p className="mt-1 text-xs text-danger">{doc.rejectionReason}</p>
+                  ) : null}
+                </div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className={cn(
+                      'rounded-full border px-2.5 py-0.5 text-[11px] font-medium capitalize',
+                      doc.status === 'verified'
+                        ? 'border-success/30 bg-success-muted text-success'
+                        : doc.status === 'pending'
+                          ? 'border-warning/30 bg-warning-muted text-warning'
+                          : 'border-danger/30 bg-danger-muted text-danger',
+                    )}
+                  >
+                    {doc.status}
+                  </span>
+                  <a
+                    href={doc.fileUrl}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-xs font-medium text-accent hover:underline"
+                  >
+                    View
+                  </a>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </Card>
+
       <div className="grid grid-cols-1 gap-4 xl:grid-cols-3">
         <Card>
           <PanelHeader title="Recent listings" onViewAll={onShowProducts} />
@@ -404,7 +463,7 @@ function OverviewTab({
                   )}
                   <div className="min-w-0 flex-1">
                     <Link
-                      to={`/products/${p.id}`}
+                      to={`/listings/products/${p.id}`}
                       className="block truncate text-sm font-medium text-text-primary hover:text-accent"
                     >
                       {p.name}
@@ -550,7 +609,7 @@ function ProductsTab({
           {products.map((p) => (
             <ClickableTableRow
               key={p.id}
-              to={`/products/${p.id}`}
+              to={`/listings/products/${p.id}`}
               ariaLabel={`View ${p.name}`}
             >
               <ClickableTd>
@@ -586,13 +645,6 @@ function ProductsTab({
                       }
                     >
                       {p.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
-                    </Button>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => void onPatch(p.id, 'disabled')}
-                    >
-                      Disable
                     </Button>
                   </div>
                 </PermissionGate>

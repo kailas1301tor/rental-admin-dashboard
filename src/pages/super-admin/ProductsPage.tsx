@@ -51,7 +51,7 @@ const CAT_TONES = [
   'border-border bg-canvas text-text-secondary',
 ] as const;
 
-export function ProductsPage() {
+export function ProductsPage({ embedded = false }: { embedded?: boolean }) {
   const { toast } = useToast();
   const [q, setQ] = useState('');
   const [rboId, setRboId] = useState('');
@@ -152,15 +152,18 @@ export function ProductsPage() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
-        <div>
-          <h1 className="hidden text-2xl font-semibold text-text-primary sm:block">Products</h1>
-          <p className="mt-1 max-w-xl text-sm text-text-secondary">
-            Manage all rental products across RBOs. Filter, search and track
-            performance.
-          </p>
-        </div>
-        <PermissionGate module="products">
+      {!embedded ? (
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+          <div>
+            <h1 className="hidden text-2xl font-semibold text-text-primary sm:block">
+              Products
+            </h1>
+            <p className="mt-1 max-w-xl text-sm text-text-secondary">
+              Manage all rental products across RBOs. Filter, search and track
+              performance.
+            </p>
+          </div>
+          <PermissionGate module="listings">
           <Button
             onClick={() =>
               toast('Add Product opens when create API is ready', 'info')
@@ -170,7 +173,8 @@ export function ProductsPage() {
             Add Product
           </Button>
         </PermissionGate>
-      </div>
+        </div>
+      ) : null}
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <KpiCard
@@ -251,9 +255,10 @@ export function ProductsPage() {
           }}
           options={[
             { value: '', label: 'All status' },
+            { value: 'pending_review', label: 'Pending review' },
             { value: 'active', label: 'Active' },
+            { value: 'rejected', label: 'Rejected' },
             { value: 'frozen', label: 'Frozen' },
-            { value: 'disabled', label: 'Disabled' },
           ]}
         />
         <Button
@@ -309,7 +314,7 @@ export function ProductsPage() {
                   return (
                     <ClickableTableRow
                       key={p.id}
-                      to={`/products/${p.id}`}
+                      to={`/listings/products/${p.id}`}
                       ariaLabel={`View ${p.name}`}
                     >
                       <ClickableTd>
@@ -361,7 +366,7 @@ export function ProductsPage() {
                       <TableActionsCell>
                         <div className="flex items-center justify-end gap-1">
                           <Link
-                            to={`/products/${p.id}`}
+                            to={`/listings/products/${p.id}`}
                             onClick={stopRowNavigation}
                             className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border text-text-secondary hover:border-accent hover:text-accent"
                             aria-label={`Edit ${p.name}`}
@@ -484,15 +489,22 @@ function StatusPill({ status }: { status: ProductStatus }) {
   const tone =
     status === 'active'
       ? 'border-success/30 bg-success-muted text-success'
-      : status === 'frozen'
+      : status === 'pending_review'
         ? 'border-warning/30 bg-warning-muted text-warning'
-        : 'border-danger/30 bg-danger-muted text-danger';
+        : status === 'frozen'
+          ? 'border-warning/30 bg-warning-muted text-warning'
+          : status === 'rejected'
+            ? 'border-danger/30 bg-danger-muted text-danger'
+            : 'border-border bg-canvas text-text-secondary';
   const dot =
     status === 'active'
       ? 'bg-success'
-      : status === 'frozen'
+      : status === 'pending_review' || status === 'frozen'
         ? 'bg-warning'
-        : 'bg-danger';
+        : status === 'rejected'
+          ? 'bg-danger'
+          : 'bg-text-muted';
+  const label = status.replace('_', ' ');
   return (
     <span
       className={cn(
@@ -501,7 +513,7 @@ function StatusPill({ status }: { status: ProductStatus }) {
       )}
     >
       <span className={cn('h-1.5 w-1.5 rounded-full', dot)} aria-hidden />
-      {status}
+      {label}
     </span>
   );
 }

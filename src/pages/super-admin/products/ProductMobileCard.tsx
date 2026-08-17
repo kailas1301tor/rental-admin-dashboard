@@ -27,7 +27,7 @@ export function ProductMobileCard({
 }) {
   return (
     <NavigableListCard
-      to={`/products/${product.id}`}
+      to={`/listings/products/${product.id}`}
       label={`View ${product.name}`}
       summary={
         <div className="flex items-start gap-3">
@@ -83,7 +83,7 @@ export function ProductMobileCard({
           </DetailField>
           <div className="flex flex-wrap gap-2 pt-1">
             <Link
-              to={`/products/${product.id}`}
+              to={`/listings/products/${product.id}`}
               className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-surface px-3 text-sm font-medium text-text-secondary hover:border-accent hover:text-accent"
             >
               <Pencil className="h-3.5 w-3.5" aria-hidden />
@@ -170,16 +170,22 @@ function StarRating({ value }: { value: number }) {
 function StatusPill({ status }: { status: ProductStatus }) {
   const tone =
     status === 'active'
-      ? 'border-success/30 bg-success-muted text-success'
-      : status === 'frozen'
-        ? 'border-warning/30 bg-warning-muted text-warning'
-        : 'border-danger/30 bg-danger-muted text-danger';
+      ? 'border-success/40 bg-success-muted text-success'
+      : status === 'pending_review'
+        ? 'border-warning/40 bg-warning-muted text-warning'
+        : status === 'frozen'
+          ? 'border-warning/40 bg-warning-muted text-warning'
+          : status === 'rejected'
+            ? 'border-danger/40 bg-danger-muted text-danger'
+            : 'border-border bg-canvas text-text-secondary';
   const dot =
     status === 'active'
       ? 'bg-success'
-      : status === 'frozen'
+      : status === 'pending_review' || status === 'frozen'
         ? 'bg-warning'
-        : 'bg-danger';
+        : status === 'rejected'
+          ? 'bg-danger'
+          : 'bg-text-muted';
   return (
     <span
       className={cn(
@@ -188,7 +194,7 @@ function StatusPill({ status }: { status: ProductStatus }) {
       )}
     >
       <span className={cn('h-1.5 w-1.5 rounded-full', dot)} aria-hidden />
-      {status}
+      {status.replace('_', ' ')}
     </span>
   );
 }

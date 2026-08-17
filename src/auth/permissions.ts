@@ -4,6 +4,7 @@ import type {
   PermissionModule,
   UserPermissions,
 } from '@/types/permissions';
+import { maxPermissionLevel } from '@/auth/listing-permissions';
 
 export const ALL_MODULES: PermissionModule[] = [
   'dashboard',
@@ -11,13 +12,18 @@ export const ALL_MODULES: PermissionModule[] = [
   'staff',
   'departments',
   'rbos',
-  'products',
+  'listings',
+  'bookings',
   'categories',
   'users',
   'login_alerts',
   'approval_overrides',
   'reports',
   'activity_log',
+  'reviews_moderation',
+  'support',
+  'deal_desk',
+  'notifications',
   'settings',
 ];
 
@@ -27,13 +33,18 @@ export const MODULE_LABELS: Record<PermissionModule, string> = {
   staff: 'Staff',
   departments: 'Departments',
   rbos: 'RBOs',
-  products: 'Products',
+  listings: 'Listings',
+  bookings: 'Bookings',
   categories: 'Categories',
   users: 'Users',
   login_alerts: 'Login Alerts',
   approval_overrides: 'Approval Overrides',
   reports: 'Reports',
   activity_log: 'Activity Log',
+  reviews_moderation: 'Review Moderation',
+  support: 'Support Inbox',
+  deal_desk: 'Deal Desk',
+  notifications: 'Notifications',
   settings: 'Settings',
 };
 
@@ -43,15 +54,36 @@ const PATH_TO_MODULE: Record<string, PermissionModule> = {
   '/staff': 'staff',
   '/departments': 'departments',
   '/rbos': 'rbos',
-  '/products': 'products',
+  '/listings': 'listings',
+  '/products': 'listings',
+  '/services': 'listings',
+  '/bookings': 'bookings',
   '/categories': 'categories',
   '/users': 'users',
   '/login-alerts': 'login_alerts',
   '/approval-overrides': 'approval_overrides',
   '/reports': 'reports',
   '/activity-log': 'activity_log',
+  '/reviews': 'reviews_moderation',
+  '/support': 'support',
+  '/deal-desk': 'deal_desk',
+  '/notifications': 'notifications',
   '/settings': 'settings',
 };
+
+export function listingsPermissionLevel(
+  permissions: UserPermissions,
+): PermissionLevel | undefined {
+  const legacy = permissions as UserPermissions & {
+    products?: PermissionLevel;
+    services?: PermissionLevel;
+  };
+  return maxPermissionLevel(
+    permissions.listings,
+    legacy.products,
+    legacy.services,
+  );
+}
 
 export function isSuperAdmin(user: AuthUser | null | undefined): boolean {
   return user?.role === 'super_admin';
@@ -63,7 +95,10 @@ export function canView(
   user?: AuthUser | null,
 ): boolean {
   if (isSuperAdmin(user)) return true;
-  const level = permissions[module];
+  const level =
+    module === 'listings'
+      ? listingsPermissionLevel(permissions)
+      : permissions[module];
   return level === 'view' || level === 'manage';
 }
 
@@ -73,6 +108,9 @@ export function canManage(
   user?: AuthUser | null,
 ): boolean {
   if (isSuperAdmin(user)) return true;
+  if (module === 'listings') {
+    return listingsPermissionLevel(permissions) === 'manage';
+  }
   return permissions[module] === 'manage';
 }
 
@@ -97,14 +135,19 @@ export function firstAllowedPath(
   const order = [
     '/',
     '/rbos',
-    '/products',
+    '/listings',
+    '/bookings',
     '/users',
+    '/support',
+    '/deal-desk',
     '/categories',
     '/staff',
     '/departments',
     '/admins',
     '/login-alerts',
     '/approval-overrides',
+    '/reviews',
+    '/notifications',
     '/reports',
     '/activity-log',
     '/settings',
@@ -125,9 +168,25 @@ export function isValidPermissionLevel(
 export function sanitizePermissions(
   input: UserPermissions,
 ): UserPermissions {
+  const legacy = input as UserPermissions & {
+    products?: PermissionLevel;
+    services?: PermissionLevel;
+  };
+  const merged: UserPermissions = { ...input };
+  const listingLevel = maxPermissionLevel(
+    merged.listings,
+    legacy.products,
+    legacy.services,
+  );
+  if (listingLevel) {
+    merged.listings = listingLevel;
+  }
+  delete (merged as { products?: PermissionLevel; services?: PermissionLevel }).products;
+  delete (merged as { products?: PermissionLevel; services?: PermissionLevel }).services;
+
   const out: UserPermissions = {};
   for (const key of ALL_MODULES) {
-    const level = input[key];
+    const level = merged[key];
     if (isValidPermissionLevel(level)) {
       out[key] = level;
     }

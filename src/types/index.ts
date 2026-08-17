@@ -39,8 +39,33 @@ export interface DepartmentWrite {
 export type EntityStatus = 'active' | 'frozen';
 export type AdminStatus = 'active' | 'frozen' | 'archived';
 export type RboStatus = 'active' | 'onboarding' | 'rejected' | 'frozen';
-export type ProductStatus = 'active' | 'frozen' | 'disabled';
-export type ReviewStatus = 'visible' | 'hidden' | 'frozen';
+
+export type KycDocumentType =
+  | 'gst'
+  | 'pan'
+  | 'id_proof'
+  | 'address_proof'
+  | 'business_registration';
+
+export interface KycDocument {
+  id: string;
+  type: KycDocumentType;
+  fileUrl: string;
+  fileName?: string;
+  status: 'pending' | 'verified' | 'rejected';
+  rejectionReason?: string;
+  uploadedAt: string;
+}
+export type ProductStatus =
+  | 'pending_review'
+  | 'active'
+  | 'rejected'
+  | 'frozen';
+export type ReviewStatus =
+  | 'visible'
+  | 'hidden'
+  | 'frozen'
+  | 'pending_moderation';
 export type MarketplaceUserStatus = 'active' | 'inactive';
 export type BookingStatus =
   | 'pending'
@@ -307,7 +332,23 @@ export interface RboStaff {
   status: EntityStatus;
 }
 
-export interface Product {
+export type LateReturnMode = 'hourly' | 'daily_double';
+
+export interface VolumeTier {
+  minDays: number;
+  maxDays?: number;
+  pricePerDayInr: number;
+}
+
+export interface RentalRules {
+  maximumDays?: number;
+  advanceBookingDays?: number;
+  lateReturnFeeInr?: number;
+  lateReturnMode?: LateReturnMode;
+  volumeTiers?: VolumeTier[];
+}
+
+export interface Product extends RentalRules {
   id: string;
   rboId: string;
   categoryId: string;
@@ -315,6 +356,7 @@ export interface Product {
   name: string;
   description: string;
   images: string[];
+  minimumDays?: number;
   videoUrl?: string;
   pricePerDayInr: number;
   depositInr: number;
@@ -322,6 +364,7 @@ export interface Product {
   ratingAvg: number;
   reviewCount: number;
   bookingCount: number;
+  rejectionReason?: string;
 }
 
 export type ReviewDirection = 'received' | 'posted';
@@ -329,6 +372,7 @@ export type ReviewDirection = 'received' | 'posted';
 export interface Review {
   id: string;
   productId: string;
+  serviceId?: string;
   rboId: string;
   author: string;
   targetName?: string;
@@ -336,18 +380,26 @@ export interface Review {
   body: string;
   status: ReviewStatus;
   direction: ReviewDirection;
+  usefulCount?: number;
+  reported?: boolean;
   createdAt: string;
 }
 
 export interface BookingSummary {
   id: string;
-  productId: string;
+  productId?: string;
+  serviceId?: string;
+  listingKind?: 'product' | 'service';
   rboId: string;
+  customerId?: string;
   customerName: string;
+  customerPhone?: string;
   status: BookingStatus;
   amountInr: number;
+  paymentStatus?: 'not_required' | 'pending' | 'paid' | 'failed' | 'refunded';
   startAt: string;
   endAt: string;
+  updatedAt?: string;
 }
 
 export interface RboVendorMetrics {
@@ -382,6 +434,7 @@ export interface RboDetail {
   metrics: RboVendorMetrics;
   activity: RboActivityEvent[];
   kycStatus: 'verified' | 'pending' | 'rejected';
+  kycDocuments: KycDocument[];
 }
 
 export interface ProductDetail {
@@ -626,3 +679,19 @@ export type {
   PermissionModule,
   UserPermissions,
 } from '@/types/permissions';
+
+export type {
+  BookingDetail,
+  BookingSummaryExtended,
+  DealDeskInquiry,
+  DealDeskMessage,
+  DealDeskStatus,
+  ListingKind,
+  ModerationReview,
+  PlatformNotification,
+  Service,
+  ServiceDetail,
+  SupportConversation,
+  SupportConversationStatus,
+  SupportMessage,
+} from '@/types/platform-ops';

@@ -1,15 +1,20 @@
 import type { UserPermissions } from '@/types/permissions';
 
-/** Mutable per-user permission store — swapped for Profile API later. */
+/** Merge legacy products/services keys into listings for stored profiles. */
 export const mockUserPermissions: Record<string, UserPermissions> = {
   'ga-1': {
     dashboard: 'manage',
     rbos: 'manage',
-    products: 'manage',
+    listings: 'manage',
+    bookings: 'manage',
     categories: 'manage',
     users: 'manage',
     staff: 'manage',
     approval_overrides: 'manage',
+    support: 'manage',
+    deal_desk: 'view',
+    reviews_moderation: 'manage',
+    notifications: 'view',
     departments: 'view',
     login_alerts: 'view',
     reports: 'view',
@@ -19,21 +24,22 @@ export const mockUserPermissions: Record<string, UserPermissions> = {
   'ga-2': {
     dashboard: 'view',
     rbos: 'view',
-    products: 'view',
+    listings: 'view',
     users: 'view',
     reports: 'view',
   },
   'hod-ops': {
     approval_overrides: 'manage',
     rbos: 'view',
-    products: 'view',
+    listings: 'view',
     login_alerts: 'view',
   },
   'hod-onboard': {
     rbos: 'manage',
-    products: 'manage',
+    listings: 'manage',
     categories: 'view',
     users: 'view',
+    reviews_moderation: 'view',
   },
   'hod-accounts': {
     reports: 'manage',
@@ -55,13 +61,18 @@ export function fullManagePermissions(): UserPermissions {
     staff: 'manage',
     departments: 'manage',
     rbos: 'manage',
-    products: 'manage',
+    listings: 'manage',
+    bookings: 'manage',
     categories: 'manage',
     users: 'manage',
     login_alerts: 'manage',
     approval_overrides: 'manage',
     reports: 'manage',
     activity_log: 'manage',
+    reviews_moderation: 'manage',
+    support: 'manage',
+    deal_desk: 'manage',
+    notifications: 'manage',
     settings: 'manage',
   };
 }

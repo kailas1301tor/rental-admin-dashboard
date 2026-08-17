@@ -14,6 +14,8 @@ export const ENDPOINTS = {
   categorySchemas: '/super-admin/category-schemas',
   rbos: '/super-admin/rbos',
   products: '/super-admin/products',
+  services: '/super-admin/services',
+  bookings: '/super-admin/bookings',
   approvalOverrides: '/super-admin/approval-overrides',
   masterAnalytics: '/super-admin/analytics',
   contactViews: '/super-admin/reports/contact-views',
@@ -25,6 +27,10 @@ export const ENDPOINTS = {
   reportProducts: '/super-admin/reports/products',
   reportRbos: '/super-admin/reports/rbos',
   reportCustomers: '/super-admin/reports/customers',
+  reviewsModeration: '/super-admin/reviews',
+  supportConversations: '/super-admin/support/conversations',
+  dealDeskInquiries: '/super-admin/deal-desk/inquiries',
+  notifications: '/super-admin/notifications',
   settings: '/super-admin/settings',
 } as const;
 
