@@ -18,7 +18,7 @@ interface AuthContextValue {
   token: string | null;
   pendingEmail: string | null;
   isAuthenticated: boolean;
-  login: (email: string, password: string) => Promise<void>;
+  login: (email: string, password: string, captcha_token: string) => Promise<void>;
   verifyOtp: (otp: string) => Promise<void>;
   logout: () => void;
 }
@@ -40,8 +40,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<AuthUser | null>(() => readStoredUser());
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
-  const login = useCallback(async (email: string, password: string) => {
-    await apiPost(ENDPOINTS.authLogin, { email, password, captchaOk: true });
+  const login = useCallback(async (email: string, password: string, captcha_token: string) => {
+    await apiPost(ENDPOINTS.authLogin, { email, password, captcha_token });
     setPendingEmail(email);
   }, []);
 

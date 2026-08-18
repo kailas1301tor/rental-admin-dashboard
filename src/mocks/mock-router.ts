@@ -513,9 +513,12 @@ export async function mockRequest<T>(
   await delay();
 
   if (method === 'post' && matchPath(url, ENDPOINTS.authLogin)) {
-    const payload = body as { email?: string; password?: string };
+    const payload = body as { email?: string; password?: string; captcha_token?: string };
     if (!payload.email || !payload.password) {
       throw { message: 'Email and password are required', status: 400 };
+    }
+    if (!payload.captcha_token) {
+      throw { message: 'Captcha verification failed.', status: 400 };
     }
     return { otpSent: true, challengeId: 'mock-challenge' } as T;
   }

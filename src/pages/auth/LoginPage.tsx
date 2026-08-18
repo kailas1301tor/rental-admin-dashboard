@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from 'react';
+import { useState, useRef, type FormEvent } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthContext';
 import { Button } from '@/components/ui/Button';
@@ -6,13 +6,16 @@ import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
 import { ThemeToggle } from '@/theme/theme-toggle';
 import { getErrorMessage } from '@/api/axios-client';
+import { Turnstile } from '@marsidev/react-turnstile';
+import type { TurnstileInstance } from '@marsidev/react-turnstile';
 
 export function LoginPage() {
   const { isAuthenticated, login } = useAuth();
   const navigate = useNavigate();
   const [email, setEmail] = useState('super@platform.admin');
   const [password, setPassword] = useState('password');
-  const [captchaChecked, setCaptchaChecked] = useState(false);
+  const [captchaToken, setCaptchaToken] = useState<string | null>(null);
+  const turnstileRef = useRef<TurnstileInstance>(null);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
@@ -23,16 +26,18 @@ export function LoginPage() {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     setError(null);
-    if (!captchaChecked) {
-      setError('Complete the CAPTCHA checkbox to continue.');
+    if (!captchaToken) {
+      setError('Complete the CAPTCHA to continue.');
       return;
     }
     setLoading(true);
     try {
-      await login(email, password);
+      await login(email, password, captchaToken);
       navigate('/otp');
     } catch (err) {
       setError(getErrorMessage(err));
+      setCaptchaToken(null);
+      turnstileRef.current?.reset();
     } finally {
       setLoading(false);
     }
@@ -70,17 +75,31 @@ export function LoginPage() {
               onChange={(e) => setPassword(e.target.value)}
               required
             />
-            <label className="flex min-h-11 cursor-pointer items-center gap-3 rounded-lg border border-border bg-canvas px-3 py-2 text-sm text-text-secondary">
-              <input
-                type="checkbox"
-                checked={captchaChecked}
-                onChange={(e) => setCaptchaChecked(e.target.checked)}
-                className="h-4 w-4 accent-accent"
+            <div className="flex min-h-11 justify-center rounded-lg border border-border bg-canvas px-3 py-2">
+              <Turnstile
+                ref={turnstileRef}
+                siteKey={import.meta.env.NEXT_PUBLIC_TURNSTILE_SITE_KEY || ''}
+                onSuccess={(token) => {
+                  setCaptchaToken(token);
+                  setError(null);
+                }}
+                onExpire={() => {
+                  setCaptchaToken(null);
+                  setError('CAPTCHA expired. Please solve it again.');
+                }}
+                onError={() => {
+                  setError('CAPTCHA failed to load or encountered an error. Please try again.');
+                  setCaptchaToken(null);
+                }}
               />
-              <span>I am not a robot (CAPTCHA placeholder)</span>
-            </label>
+            </div>
             {error ? <p className="text-sm text-danger">{error}</p> : null}
-            <Button type="submit" className="w-full" isLoading={loading}>
+            <Button
+              type="submit"
+              className="w-full"
+              isLoading={loading}
+              disabled={!email || !password || !captchaToken}
+            >
               Continue
             </Button>
           </form>
