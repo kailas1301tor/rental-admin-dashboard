@@ -6,10 +6,10 @@ import {
   useState,
   type ReactNode,
 } from 'react';
-import { apiPost } from '@/api/axios-helpers';
+import { apiPost, apiGet } from '@/api/axios-helpers';
 import { ENDPOINTS } from '@/api/endpoints';
 import { getStoredToken, setStoredToken } from '@/api/axios-client';
-import type { AuthSession, AuthUser } from '@/types';
+import type { AuthUser } from '@/types';
 
 const USER_KEY = 'rental_admin_user';
 
@@ -48,14 +48,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const verifyOtp = useCallback(
     async (otp: string) => {
       const email = pendingEmail ?? 'super@platform.admin';
-      const session = await apiPost<AuthSession>(ENDPOINTS.authVerifyOtp, {
+      const session = await apiPost<{ access: string; refresh: string; role?: string }>(ENDPOINTS.authVerifyOtp, {
         email,
-        otp,
+        otp_code: otp,
       });
-      setStoredToken(session.token);
-      localStorage.setItem(USER_KEY, JSON.stringify(session.user));
-      setToken(session.token);
-      setUser(session.user);
+      setStoredToken(session.access);
+      
+      const profile = await apiGet<any>(ENDPOINTS.profile);
+      let role = profile.role || profile.tier as string;
+      if (profile.tier === 'general_admin') {
+        role = `general_admin_${profile.slot || 1}`;
+      }
+      
+      const authUser: AuthUser = {
+        id: profile.id,
+        name: profile.first_name ? `${profile.first_name} ${profile.last_name || ''}`.trim() : profile.name,
+        email: profile.email,
+        role: (session.role || role) as any,
+      };
+
+      localStorage.setItem(USER_KEY, JSON.stringify(authUser));
+      setToken(session.access);
+      setUser(authUser);
       setPendingEmail(null);
     },
     [pendingEmail],

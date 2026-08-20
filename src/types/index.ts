@@ -1,8 +1,8 @@
 export type AdminRole =
-  | 'super_admin'
-  | 'general_admin_1'
-  | 'general_admin_2'
-  | 'department_admin';
+  | 'Super Admin'
+  | 'General Admin'
+  | 'Department Admin'
+  | 'Staff';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 

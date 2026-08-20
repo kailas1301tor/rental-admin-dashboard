@@ -33,10 +33,26 @@ axiosClient.interceptors.request.use((config: InternalAxiosRequestConfig) => {
 
 export function normalizeApiError(error: unknown): ApiErrorShape {
   if (axios.isAxiosError(error)) {
-    const ax = error as AxiosError<{ message?: string; detail?: string }>;
+    const ax = error as AxiosError<{ message?: string; detail?: string; errors?: Record<string, any> }>;
+    const data = ax.response?.data;
+    
+    let extractedError = '';
+    if (data?.errors && typeof data.errors === 'object') {
+      const firstKey = Object.keys(data.errors)[0];
+      if (firstKey) {
+        const errorVal = data.errors[firstKey];
+        if (Array.isArray(errorVal) && errorVal.length > 0) {
+          extractedError = String(errorVal[0]);
+        } else if (typeof errorVal === 'string') {
+          extractedError = errorVal;
+        }
+      }
+    }
+
     const message =
-      ax.response?.data?.message ||
-      ax.response?.data?.detail ||
+      extractedError ||
+      data?.message ||
+      data?.detail ||
       ax.message ||
       'Something went wrong';
     return {

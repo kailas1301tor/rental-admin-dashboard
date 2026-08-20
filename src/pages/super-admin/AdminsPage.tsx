@@ -31,11 +31,11 @@ import type {
   PlatformAdminWrite,
 } from '@/types';
 
-const SUPER_CAP = 2;
+const SUPER_CAP = 1;
 const GENERAL_CAP = 2;
 
 type FormState = {
-  tier: 'general_admin' | 'department_admin';
+  tier: string;
   name: string;
   phone: string;
   email: string;
@@ -56,9 +56,11 @@ const emptyForm: FormState = {
 
 export function AdminsPage() {
   const { toast } = useToast();
-  const { data, error, isLoading, mutate } = useApiSWR<PlatformAdmin[]>(
-    ENDPOINTS.admins,
-  );
+  const { data: supersRaw, error: supersErr, isLoading: supersLoading, mutate: supersMutate } = useApiSWR<PlatformAdmin[]>(ENDPOINTS.superAdmins);
+  const { data: generalsRaw, error: generalsErr, isLoading: generalsLoading, mutate: generalsMutate } = useApiSWR<PlatformAdmin[]>(ENDPOINTS.generalAdmins);
+  const { data: deptAdminsRaw, error: deptAdminsErr, isLoading: deptAdminsLoading, mutate: deptAdminsMutate } = useApiSWR<PlatformAdmin[]>(ENDPOINTS.departmentAdmins);
+  const { data: rolesData } = useApiSWR<{ id: string; name: string }[]>(ENDPOINTS.adminRolesDropdown);
+
   const { data: deptData } = useApiSWR<Department[]>(ENDPOINTS.departments);
   const { filters, setFilters, reset, matchesDistrict } = useListFilters();
   const [open, setOpen] = useState(false);
@@ -67,51 +69,28 @@ export function AdminsPage() {
   const [saving, setSaving] = useState(false);
 
   const deptList = deptData ?? [];
-  const HOD_CAP = deptList.length;
 
-  const admins = useMemo(() => {
-    return (data ?? []).filter((a) => matchesDistrict(a.districtId));
-  }, [data, matchesDistrict]);
+  const supers = useMemo(() => {
+    return (supersRaw ?? []).filter((a) => matchesDistrict(a.districtId));
+  }, [supersRaw, matchesDistrict]);
 
-  const supers = useMemo(
-    () => admins.filter((a) => a.tier === 'super_admin'),
-    [admins],
-  );
-  const generals = useMemo(
-    () => admins.filter((a) => a.tier === 'general_admin'),
-    [admins],
-  );
-  const departmentAdmins = useMemo(
-    () => admins.filter((a) => a.tier === 'department_admin'),
-    [admins],
-  );
+  const generals = useMemo(() => {
+    return (generalsRaw ?? []).filter((a) => matchesDistrict(a.districtId));
+  }, [generalsRaw, matchesDistrict]);
 
-  const filledDepartmentIds = useMemo(
-    () =>
-      new Set(
-        departmentAdmins
-          .map((d) => d.departmentId)
-          .filter((id): id is string => Boolean(id)),
-      ),
-    [departmentAdmins],
-  );
+  const departmentAdmins = useMemo(() => {
+    return (deptAdminsRaw ?? []).filter((a) => matchesDistrict(a.districtId));
+  }, [deptAdminsRaw, matchesDistrict]);
 
-  const vacantDepartments = deptList.filter(
-    (d) =>
-      d.status === 'active' &&
-      (!d.hodAdminId ||
-        !filledDepartmentIds.has(d.id) ||
-        (editing?.tier === 'department_admin' &&
-          editing.departmentId === d.id)),
-  );
+  const admins = useMemo(() => [...supers, ...generals, ...departmentAdmins], [supers, generals, departmentAdmins]);
 
-  const hodSeatsLeft = HOD_CAP - departmentAdmins.length;
-  const canAdd =
-    generals.length < GENERAL_CAP || vacantDepartments.length > 0;
+
+  const activeDepartments = deptList.filter(d => d.status === 'active');
+  const canAdd = true;
 
   function openCreate() {
     setEditing(null);
-    setForm(emptyForm);
+    setForm({ ...emptyForm, tier: rolesData?.[0]?.id ?? 'general_admin' });
     setOpen(true);
   }
 
@@ -119,7 +98,7 @@ export function AdminsPage() {
     if (admin.tier === 'super_admin') return;
     setEditing(admin);
     setForm({
-      tier: admin.tier as 'general_admin' | 'department_admin',
+      tier: admin.tier,
       name: admin.name,
       phone: admin.phone,
       email: admin.email,
@@ -153,7 +132,7 @@ export function AdminsPage() {
           throw { message: 'Select a department' };
         }
         const body: PlatformAdminWrite = {
-          tier: form.tier,
+          tier: form.tier as any,
           name: form.name,
           phone: form.phone,
           email: form.email,
@@ -165,7 +144,14 @@ export function AdminsPage() {
         await apiPost(ENDPOINTS.admins, body);
         toast('Admin created', 'success');
       }
-      await mutate();
+      if (form.tier === 'super_admin') await supersMutate();
+      else if (form.tier === 'general_admin') await generalsMutate();
+      else if (form.tier === 'department_admin') await deptAdminsMutate();
+      else {
+        await supersMutate();
+        await generalsMutate();
+        await deptAdminsMutate();
+      }
       setOpen(false);
     } catch (err) {
       toast(getErrorMessage(err), 'error');
@@ -180,7 +166,9 @@ export function AdminsPage() {
       await apiPatch(`${ENDPOINTS.admins}/${admin.id}`, {
         status: admin.status === 'frozen' ? 'active' : 'frozen',
       });
-      await mutate();
+      if (admin.tier === 'general_admin') await generalsMutate();
+      else if (admin.tier === 'department_admin') await deptAdminsMutate();
+      else await supersMutate();
       toast(
         admin.status === 'frozen' ? 'Admin unfrozen' : 'Admin frozen',
         'success',
@@ -190,10 +178,17 @@ export function AdminsPage() {
     }
   }
 
-  if (isLoading && !data) return <ListPageSkeleton kpiCount={4} />;
+  const isLoading = supersLoading || generalsLoading || deptAdminsLoading;
+  const error = supersErr || generalsErr || deptAdminsErr;
+
+  if (isLoading && !admins.length) return <ListPageSkeleton kpiCount={4} />;
   if (error) {
     return (
-      <ErrorState message={error.message} onRetry={() => void mutate()} />
+      <ErrorState message={error.message} onRetry={() => {
+        void supersMutate();
+        void generalsMutate();
+        void deptAdminsMutate();
+      }} />
     );
   }
 
@@ -246,9 +241,9 @@ export function AdminsPage() {
         />
         <SummaryCard
           label="Department HODs"
-          value={`${departmentAdmins.length} / ${HOD_CAP}`}
-          hint={`Seats available: ${Math.max(hodSeatsLeft, 0)}`}
-          progress={HOD_CAP ? departmentAdmins.length / HOD_CAP : 0}
+          value={String(departmentAdmins.length)}
+          hint="No capacity limits"
+          progress={1}
         />
         <SummaryCard
           label="Total Admins"
@@ -292,10 +287,10 @@ export function AdminsPage() {
 
       <TierSection
         title="Department Admins (HODs)"
-        description="One seat per department. Vacant seats can be assigned via Add Admin."
+        description="Manage department heads."
         badge={
           <Badge tone="accent">
-            {departmentAdmins.length}/{HOD_CAP} Seats used
+            {departmentAdmins.length} assigned
           </Badge>
         }
         countLabel={`${departmentAdmins.length} Account${departmentAdmins.length === 1 ? '' : 's'}`}
@@ -307,47 +302,14 @@ export function AdminsPage() {
           onEdit={openEdit}
           onFreeze={toggleFreeze}
         />
-        {vacantDepartments.length > 0 && !editing ? (
-          <div className="mt-4 grid gap-2 sm:grid-cols-2">
-            {vacantDepartments.map((dept) => (
-              <div
-                key={dept.id}
-                className="flex items-center justify-between gap-3 rounded-xl border border-dashed border-border px-3 py-2.5"
-              >
-                <div>
-                  <p className="text-sm font-medium text-text-primary">
-                    {dept.name}
-                  </p>
-                  <p className="text-xs text-text-muted">Vacant seat</p>
-                </div>
-                <PermissionGate module="admins">
-                  <Button
-                    size="sm"
-                    variant="outline"
-                    onClick={() => {
-                      setEditing(null);
-                      setForm({
-                        ...emptyForm,
-                        tier: 'department_admin',
-                        departmentId: dept.id,
-                      });
-                      setOpen(true);
-                    }}
-                  >
-                    Assign
-                  </Button>
-                </PermissionGate>
-              </div>
-            ))}
-          </div>
-        ) : null}
+
       </TierSection>
 
       <Modal
         open={open}
         onClose={() => setOpen(false)}
         title={editing ? 'Edit admin' : 'Add admin'}
-        description="General Admin or Department HOD. Super Admins cannot be created here."
+        description="Manage admin roles and details."
         className="sm:max-w-xl"
         footer={
           <>
@@ -372,24 +334,25 @@ export function AdminsPage() {
               onChange={(e) =>
                 setForm((f) => ({
                   ...f,
-                  tier: e.target.value as FormState['tier'],
+                  tier: e.target.value,
                   departmentId: '',
                 }))
               }
             >
-              <option
-                value="general_admin"
-                disabled={generals.length >= GENERAL_CAP}
-              >
-                General Admin{' '}
-                {generals.length >= GENERAL_CAP ? '(full)' : ''}
-              </option>
-              <option
-                value="department_admin"
-                disabled={vacantDepartments.length === 0}
-              >
-                Department Admin (HOD)
-              </option>
+              {rolesData?.map((role) => {
+                const isSuperFull = role.id === 'super_admin' && supers.length >= SUPER_CAP;
+                const isGeneralFull = role.id === 'general_admin' && generals.length >= GENERAL_CAP;
+                
+                return (
+                  <option
+                    key={role.id}
+                    value={role.id}
+                    disabled={isSuperFull || isGeneralFull}
+                  >
+                    {role.name} {(isSuperFull || isGeneralFull) ? '(full)' : ''}
+                  </option>
+                );
+              })}
             </Select>
           ) : (
             <p className="text-sm text-text-secondary">
@@ -409,7 +372,7 @@ export function AdminsPage() {
               required
             >
               <option value="">Select department</option>
-              {vacantDepartments.map((d) => (
+              {activeDepartments.map((d) => (
                 <option key={d.id} value={d.id}>
                   {d.name}
                 </option>

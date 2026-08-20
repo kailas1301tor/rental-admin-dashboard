@@ -779,11 +779,10 @@ export const mockSettings: PlatformSettings = {
 
 function tierToRole(
   tier: PlatformAdmin['tier'],
-  slot?: number,
 ): AuthUser['role'] {
-  if (tier === 'super_admin') return 'super_admin';
-  if (tier === 'department_admin') return 'department_admin';
-  return slot === 2 ? 'general_admin_2' : 'general_admin_1';
+  if (tier === 'super_admin') return 'Super Admin';
+  if (tier === 'department_admin') return 'Department Admin';
+  return 'General Admin';
 }
 
 export function authUserFromAdmin(admin: PlatformAdmin): AuthUser {
@@ -791,7 +790,7 @@ export function authUserFromAdmin(admin: PlatformAdmin): AuthUser {
     id: admin.id,
     name: admin.name,
     email: admin.email,
-    role: tierToRole(admin.tier, admin.slot),
+    role: tierToRole(admin.tier),
   };
 }
 

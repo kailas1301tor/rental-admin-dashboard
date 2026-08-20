@@ -3,12 +3,19 @@ import { mockRequest } from '@/mocks/mock-router';
 
 const useMocks = () => import.meta.env.VITE_USE_MOCKS !== 'false';
 
+const BYPASS_MOCKS = ['/admin/admins', '/admin/super-admins', '/admin/general-admins', '/admin/department-admins', '/admin/roles/dropdown', '/admin/departments', '/auth/login/step-1', '/auth/login/step-2', '/admin/profile', '/auth'];
+
+function shouldMock(url: string): boolean {
+  if (!useMocks()) return false;
+  return !BYPASS_MOCKS.some((bypass) => url === bypass);
+}
+
 async function mutate<T>(
   method: 'post' | 'put' | 'patch' | 'delete',
   url: string,
   body?: unknown,
 ): Promise<T> {
-  if (useMocks()) {
+  if (shouldMock(url)) {
     try {
       return await mockRequest<T>(method, url, body);
     } catch (error) {
@@ -17,12 +24,16 @@ async function mutate<T>(
   }
 
   try {
-    const response = await axiosClient.request<T>({
+    const backendUrl = url.startsWith('/api') ? url : `/api${url}`;
+    const response = await axiosClient.request<any>({
       method,
-      url,
+      url: backendUrl,
       data: body,
     });
-    return response.data;
+    if (response.data?.results?.data !== undefined) {
+      return response.data.results.data as T;
+    }
+    return response.data as T;
   } catch (error) {
     throw normalizeApiError(error);
   }
@@ -45,14 +56,20 @@ export function apiDelete<T>(url: string, body?: unknown): Promise<T> {
 }
 
 export function apiGet<T>(url: string): Promise<T> {
-  if (useMocks()) {
+  if (shouldMock(url)) {
     return mockRequest<T>('get', url).catch((error) => {
       throw normalizeApiError(error);
     });
   }
+  const backendUrl = url.startsWith('/api') ? url : `/api${url}`;
   return axiosClient
-    .get<T>(url)
-    .then((r) => r.data)
+    .get<any>(backendUrl)
+    .then((r) => {
+      if (r.data?.results?.data !== undefined) {
+        return r.data.results.data as T;
+      }
+      return r.data as T;
+    })
     .catch((error) => {
       throw normalizeApiError(error);
     });

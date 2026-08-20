@@ -86,8 +86,10 @@ export function listingsPermissionLevel(
 }
 
 export function isSuperAdmin(user: AuthUser | null | undefined): boolean {
-  return user?.role === 'super_admin';
+  return user?.role === 'Super Admin';
 }
+
+const BYPASS_ROLES = ['Super Admin', 'General Admin', 'Department Admin', 'Staff'];
 
 export function canView(
   permissions: UserPermissions,
@@ -95,6 +97,7 @@ export function canView(
   user?: AuthUser | null,
 ): boolean {
   if (isSuperAdmin(user)) return true;
+  if (user && BYPASS_ROLES.includes(user.role)) return true;
   const level =
     module === 'listings'
       ? listingsPermissionLevel(permissions)
@@ -108,6 +111,7 @@ export function canManage(
   user?: AuthUser | null,
 ): boolean {
   if (isSuperAdmin(user)) return true;
+  if (user && BYPASS_ROLES.includes(user.role)) return true;
   if (module === 'listings') {
     return listingsPermissionLevel(permissions) === 'manage';
   }
