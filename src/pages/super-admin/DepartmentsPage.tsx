@@ -1,7 +1,7 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2, Plus, Users } from 'lucide-react';
-import { apiDelete, apiPatch, apiPost } from '@/api/axios-helpers';
+import { apiDelete, apiPut, apiPost } from '@/api/axios-helpers';
 import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
@@ -41,7 +41,7 @@ export function DepartmentsPage() {
   const { data, error, isLoading, mutate } = useApiSWR<Department[]>(
     ENDPOINTS.departments,
   );
-  const { data: admins } = useApiSWR<PlatformAdmin[]>(ENDPOINTS.admins);
+  const { data: deptAdmins } = useApiSWR<PlatformAdmin[]>(ENDPOINTS.departmentAdmins);
   const { data: staff } = useApiSWR<PlatformStaff[]>(ENDPOINTS.staff);
   const { filters, setFilters, reset } = useListFilters();
   const [query, setQuery] = useState('');
@@ -58,9 +58,9 @@ export function DepartmentsPage() {
 
   const adminMap = useMemo(() => {
     const m = new Map<string, PlatformAdmin>();
-    for (const a of admins ?? []) m.set(a.id, a);
+    for (const a of deptAdmins ?? []) m.set(a.id, a);
     return m;
-  }, [admins]);
+  }, [deptAdmins]);
 
   const staffCountByDept = useMemo(() => {
     const m = new Map<string, number>();
@@ -71,13 +71,13 @@ export function DepartmentsPage() {
   }, [staff]);
 
   const eligibleHods = useMemo(() => {
-    return (admins ?? []).filter(
+    return (deptAdmins ?? []).filter(
       (a) =>
         a.tier === 'department_admin' &&
         a.status === 'active' &&
         (!a.departmentId || a.departmentId === assignOpen?.id),
     );
-  }, [admins, assignOpen]);
+  }, [deptAdmins, assignOpen]);
 
   const rows = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -123,7 +123,7 @@ export function DepartmentsPage() {
         description: form.description || undefined,
       };
       if (editing) {
-        await apiPatch(`${ENDPOINTS.departments}/${editing.id}`, body);
+        await apiPut(`${ENDPOINTS.departments}/${editing.id}`, body);
         toast('Department updated', 'success');
       } else {
         await apiPost(ENDPOINTS.departments, body);
@@ -140,7 +140,7 @@ export function DepartmentsPage() {
 
   async function toggleFreeze(dept: Department) {
     try {
-      await apiPatch(`${ENDPOINTS.departments}/${dept.id}`, {
+      await apiPut(`${ENDPOINTS.departments}/${dept.id}`, {
         status: dept.status === 'frozen' ? 'active' : 'frozen',
       });
       await mutate();
@@ -158,7 +158,7 @@ export function DepartmentsPage() {
     if (!assignOpen || !hodId) return;
     setSaving(true);
     try {
-      await apiPatch(`${ENDPOINTS.departments}/${assignOpen.id}`, {
+      await apiPut(`${ENDPOINTS.departments}/${assignOpen.id}`, {
         hodAdminId: hodId,
       });
       await mutate();
