@@ -9,7 +9,7 @@ import {
 import { apiPost, apiGet } from '@/api/axios-helpers';
 import { ENDPOINTS } from '@/api/endpoints';
 import { getStoredToken, setStoredToken } from '@/api/axios-client';
-import type { AuthUser } from '@/types';
+import type { AuthUser, AdminRole } from '@/types';
 
 const USER_KEY = 'rental_admin_user';
 
@@ -55,8 +55,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setStoredToken(session.access);
       
       const profile = await apiGet<any>(ENDPOINTS.profile);
-      let role = profile.role || profile.tier as string;
-      if (profile.tier === 'general_admin') {
+      let rawRole = (session.role || profile.role || profile.tier) as string | null;
+      if (!rawRole || rawRole === 'Super Admin') rawRole = 'super_admin';
+      else if (rawRole === 'General Admin') rawRole = 'general_admin';
+      else if (rawRole === 'Department Admin') rawRole = 'department_admin';
+
+      let role = rawRole;
+      if (profile.tier === 'general_admin' || role === 'general_admin') {
         role = `general_admin_${profile.slot || 1}`;
       }
       
@@ -64,7 +69,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         id: profile.id,
         name: profile.first_name ? `${profile.first_name} ${profile.last_name || ''}`.trim() : profile.name,
         email: profile.email,
-        role: (session.role || role) as any,
+        role: role as AdminRole,
       };
 
       localStorage.setItem(USER_KEY, JSON.stringify(authUser));

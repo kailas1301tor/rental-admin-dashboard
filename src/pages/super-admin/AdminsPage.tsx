@@ -71,16 +71,16 @@ export function AdminsPage() {
   const deptList = deptData ?? [];
 
   const supers = useMemo(() => {
-    return (supersRaw ?? []).filter((a) => matchesDistrict(a.districtId));
-  }, [supersRaw, matchesDistrict]);
+    return (supersRaw ?? []);
+  }, [supersRaw]);
 
   const generals = useMemo(() => {
-    return (generalsRaw ?? []).filter((a) => matchesDistrict(a.districtId));
-  }, [generalsRaw, matchesDistrict]);
+    return (generalsRaw ?? []);
+  }, [generalsRaw]);
 
   const departmentAdmins = useMemo(() => {
-    return (deptAdminsRaw ?? []).filter((a) => matchesDistrict(a.districtId));
-  }, [deptAdminsRaw, matchesDistrict]);
+    return (deptAdminsRaw ?? []);
+  }, [deptAdminsRaw]);
 
   const admins = useMemo(() => [...supers, ...generals, ...departmentAdmins], [supers, generals, departmentAdmins]);
 
@@ -104,7 +104,7 @@ export function AdminsPage() {
       email: admin.email,
       address: admin.address,
       password: '',
-      departmentId: admin.departmentId ?? '',
+      departmentId: admin.department?.id ?? '',
     });
     setOpen(true);
   }
@@ -508,11 +508,11 @@ function adminSubtitle(
   deptList: Department[],
   showDepartment?: boolean,
 ) {
-  if (showDepartment && admin.departmentId) {
-    return departmentLabel(admin.departmentId, deptList);
+  if (showDepartment && admin.department) {
+    return admin.department.name;
   }
-  if (admin.districtId) {
-    return districtLabel(admin.districtId);
+  if (admin.department) {
+    return admin.department.name;
   }
   if (admin.slot) {
     return `General Admin · Slot ${admin.slot}`;

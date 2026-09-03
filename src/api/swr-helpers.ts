@@ -4,11 +4,12 @@ import { mockRequest } from '@/mocks/mock-router';
 
 const useMocks = () => import.meta.env.VITE_USE_MOCKS !== 'false';
 
-const BYPASS_MOCKS = ['/admin/admins', '/admin/super-admins', '/admin/general-admins', '/admin/department-admins', '/admin/roles/dropdown', '/admin/departments', '/auth/login/step-1', '/auth/login/step-2', '/admin/profile', '/auth'];
+const BYPASS_MOCKS = ['/admin/admins', '/admin/super-admins', '/admin/general-admins', '/admin/department-admins', '/admin/roles/dropdown', '/admin/departments', '/auth/login/step-1', '/auth/login/step-2', '/admin/profile', '/auth', '/roles/groups', '/roles/permissions', '/roles/group-permissions', '/admin/staff'];
 
 function shouldMock(url: string): boolean {
   if (!useMocks()) return false;
-  return !BYPASS_MOCKS.some((bypass) => url === bypass || url.startsWith(`${bypass}/`));
+  const baseUrl = url.split('?')[0];
+  return !BYPASS_MOCKS.some((bypass) => baseUrl === bypass || baseUrl.startsWith(`${bypass}/`));
 }
 
 async function apiFetcher<T>(url: string): Promise<T> {
@@ -39,6 +40,7 @@ export function useApiSWR<T>(
   return useSWR<T, ReturnType<typeof normalizeApiError>>(key, apiFetcher, {
     revalidateOnFocus: false,
     shouldRetryOnError: false,
+    keepPreviousData: true,
     ...config,
   });
 }

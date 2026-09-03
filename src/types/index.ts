@@ -2,7 +2,11 @@ export type AdminRole =
   | 'Super Admin'
   | 'General Admin'
   | 'Department Admin'
-  | 'Staff';
+  | 'Staff'
+  | 'super_admin'
+  | 'general_admin_1'
+  | 'general_admin_2'
+  | 'department_admin';
 
 export type ThemeMode = 'light' | 'dark' | 'system';
 
@@ -173,7 +177,7 @@ export interface PlatformAdmin {
   address: string;
   status: AdminStatus;
   slot?: 1 | 2;
-  departmentId?: string;
+  department?: { id: string; name: string };
   districtId?: string;
   createdAt: string;
   lastActiveAt?: string;
@@ -197,8 +201,7 @@ export interface PlatformStaff {
   name: string;
   email: string;
   phone: string;
-  departmentId: string;
-  districtId: string;
+  department?: { id: string; name: string };
   status: EntityStatus;
   createdAt: string;
 }
@@ -675,6 +678,8 @@ export interface ApiErrorShape {
 export type {
   AdminPermissionRow,
   AdminProfile,
+  BackendPermission,
+  BackendRole,
   PermissionLevel,
   PermissionModule,
   UserPermissions,

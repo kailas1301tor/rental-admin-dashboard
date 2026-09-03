@@ -1,17 +1,14 @@
 import { type ReactNode } from 'react';
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { NavigableListCard } from '@/components/ui/NavigableListCard';
 import { cn } from '@/lib/utils';
-import { adminTierLabel, departmentLabel } from '@/lib/departments';
-import { grantedModuleCount } from '@/auth/permissions';
-import type { AdminPermissionRow } from '@/types';
+import type { BackendRole } from '@/types';
 
 export function PermissionMobileCard({
   row,
   onEdit,
 }: {
-  row: AdminPermissionRow;
+  row: BackendRole;
   onEdit: () => void;
 }) {
   return (
@@ -25,40 +22,19 @@ export function PermissionMobileCard({
           </span>
           <div className="min-w-0 flex-1">
             <p className="font-medium text-text-primary">{row.name}</p>
-            <p className="mt-0.5 truncate text-xs text-text-muted">
-              {row.email}
-            </p>
             <div className="mt-2 flex flex-wrap items-center gap-2">
-              <Badge tone="accent">{adminTierLabel(row.tier)}</Badge>
               <span className="text-xs tabular-nums text-text-muted">
-                {grantedModuleCount(row.permissions)} modules granted
+                {row.permissions.length} modules granted
               </span>
             </div>
-            <p className="mt-2 text-sm text-text-secondary">
-              {row.departmentId
-                ? departmentLabel(row.departmentId)
-                : 'No department'}
-            </p>
           </div>
         </div>
       }
       details={
         <>
-          <DetailField label="Email" value={row.email} breakAll />
-          <DetailField label="Role">
-            <Badge tone="accent">{adminTierLabel(row.tier)}</Badge>
-          </DetailField>
-          <DetailField
-            label="Department"
-            value={
-              row.departmentId
-                ? departmentLabel(row.departmentId)
-                : '—'
-            }
-          />
           <DetailField
             label="Modules granted"
-            value={String(grantedModuleCount(row.permissions))}
+            value={String(row.permissions.length)}
           />
           <div className="pt-1">
             <Button size="sm" variant="outline" onClick={onEdit}>

@@ -40,14 +40,24 @@ const empty: FormState = { name: '', email: '', phone: '', departmentId: '' };
 
 export function StaffPage() {
   const { toast } = useToast();
-  const { data, error, isLoading, mutate } = useApiSWR<PlatformStaff[]>(
-    ENDPOINTS.staff,
-  );
-  const { data: deptData } = useApiSWR<Department[]>(ENDPOINTS.departments);
-  const { filters, setFilters, reset, matchesDistrict } = useListFilters();
   const [query, setQuery] = useState('');
   const [dept, setDept] = useState('');
   const [status, setStatus] = useState<'' | 'active' | 'frozen'>('');
+
+  const searchParams = useMemo(() => {
+    const params = new URLSearchParams();
+    if (query) params.set('search', query);
+    if (dept) params.set('department', dept);
+    if (status) params.set('status', status);
+    // if (filters.district) params.set('district', filters.district); // district filter disabled
+    return params;
+  }, [query, dept, status]); // removed filters.district
+
+  const { data, error, isLoading, mutate } = useApiSWR<PlatformStaff[]>(
+    `${ENDPOINTS.staff}?${searchParams.toString()}`,
+  );
+  const { data: deptData } = useApiSWR<Department[]>(ENDPOINTS.departments);
+  const { filters, setFilters, reset, matchesDistrict } = useListFilters();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<PlatformStaff | null>(null);
   const [form, setForm] = useState<FormState>(empty);
@@ -55,20 +65,7 @@ export function StaffPage() {
 
   const deptList = deptData ?? [];
 
-  const filtered = useMemo(() => {
-    return (data ?? []).filter((row) => {
-      if (!matchesDistrict(row.districtId)) return false;
-      if (dept && row.departmentId !== dept) return false;
-      if (status && row.status !== status) return false;
-      const q = query.trim().toLowerCase();
-      if (!q) return true;
-      return (
-        row.name.toLowerCase().includes(q) ||
-        row.email.toLowerCase().includes(q) ||
-        row.phone.includes(q)
-      );
-    });
-  }, [data, dept, status, query, matchesDistrict]);
+  const filtered = data ?? [];
 
   function openCreate() {
     setEditing(null);
@@ -82,7 +79,7 @@ export function StaffPage() {
       name: row.name,
       email: row.email,
       phone: row.phone,
-      departmentId: row.departmentId,
+      departmentId: row.department?.id || '',
     });
     setOpen(true);
   }
@@ -151,6 +148,7 @@ export function StaffPage() {
         onChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
         onReset={reset}
         showTaxonomy={false}
+        showDistrict={false}
         search={
           <Input
             label="Search"
@@ -232,7 +230,7 @@ export function StaffPage() {
                       <div>{row.email}</div>
                       <div className="text-xs text-text-muted">{row.phone}</div>
                     </ClickableTd>
-                    <ClickableTd>{departmentLabel(row.departmentId, deptList)}</ClickableTd>
+                    <ClickableTd>{row.department?.name || 'N/A'}</ClickableTd>
                     <ClickableTd>
                       <Badge tone={row.status === 'active' ? 'success' : 'warning'}>
                         {row.status}

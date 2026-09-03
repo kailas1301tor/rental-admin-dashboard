@@ -31,7 +31,7 @@ export function StaffMobileCard({
               {staff.name}
             </p>
             <p className="mt-0.5 truncate text-xs text-text-muted">
-              {departmentLabel(staff.departmentId, deptList)}
+              {staff.department?.name || 'N/A'}
             </p>
             <div className="mt-2">
               <Badge tone={staff.status === 'active' ? 'success' : 'warning'}>
@@ -50,7 +50,7 @@ export function StaffMobileCard({
           <DetailField label="Phone" value={staff.phone} />
           <DetailField
             label="Department"
-            value={departmentLabel(staff.departmentId, deptList)}
+            value={staff.department?.name || 'N/A'}
           />
           <DetailField label="Joined" value={formatDateTime(staff.createdAt)} />
           <PermissionGate module="staff">

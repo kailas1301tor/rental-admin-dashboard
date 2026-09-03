@@ -1,15 +1,9 @@
-import { useMemo, useState } from 'react';
+import { useState, useMemo } from 'react';
 import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
-import { updateUserPermissions } from '@/api/profile';
 import { useApiSWR } from '@/api/swr-helpers';
-import {
-  ALL_MODULES,
-  MODULE_LABELS,
-  grantedModuleCount,
-} from '@/auth/permissions';
+import { assignRolePermissions } from '@/api/roles';
 import { useProfile } from '@/auth/ProfileProvider';
-import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Modal } from '@/components/ui/Modal';
 import {
@@ -25,72 +19,53 @@ import {
   TableActionsCell,
 } from '@/components/ui/clickable-row';
 import { useToast } from '@/components/ui/Toast';
-import { adminTierLabel, departmentLabel } from '@/lib/departments';
 import { PermissionMobileCard } from '@/pages/super-admin/permissions/PermissionMobileCard';
-import type {
-  AdminPermissionRow,
-  PermissionLevel,
-  PermissionModule,
-  UserPermissions,
-} from '@/types';
-
-type LevelChoice = 'none' | PermissionLevel;
-
-function toChoice(
-  permissions: UserPermissions,
-  module: PermissionModule,
-): LevelChoice {
-  return permissions[module] ?? 'none';
-}
-
-function fromChoice(choice: LevelChoice): PermissionLevel | undefined {
-  return choice === 'none' ? undefined : choice;
-}
+import type { BackendRole, BackendPermission } from '@/types';
 
 export function PermissionsPage() {
   const { toast } = useToast();
   const { mutate: mutateProfile } = useProfile();
-  const { data, error, isLoading, mutate } = useApiSWR<AdminPermissionRow[]>(
-    ENDPOINTS.adminPermissions,
+  
+  const { data: roles, error: rolesError, isLoading: rolesLoading, mutate: mutateRoles } = useApiSWR<BackendRole[]>(
+    ENDPOINTS.roles,
   );
-  const [editing, setEditing] = useState<AdminPermissionRow | null>(null);
-  const [draft, setDraft] = useState<UserPermissions>({});
+  
+  const { data: permissionsList, error: permissionsError, isLoading: permissionsLoading } = useApiSWR<BackendPermission[]>(
+    ENDPOINTS.permissionsList,
+  );
+
+  const [editingRole, setEditingRole] = useState<BackendRole | null>(null);
+  const [draftPermissionIds, setDraftPermissionIds] = useState<Set<number>>(new Set());
   const [saving, setSaving] = useState(false);
 
-  const rows = data ?? [];
+  const rows = roles ?? [];
 
-  const moduleDraft = useMemo(() => {
-    const map = new Map<PermissionModule, LevelChoice>();
-    for (const module of ALL_MODULES) {
-      map.set(module, toChoice(draft, module));
-    }
-    return map;
-  }, [draft]);
-
-  function openEditor(row: AdminPermissionRow) {
-    setEditing(row);
-    setDraft({ ...row.permissions });
+  function openEditor(role: BackendRole) {
+    setEditingRole(role);
+    setDraftPermissionIds(new Set(role.permissions.map(p => p.id)));
   }
 
-  function setModuleLevel(module: PermissionModule, choice: LevelChoice) {
-    setDraft((prev) => {
-      const next = { ...prev };
-      const level = fromChoice(choice);
-      if (level) next[module] = level;
-      else delete next[module];
+  function togglePermission(permissionId: number) {
+    setDraftPermissionIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(permissionId)) {
+        next.delete(permissionId);
+      } else {
+        next.add(permissionId);
+      }
       return next;
     });
   }
 
   async function onSave() {
-    if (!editing) return;
+    if (!editingRole) return;
     setSaving(true);
     try {
-      await updateUserPermissions(editing.userId, draft);
-      await mutate();
+      await assignRolePermissions(editingRole.id, Array.from(draftPermissionIds));
+      await mutateRoles();
       await mutateProfile();
-      toast('Permissions updated', 'success');
-      setEditing(null);
+      toast('Permissions updated successfully', 'success');
+      setEditingRole(null);
     } catch (err) {
       toast(getErrorMessage(err), 'error');
     } finally {
@@ -98,26 +73,29 @@ export function PermissionsPage() {
     }
   }
 
-  if (isLoading && !data) return <ListPageSkeleton showKpis={false} />;
-  if (error) {
-    return <ErrorState message={error.message} onRetry={() => void mutate()} />;
+  if ((rolesLoading && !roles) || (permissionsLoading && !permissionsList)) {
+    return <ListPageSkeleton showKpis={false} />;
+  }
+  
+  if (rolesError || permissionsError) {
+    return <ErrorState message={rolesError?.message || permissionsError?.message} onRetry={() => void mutateRoles()} />;
   }
 
   return (
     <div className="space-y-4">
       <PageHeader
-        title="Permissions"
-        description="Configure per-user module access for General Admins and Department Admins. Super Admins always have full access."
+        title="Role Permissions"
+        description="Configure module access for predefined roles. These apply to all users assigned to the respective role."
       />
 
       {rows.length === 0 ? (
-        <EmptyState title="No configurable admins" />
+        <EmptyState title="No roles found" />
       ) : (
         <>
           <div className="space-y-3 lg:hidden">
             {rows.map((row) => (
               <PermissionMobileCard
-                key={row.userId}
+                key={row.id}
                 row={row}
                 onEdit={() => openEditor(row)}
               />
@@ -128,9 +106,7 @@ export function PermissionsPage() {
           <Table>
             <thead>
               <tr>
-                <Th>Admin</Th>
                 <Th>Role</Th>
-                <Th>Department</Th>
                 <Th>Modules granted</Th>
                 <Th className="text-right">Actions</Th>
               </tr>
@@ -138,24 +114,15 @@ export function PermissionsPage() {
             <tbody>
               {rows.map((row) => (
                 <ClickableTableRow
-                  key={row.userId}
+                  key={row.id}
                   onActivate={() => openEditor(row)}
                   ariaLabel={`Edit permissions for ${row.name}`}
                 >
                   <ClickableTd>
                     <p className="font-medium text-text-primary">{row.name}</p>
-                    <p className="text-xs text-text-muted">{row.email}</p>
-                  </ClickableTd>
-                  <ClickableTd>
-                    <Badge tone="accent">{adminTierLabel(row.tier)}</Badge>
-                  </ClickableTd>
-                  <ClickableTd className="text-sm text-text-secondary">
-                    {row.departmentId
-                      ? departmentLabel(row.departmentId)
-                      : '—'}
                   </ClickableTd>
                   <ClickableTd className="tabular-nums">
-                    {grantedModuleCount(row.permissions)}
+                    {row.permissions.length}
                   </ClickableTd>
                   <TableActionsCell>
                     <Button
@@ -175,14 +142,14 @@ export function PermissionsPage() {
       )}
 
       <Modal
-        open={Boolean(editing)}
-        onClose={() => setEditing(null)}
-        title={editing ? `Permissions — ${editing.name}` : 'Permissions'}
-        description="Set View for read-only access or Manage for full module control."
+        open={Boolean(editingRole)}
+        onClose={() => setEditingRole(null)}
+        title={editingRole ? `Permissions — ${editingRole.name}` : 'Permissions'}
+        description="Select the granular permissions granted to this role."
         className="sm:max-w-2xl"
         footer={
           <>
-            <Button variant="ghost" onClick={() => setEditing(null)}>
+            <Button variant="ghost" onClick={() => setEditingRole(null)}>
               Cancel
             </Button>
             <Button onClick={() => void onSave()} isLoading={saving}>
@@ -191,40 +158,31 @@ export function PermissionsPage() {
           </>
         }
       >
-        <div className="max-h-[min(60vh,28rem)] overflow-y-auto">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="border-b border-border text-left text-xs text-text-muted">
-                <th className="py-2 pr-3 font-medium">Module</th>
-                <th className="px-2 py-2 font-medium">None</th>
-                <th className="px-2 py-2 font-medium">View</th>
-                <th className="px-2 py-2 font-medium">Manage</th>
-              </tr>
-            </thead>
-            <tbody>
-              {ALL_MODULES.map((module) => (
-                <tr key={module} className="border-b border-border/60">
-                  <td className="py-2.5 pr-3 font-medium text-text-primary">
-                    {MODULE_LABELS[module]}
-                  </td>
-                  {(['none', 'view', 'manage'] as const).map((choice) => (
-                    <td key={choice} className="px-2 py-2.5 text-center">
-                      <input
-                        type="radio"
-                        name={`perm-${module}`}
-                        checked={moduleDraft.get(module) === choice}
-                        onChange={() => setModuleLevel(module, choice)}
-                        className="h-4 w-4 accent-accent"
-                        aria-label={`${MODULE_LABELS[module]} ${choice}`}
-                      />
-                    </td>
-                  ))}
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        <div className="max-h-[min(60vh,28rem)] overflow-y-auto pr-2">
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            {permissionsList?.map((permission) => (
+              <label 
+                key={permission.id} 
+                className="flex items-start gap-3 p-3 rounded-md border border-border/50 bg-surface/50 hover:bg-surface cursor-pointer transition-colors"
+              >
+                <div className="flex h-5 items-center">
+                  <input
+                    type="checkbox"
+                    checked={draftPermissionIds.has(permission.id)}
+                    onChange={() => togglePermission(permission.id)}
+                    className="h-4 w-4 rounded border-border text-accent focus:ring-accent"
+                  />
+                </div>
+                <div className="flex flex-col text-sm">
+                  <span className="font-medium text-text-primary">{permission.name}</span>
+                  <span className="text-xs text-text-muted font-mono mt-0.5">{permission.codename}</span>
+                </div>
+              </label>
+            ))}
+          </div>
         </div>
       </Modal>
     </div>
   );
 }
+

@@ -86,10 +86,19 @@ export function listingsPermissionLevel(
 }
 
 export function isSuperAdmin(user: AuthUser | null | undefined): boolean {
-  return user?.role === 'Super Admin';
+  return user?.role === 'Super Admin' || user?.role === 'super_admin';
 }
 
-const BYPASS_ROLES = ['Super Admin', 'General Admin', 'Department Admin', 'Staff'];
+const BYPASS_ROLES = [
+  'Super Admin',
+  'super_admin',
+  'General Admin',
+  'general_admin_1',
+  'general_admin_2',
+  'Department Admin',
+  'department_admin',
+  'Staff',
+];
 
 export function canView(
   permissions: UserPermissions,

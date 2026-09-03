@@ -37,3 +37,16 @@ export interface AdminPermissionRow {
   departmentId?: string;
   permissions: UserPermissions;
 }
+
+export interface BackendPermission {
+  id: number;
+  name: string;
+  codename: string;
+}
+
+export interface BackendRole {
+  id: number;
+  name: string;
+  permissions: BackendPermission[];
+}
+

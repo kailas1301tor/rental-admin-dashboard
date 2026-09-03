@@ -38,16 +38,25 @@ const emptyForm: FormState = { name: '', description: '' };
 
 export function DepartmentsPage() {
   const { toast } = useToast();
-  const { data, error, isLoading, mutate } = useApiSWR<Department[]>(
-    ENDPOINTS.departments,
-  );
-  const { data: deptAdmins } = useApiSWR<PlatformAdmin[]>(ENDPOINTS.departmentAdmins);
-  const { data: staff } = useApiSWR<PlatformStaff[]>(ENDPOINTS.staff);
-  const { filters, setFilters, reset } = useListFilters();
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<
     'all' | 'active' | 'frozen' | 'archived'
   >('all');
+
+  const searchParams = useMemo(() => {
+    const params = new URLSearchParams();
+    if (query) params.set('search', query);
+    if (statusFilter !== 'all') params.set('status', statusFilter);
+    return params;
+  }, [query, statusFilter]);
+
+  const { data, error, isLoading, mutate } = useApiSWR<Department[]>(
+    `${ENDPOINTS.departments}?${searchParams.toString()}`,
+  );
+  const { data: deptAdmins } = useApiSWR<PlatformAdmin[]>(ENDPOINTS.departmentAdmins);
+  const { data: staff } = useApiSWR<PlatformStaff[]>(ENDPOINTS.staff);
+  const { filters, setFilters, reset } = useListFilters();
+
   const [open, setOpen] = useState(false);
   const [assignOpen, setAssignOpen] = useState<Department | null>(null);
   const [editing, setEditing] = useState<Department | null>(null);
@@ -80,16 +89,8 @@ export function DepartmentsPage() {
   }, [deptAdmins, assignOpen]);
 
   const rows = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return (data ?? []).filter((d) => {
-      if (statusFilter !== 'all' && d.status !== statusFilter) return false;
-      if (!q) return true;
-      return (
-        d.name.toLowerCase().includes(q) ||
-        (d.description?.toLowerCase().includes(q) ?? false)
-      );
-    });
-  }, [data, query, statusFilter]);
+    return data ?? [];
+  }, [data]);
 
   const kpis = useMemo(() => {
     const list = data ?? [];

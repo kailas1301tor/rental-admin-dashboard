@@ -35,6 +35,9 @@ export const ENDPOINTS = {
   dealDeskInquiries: '/admin/deal-desk/inquiries',
   notifications: '/admin/notifications',
   settings: '/admin/settings',
+  roles: '/roles/groups',
+  rolePermissionsAssign: '/roles/group-permissions',
+  permissionsList: '/roles/permissions',
 } as const;
 
 export type EndpointKey = keyof typeof ENDPOINTS;
