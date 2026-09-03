@@ -4,6 +4,7 @@ export const ENDPOINTS = {
   profile: '/admin/profile',
   dashboardKpis: '/admin/dashboard/kpis',
   loginAlerts: '/admin/login-alerts',
+  loginAlertsStats: '/admin/login-alerts/stats',
   generalAdmins: '/admin/general-admins',
   superAdmins: '/admin/super-admins',
   departmentAdmins: '/admin/department-admins',

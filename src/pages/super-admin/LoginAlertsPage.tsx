@@ -50,19 +50,42 @@ function classifyRole(role: string): Exclude<RoleTab, 'all'> {
 }
 
 export function LoginAlertsPage() {
-  const { data, error, isLoading, mutate } = useApiSWR<LoginAttempt[]>(
-    ENDPOINTS.loginAlerts,
-  );
-  const { filters, setFilters, reset, matchesDistrict } = useListFilters();
   const [roleTab, setRoleTab] = useState<RoleTab>('all');
   const [query, setQuery] = useState('');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
 
-  const list = data ?? [];
+  const searchParams = useMemo(() => {
+    const params = new URLSearchParams();
+    if (query) params.set('search', query);
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    if (roleTab !== 'all') params.set('role', roleTab);
+    return params;
+  }, [query, from, to, roleTab]);
+
+  const statsParams = useMemo(() => {
+    const params = new URLSearchParams();
+    if (query) params.set('search', query);
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    return params;
+  }, [query, from, to]);
+
+  const { data: statsData } = useApiSWR<Record<RoleTab, number>>(
+    `${ENDPOINTS.loginAlertsStats}?${statsParams.toString()}`,
+  );
+
+  const { data, error, isLoading, mutate } = useApiSWR<LoginAttempt[]>(
+    `${ENDPOINTS.loginAlerts}?${searchParams.toString()}`,
+  );
+  const { filters, setFilters, reset } = useListFilters();
+
+  const filtered = data ?? [];
 
   const roleCounts = useMemo(() => {
-    const counts: Record<Exclude<RoleTab, 'all'>, number> = {
+    return statsData ?? {
+      all: 0,
       super_admin: 0,
       general_admin: 0,
       hod: 0,
@@ -71,30 +94,7 @@ export function LoginAlertsPage() {
       customer: 0,
       unknown: 0,
     };
-    for (const row of list) {
-      counts[classifyRole(row.role)] += 1;
-    }
-    return counts;
-  }, [list]);
-
-  const filtered = useMemo(() => {
-    return list.filter((row) => {
-      if (!matchesDistrict(row.districtId)) return false;
-      if (roleTab !== 'all' && classifyRole(row.role) !== roleTab) return false;
-      const q = query.trim().toLowerCase();
-      const matchesQuery =
-        !q ||
-        row.userName.toLowerCase().includes(q) ||
-        row.role.toLowerCase().includes(q) ||
-        row.ip.includes(q) ||
-        row.location.toLowerCase().includes(q);
-      const ts = new Date(row.attemptedAt).getTime();
-      const afterFrom = !from || ts >= new Date(from).getTime();
-      const beforeTo =
-        !to || ts <= new Date(`${to}T23:59:59`).getTime();
-      return matchesQuery && afterFrom && beforeTo;
-    });
-  }, [list, roleTab, query, from, to, matchesDistrict]);
+  }, [statsData]);
 
   if (isLoading && !data) return <ListPageSkeleton showKpis={false} />;
   if (error) {
@@ -120,6 +120,7 @@ export function LoginAlertsPage() {
         onChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
         onReset={reset}
         showTaxonomy={false}
+        showDistrict={false} // District filter disabled per requirements
         search={
           <Input
             label="Search"
@@ -150,8 +151,7 @@ export function LoginAlertsPage() {
         >
           {ROLE_TABS.map((item) => {
             const active = roleTab === item.id;
-            const count =
-              item.id === 'all' ? list.length : roleCounts[item.id];
+            const count = roleCounts[item.id] || 0;
             return (
               <button
                 key={item.id}
