@@ -70,9 +70,22 @@ export function UserDetailPage() {
   const { id = '' } = useParams();
   const { toast } = useToast();
   const [tab, setTab] = useState<Tab>('overview');
-  const { data, error, isLoading, mutate } = useApiSWR<MarketplaceUserDetail>(
-    id ? `${ENDPOINTS.users}/${id}` : null,
+  const { data: overview, error, isLoading, mutate } = useApiSWR<any>(
+    id ? `${ENDPOINTS.users}/${id}/overview` : null,
   );
+  const { data: bookings = [] } = useApiSWR<any[]>(
+    id ? `${ENDPOINTS.users}/${id}/bookings` : null,
+  );
+  const { data: addresses = [] } = useApiSWR<any[]>(
+    id ? `${ENDPOINTS.users}/${id}/addresses` : null,
+  );
+  const { data: activity = [] } = useApiSWR<any[]>(
+    id ? `${ENDPOINTS.users}/${id}/activity-logs` : null,
+  );
+  const { data: devices = [] } = useApiSWR<any[]>(
+    id ? `${ENDPOINTS.users}/${id}/devices` : null,
+  );
+
   const { data: rbos } = useApiSWR<RboVendor[]>(ENDPOINTS.rbos);
 
   const rboMap = useMemo(() => {
@@ -81,11 +94,11 @@ export function UserDetailPage() {
     return m;
   }, [rbos]);
 
-  if (isLoading && !data) return <DetailPageSkeleton />;
+  if (isLoading && !overview) return <DetailPageSkeleton />;
   if (error) {
     return <ErrorState message={error.message} onRetry={() => void mutate()} />;
   }
-  if (!data) return <EmptyState title="User not found" />;
+  if (!overview) return <EmptyState title="User not found" />;
 
   const {
     user,
@@ -96,20 +109,15 @@ export function UserDetailPage() {
     lastLoginAt,
     updatedAt,
     rbo,
-    bookings,
     bookingSummary,
     spending,
-    addresses,
-    paymentMethods,
-    activity,
-    devices,
-  } = data;
+  } = overview;
 
   const tabs: { id: Tab; label: string }[] = [
     { id: 'overview', label: 'Overview' },
     { id: 'bookings', label: `Bookings (${bookingSummary.total})` },
     { id: 'addresses', label: `Addresses (${addresses.length})` },
-    { id: 'payments', label: `Payment Methods (${paymentMethods.length})` },
+    // { id: 'payments', label: `Payment Methods` }, // Payment Methods disabled for now
     { id: 'activity', label: 'Activity Logs' },
     { id: 'devices', label: `Devices (${devices.length})` },
   ];
@@ -436,7 +444,7 @@ export function UserDetailPage() {
         </div>
       ) : null}
 
-      {tab === 'payments' ? (
+      {/* {tab === 'payments' ? (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {paymentMethods.map((pm) => (
             <Card key={pm.id} className="!p-4">
@@ -461,7 +469,7 @@ export function UserDetailPage() {
             </Card>
           ))}
         </div>
-      ) : null}
+      ) : null} */}
 
       {tab === 'activity' ? <ActivityList events={activity} /> : null}
 

@@ -11,6 +11,7 @@ import {
   Users,
 } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { axiosClient, getErrorMessage } from '@/api/axios-client';
 import { useApiSWR } from '@/api/swr-helpers';
 import { ENDPOINTS } from '@/api/endpoints';
 import { ListFilterBar } from '@/components/filters/ListFilterBar';
@@ -262,7 +263,25 @@ export function UsersPage() {
           variant="outline"
           size="sm"
           className="self-end"
-          onClick={() => toast('Export CSV coming soon', 'info')}
+          onClick={async () => {
+            try {
+              toast('Preparing export...', 'info');
+              const url = `${ENDPOINTS.users}/export`;
+              const backendUrl = url.startsWith('/api') ? url : `/api${url}`;
+              const response = await axiosClient.get(backendUrl, {
+                responseType: 'blob',
+              });
+              const blobUrl = window.URL.createObjectURL(new Blob([response.data]));
+              const link = document.createElement('a');
+              link.href = blobUrl;
+              link.setAttribute('download', 'users_export.csv');
+              document.body.appendChild(link);
+              link.click();
+              link.remove();
+            } catch (err) {
+              toast(getErrorMessage(err), 'error');
+            }
+          }}
         >
           <Download className="h-4 w-4" aria-hidden />
           Export
