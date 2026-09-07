@@ -32,19 +32,22 @@ const ROLE_LABEL: Record<ActivityLogRole, string> = {
   customer: 'Customer',
 };
 
-export function initials(name: string) {
+export function initials(name: string | null | undefined) {
+  if (!name) return '??';
   return name
     .split(' ')
+    .filter(Boolean)
     .map((p) => p[0])
     .join('')
     .slice(0, 2)
     .toUpperCase();
 }
 
-export function RoleBadge({ role }: { role: ActivityLogRole }) {
+export function RoleBadge({ role }: { role: ActivityLogRole | string }) {
+  const label = ROLE_LABEL[role as ActivityLogRole] || role || 'Unknown';
   return (
     <span className="inline-flex rounded-full border border-accent/30 bg-accent-muted px-2.5 py-0.5 text-[11px] font-medium text-accent">
-      {ROLE_LABEL[role]}
+      {label}
     </span>
   );
 }
@@ -70,7 +73,8 @@ export function ActionCell({
     rejected: { Icon: ShieldX, className: 'text-danger' },
     viewed: { Icon: Eye, className: 'text-text-secondary' },
   };
-  const { Icon, className } = meta[kind];
+  const metaData = meta[kind] || { Icon: Eye, className: 'text-text-secondary' };
+  const { Icon, className } = metaData;
   return (
     <span className="inline-flex items-center gap-1.5 text-sm font-medium text-text-primary">
       <Icon className={cn('h-3.5 w-3.5', className)} aria-hidden />

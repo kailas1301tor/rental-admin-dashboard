@@ -15,7 +15,6 @@ import {
 } from '@/components/ui/States';
 import { ListPageSkeleton } from '@/components/ui/skeletons';
 import { Table, TableShell, Td, Th } from '@/components/ui/Table';
-import { useToast } from '@/components/ui/Toast';
 import {
   filterSelectClass,
   searchControlClass,
@@ -40,27 +39,8 @@ import type {
 
 const PAGE_SIZE = 10;
 
-function inDateRange(iso: string, from: string, to: string) {
-  if (!from && !to) return true;
-  const t = new Date(iso).getTime();
-  if (from) {
-    const start = new Date(`${from}T00:00:00`).getTime();
-    if (t < start) return false;
-  }
-  if (to) {
-    const end = new Date(`${to}T23:59:59`).getTime();
-    if (t > end) return false;
-  }
-  return true;
-}
-
 export function ActivityLogPage() {
-  const { toast } = useToast();
-  const { data, error, isLoading, mutate } = useApiSWR<ActivityLogEntry[]>(
-    ENDPOINTS.activityLog,
-  );
-
-  const { filters, setFilters, reset, matchesDistrict } = useListFilters();
+  const { filters, setFilters, reset } = useListFilters();
   const [q, setQ] = useState('');
   const [user, setUser] = useState('');
   const [role, setRole] = useState<'' | ActivityLogRole>('');
@@ -71,49 +51,40 @@ export function ActivityLogPage() {
   const [to, setTo] = useState('2025-05-20');
   const [page, setPage] = useState(1);
 
-  const list = data ?? [];
+  const searchParams = useMemo(() => {
+    const params = new URLSearchParams();
+    if (q) params.set('search', q);
+    if (user) params.set('user', user);
+    if (role) params.set('role', role);
+    if (module) params.set('module', module);
+    if (action) params.set('action', action);
+    if (status) params.set('status', status);
+    if (from) params.set('from', from);
+    if (to) params.set('to', to);
+    params.set('page', String(page));
+    params.set('page_size', String(PAGE_SIZE));
+    return params;
+  }, [q, user, role, module, action, status, from, to, page]);
 
-  const users = useMemo(() => {
-    const map = new Map<string, string>();
-    for (const row of list) map.set(row.userEmail, row.userName);
-    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
-  }, [list]);
-
-  const modules = useMemo(() => {
-    return [...new Set(list.map((r) => r.module))].sort();
-  }, [list]);
-
-  const filtered = useMemo(() => {
-    const query = q.trim().toLowerCase();
-    return list.filter((row) => {
-      if (!matchesDistrict(row.districtId)) return false;
-      if (user && row.userEmail !== user) return false;
-      if (role && row.role !== role) return false;
-      if (module && row.module !== module) return false;
-      if (action && row.actionKind !== action) return false;
-      if (status && row.status !== status) return false;
-      if (!inDateRange(row.occurredAt, from, to)) return false;
-      if (!query) return true;
-      return (
-        row.actionLabel.toLowerCase().includes(query) ||
-        row.module.toLowerCase().includes(query) ||
-        row.details.toLowerCase().includes(query) ||
-        row.userName.toLowerCase().includes(query) ||
-        row.userEmail.toLowerCase().includes(query) ||
-        row.ipAddress.includes(query)
-      );
-    });
-  }, [list, q, user, role, module, action, status, from, to, matchesDistrict]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const pageRows = filtered.slice(
-    (safePage - 1) * PAGE_SIZE,
-    safePage * PAGE_SIZE,
+  const { data, error, isLoading, mutate } = useApiSWR<{ data: ActivityLogEntry[], total_count: number, total_pages: number }>(
+    `${ENDPOINTS.activityLog}?${searchParams.toString()}`,
   );
-  const rangeStart =
-    filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
-  const rangeEnd = Math.min(safePage * PAGE_SIZE, filtered.length);
+
+  const list = data?.data ?? [];
+
+  // TODO: Usually you fetch unique users/modules from an API,
+  // For now, we leave them as empty options or static, since backend controls data
+  const users: [string, string][] = [];
+  const modules: string[] = ['Admins', 'Authentication', 'Roles', 'System', 'Products', 'RBOs', 'Bookings', 'Analytics', 'Approvals', 'Other'];
+
+  const filtered = list;
+  
+  const totalPages = data?.total_pages ?? 1;
+  const safePage = page;
+  const pageRows = filtered;
+  const totalCount = data?.total_count ?? 0;
+  const rangeStart = totalCount === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(safePage * PAGE_SIZE, totalCount);
 
   function resetFilters() {
     setQ('');
@@ -148,6 +119,7 @@ export function ActivityLogPage() {
         onChange={(patch) => setFilters((f) => ({ ...f, ...patch }))}
         onReset={reset}
         showTaxonomy={false}
+        showDistrict={false}
         search={
           <label className="relative block w-full">
             <span className="sr-only">Search activity</span>
@@ -279,7 +251,14 @@ export function ActivityLogPage() {
           <Button
             variant="outline"
             size="sm"
-            onClick={() => toast('Export CSV coming soon', 'info')}
+            onClick={() => {
+              const exportParams = new URLSearchParams(searchParams.toString());
+              exportParams.set('export', 'true');
+              window.open(
+                `${import.meta.env.VITE_API_BASE_URL}${ENDPOINTS.activityLog}?${exportParams.toString()}`,
+                '_blank'
+              );
+            }}
           >
             <Download className="h-4 w-4" aria-hidden />
             Export
@@ -390,7 +369,7 @@ export function ActivityLogPage() {
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <p className="text-sm text-text-muted">
-          Showing {rangeStart} to {rangeEnd} of {filtered.length} activities
+          Showing {rangeStart} to {rangeEnd} of {totalCount} activities
         </p>
         <Pagination
           page={safePage}
