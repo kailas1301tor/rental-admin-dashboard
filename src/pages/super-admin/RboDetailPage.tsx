@@ -61,7 +61,26 @@ function initials(name: string) {
     .toUpperCase();
 }
 
+import { Component } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
+
+class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean, error: Error | null}> {
+  constructor(props: any) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error: Error) { return { hasError: true, error }; }
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) { console.error('ErrorBoundary caught error', error, errorInfo); }
+  render() {
+    if (this.state.hasError) {
+      return <div className="p-10 text-red-500 bg-red-100 rounded-lg"><h2>RboDetailPage CRASHED</h2><pre className="mt-4">{this.state.error?.stack}</pre></div>;
+    }
+    return this.props.children;
+  }
+}
+
 export function RboDetailPage() {
+  return <ErrorBoundary><RboDetailPageInner /></ErrorBoundary>;
+}
+
+function RboDetailPageInner() {
   const { id = '' } = useParams();
   const { toast } = useToast();
   const [tab, setTab] = useState<Tab>('overview');

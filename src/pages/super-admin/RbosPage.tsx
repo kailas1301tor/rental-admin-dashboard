@@ -1,4 +1,5 @@
-import { useMemo, useState } from 'react';
+import { useState, useMemo, Component } from 'react';
+import type { ErrorInfo, ReactNode } from 'react';
 import {
   Download,
   MoreHorizontal,
@@ -85,7 +86,23 @@ function matchesRating(rating: number, filter: RatingFilter) {
   return rating > 0 && rating < 3;
 }
 
+class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean, error: Error | null}> {
+  constructor(props: any) { super(props); this.state = { hasError: false, error: null }; }
+  static getDerivedStateFromError(error: Error) { return { hasError: true, error }; }
+  componentDidCatch(error: Error, errorInfo: ErrorInfo) { console.error('ErrorBoundary caught error', error, errorInfo); }
+  render() {
+    if (this.state.hasError) {
+      return <div className="p-10 text-red-500 bg-red-100 rounded-lg"><h2>RbosPage CRASHED</h2><pre className="mt-4">{this.state.error?.stack}</pre></div>;
+    }
+    return this.props.children;
+  }
+}
+
 export function RbosPage() {
+  return <ErrorBoundary><RbosPageInner /></ErrorBoundary>;
+}
+
+function RbosPageInner() {
   const { toast } = useToast();
   const [searchParams, setSearchParams] = useSearchParams();
   const [tab, setTab] = useState<Tab>(() => parseTab(searchParams.get('tab')));
@@ -98,32 +115,40 @@ export function RbosPage() {
   const { filters, setFilters, reset, matchesDistrict, matchesTaxonomy } =
     useListFilters();
 
-  const { data, error, isLoading, mutate } = useApiSWR<RboVendor[]>(
-    ENDPOINTS.rbos,
+  const queryParams = new URLSearchParams({
+    page: page.toString(),
+    limit: PAGE_SIZE.toString(),
+  });
+  if (query) queryParams.set('search', query);
+  
+  // Tab overrides status filter
+  const effectiveStatus = tab === 'onboarding' ? 'onboarding' : tab === 'rejected' ? 'rejected' : statusFilter;
+  if (effectiveStatus !== 'all') queryParams.set('status', effectiveStatus);
+  if (joinedFilter !== 'all') queryParams.set('joined', joinedFilter);
+  if (ratingFilter !== 'all') queryParams.set('rating', ratingFilter);
+
+
+  const { data: listResponse, error, isLoading, mutate } = useApiSWR<{ data: RboVendor[], meta: { total: number, page: number, totalPages: number } }>(
+    `${ENDPOINTS.rbos}?${queryParams.toString()}`,
   );
+  
+  const { data: statsData } = useApiSWR<{ active: number, onboarding: number, rejected: number, avg: number }>(`${ENDPOINTS.rbos}/stats`);
   const { data: categories } = useApiSWR<Category[]>(ENDPOINTS.categories);
 
   const catList = categories ?? [];
-
-  const list = data ?? [];
+  const list = listResponse?.data ?? [];
+  const totalPages = listResponse?.meta?.totalPages ?? 1;
+  const totalCount = listResponse?.meta?.total ?? 0;
 
   const counts = useMemo(() => {
-    const active = list.filter((r) => r.status === 'active').length;
-    const onboarding = list.filter((r) => r.status === 'onboarding').length;
-    const rejected = list.filter((r) => r.status === 'rejected').length;
-    const rated = list.filter((r) => r.ratingAvg > 0);
-    const avg =
-      rated.length === 0
-        ? 0
-        : rated.reduce((s, r) => s + r.ratingAvg, 0) / rated.length;
     return {
-      active,
-      onboarding,
-      rejected,
-      avg,
+      active: statsData?.active ?? 0,
+      onboarding: statsData?.onboarding ?? 0,
+      rejected: statsData?.rejected ?? 0,
+      avg: statsData?.avg ?? 0,
       categories: categories?.length ?? 0,
     };
-  }, [list, categories]);
+  }, [statsData, categories]);
 
   function onTabChange(next: Tab) {
     setTab(next);
@@ -131,47 +156,12 @@ export function RbosPage() {
     setSearchParams(next === 'all' ? {} : { tab: next }, { replace: true });
   }
 
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return list.filter((r) => {
-      if (!matchesDistrict(r.districtId)) return false;
-      if (!matchesTaxonomy(r.categoryIds, catList)) return false;
-      if (tab === 'onboarding' && r.status !== 'onboarding') return false;
-      if (tab === 'rejected' && r.status !== 'rejected') return false;
-      if (statusFilter !== 'all' && r.status !== statusFilter) return false;
-      if (!withinJoined(r.createdAt, joinedFilter)) return false;
-      if (!matchesRating(r.ratingAvg, ratingFilter)) return false;
-      if (!q) return true;
-      return (
-        r.businessName.toLowerCase().includes(q) ||
-        r.ownerName.toLowerCase().includes(q) ||
-        r.email.toLowerCase().includes(q) ||
-        r.phone.includes(q) ||
-        r.id.toLowerCase().includes(q)
-      );
-    });
-  }, [
-    list,
-    tab,
-    query,
-    statusFilter,
-    joinedFilter,
-    ratingFilter,
-    matchesDistrict,
-    matchesTaxonomy,
-    catList,
-  ]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
   const safePage = Math.min(page, totalPages);
-  const pageRows = filtered.slice(
-    (safePage - 1) * PAGE_SIZE,
-    safePage * PAGE_SIZE,
-  );
-  const rangeStart = filtered.length === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
-  const rangeEnd = Math.min(safePage * PAGE_SIZE, filtered.length);
+  const pageRows = list;
+  const rangeStart = totalCount === 0 ? 0 : (safePage - 1) * PAGE_SIZE + 1;
+  const rangeEnd = Math.min(safePage * PAGE_SIZE, totalCount);
 
-  if (isLoading && !data) return <ListPageSkeleton kpiCount={5} />;
+  if (isLoading && !listResponse) return <ListPageSkeleton kpiCount={5} />;
   if (error) {
     return <ErrorState message={error.message} onRetry={() => void mutate()} />;
   }
@@ -300,7 +290,21 @@ export function RbosPage() {
           variant="outline"
           size="sm"
           className="self-end"
-          onClick={() => toast('Export CSV coming soon', 'info')}
+          onClick={async () => {
+            try {
+              const { axiosClient } = await import('@/api/axios-client');
+              const response = await axiosClient.get(`${ENDPOINTS.rbos}/export`, { responseType: 'blob' });
+              const url = window.URL.createObjectURL(new Blob([response.data]));
+              const link = document.createElement('a');
+              link.href = url;
+              link.setAttribute('download', 'rbos_export.csv');
+              document.body.appendChild(link);
+              link.click();
+              link.remove();
+            } catch (err) {
+              toast('Failed to export RBOs', 'error');
+            }
+          }}
         >
           <Download className="h-4 w-4" aria-hidden />
           Export
@@ -475,7 +479,7 @@ export function RbosPage() {
 
         <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm text-text-muted">
-            Showing {rangeStart} to {rangeEnd} of {filtered.length} results
+            Showing {rangeStart} to {rangeEnd} of {totalCount} results
           </p>
           <Pagination
             page={safePage}

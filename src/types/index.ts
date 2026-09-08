@@ -178,6 +178,7 @@ export interface PlatformAdmin {
   status: AdminStatus;
   slot?: 1 | 2;
   department?: { id: string; name: string };
+  departmentId?: string;
   districtId?: string;
   createdAt: string;
   lastActiveAt?: string;
@@ -202,6 +203,8 @@ export interface PlatformStaff {
   email: string;
   phone: string;
   department?: { id: string; name: string };
+  departmentId?: string;
+  districtId?: string;
   status: EntityStatus;
   createdAt: string;
 }

@@ -4,7 +4,7 @@ import { mockRequest } from '@/mocks/mock-router';
 
 const useMocks = () => import.meta.env.VITE_USE_MOCKS !== 'false';
 
-const BYPASS_MOCKS = ['/admin/admins', '/admin/super-admins', '/admin/general-admins', '/admin/department-admins', '/admin/roles/dropdown', '/admin/departments', '/auth/login/step-1', '/auth/login/step-2', '/admin/profile', '/auth', '/roles/groups', '/roles/permissions', '/roles/group-permissions', '/admin/staff', '/admin/login-alerts', '/admin/login-alerts/stats', '/admin/activity-log', '/admin/users'];
+const BYPASS_MOCKS = ['/admin/admins', '/admin/super-admins', '/admin/general-admins', '/admin/department-admins', '/admin/roles/dropdown', '/admin/departments', '/auth/login/step-1', '/auth/login/step-2', '/admin/profile', '/auth', '/roles/groups', '/roles/permissions', '/roles/group-permissions', '/admin/staff', '/admin/login-alerts', '/admin/login-alerts/stats', '/admin/activity-log', '/admin/users', '/admin/rbos'];
 
 function shouldMock(url: string): boolean {
   if (!useMocks()) return false;
@@ -24,6 +24,9 @@ async function apiFetcher<T>(url: string): Promise<T> {
   try {
     const backendUrl = url.startsWith('/api') ? url : `/api${url}`;
     const response = await axiosClient.get<any>(backendUrl);
+    if (response.data?.success !== undefined && response.data?.data !== undefined) {
+      return response.data.data as T;
+    }
     if (response.data?.results?.data !== undefined) {
       return response.data.results.data as T;
     }
