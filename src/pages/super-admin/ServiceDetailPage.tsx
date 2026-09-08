@@ -4,7 +4,7 @@ import { apiPatch } from '@/api/axios-helpers';
 import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
-import { PermissionGate } from '@/components/auth/PermissionGate';
+import { CanAccess } from '@/components/auth/CanAccess';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ErrorState } from '@/components/ui/States';
@@ -69,7 +69,7 @@ export function ServiceDetailPage() {
             </Link>
           </p>
         </div>
-        <PermissionGate module="listings" level="manage">
+        <CanAccess permission="change_product">
           <div className="flex flex-wrap gap-2">
             {service.status === 'pending_review' ? (
               <>
@@ -94,7 +94,7 @@ export function ServiceDetailPage() {
               </Button>
             )}
           </div>
-        </PermissionGate>
+        </CanAccess>
       </div>
 
       {service.status === 'pending_review' ? (

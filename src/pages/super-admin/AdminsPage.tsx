@@ -4,7 +4,8 @@ import { apiPatch, apiPost } from '@/api/axios-helpers';
 import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
-import { PermissionGate } from '@/components/auth/PermissionGate';
+import { CanAccess } from '@/components/auth/CanAccess';
+import { useRBAC } from '@/auth/useRBAC';
 import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -56,9 +57,15 @@ const emptyForm: FormState = {
 
 export function AdminsPage() {
   const { toast } = useToast();
-  const { data: supersRaw, error: supersErr, isLoading: supersLoading, mutate: supersMutate } = useApiSWR<PlatformAdmin[]>(ENDPOINTS.superAdmins);
-  const { data: generalsRaw, error: generalsErr, isLoading: generalsLoading, mutate: generalsMutate } = useApiSWR<PlatformAdmin[]>(ENDPOINTS.generalAdmins);
-  const { data: deptAdminsRaw, error: deptAdminsErr, isLoading: deptAdminsLoading, mutate: deptAdminsMutate } = useApiSWR<PlatformAdmin[]>(ENDPOINTS.departmentAdmins);
+  const { hasPermission } = useRBAC();
+
+  const canViewSuper = hasPermission('view_superadmin');
+  const canViewGeneral = hasPermission('view_generaladmin');
+  const canViewDept = hasPermission('view_departmentadmin');
+
+  const { data: supersRaw, error: supersErr, isLoading: supersLoading, mutate: supersMutate } = useApiSWR<PlatformAdmin[]>(canViewSuper ? ENDPOINTS.superAdmins : null);
+  const { data: generalsRaw, error: generalsErr, isLoading: generalsLoading, mutate: generalsMutate } = useApiSWR<PlatformAdmin[]>(canViewGeneral ? ENDPOINTS.generalAdmins : null);
+  const { data: deptAdminsRaw, error: deptAdminsErr, isLoading: deptAdminsLoading, mutate: deptAdminsMutate } = useApiSWR<PlatformAdmin[]>(canViewDept ? ENDPOINTS.departmentAdmins : null);
   const { data: rolesData } = useApiSWR<{ id: string; name: string }[]>(ENDPOINTS.adminRolesDropdown);
 
   const { data: deptData } = useApiSWR<Department[]>(ENDPOINTS.departments);
@@ -178,8 +185,8 @@ export function AdminsPage() {
     }
   }
 
-  const isLoading = supersLoading || generalsLoading || deptAdminsLoading;
-  const error = supersErr || generalsErr || deptAdminsErr;
+  const isLoading = (canViewSuper && supersLoading) || (canViewGeneral && generalsLoading) || (canViewDept && deptAdminsLoading);
+  const error = (canViewSuper && supersErr) || (canViewGeneral && generalsErr) || (canViewDept && deptAdminsErr);
 
   if (isLoading && !admins.length) return <ListPageSkeleton kpiCount={4} />;
   if (error) {
@@ -201,12 +208,12 @@ export function AdminsPage() {
             Manage platform administrators, roles, and access permissions.
           </p>
         </div>
-        <PermissionGate module="admins">
+        <CanAccess permission="add_user">
           <Button onClick={openCreate} disabled={!canAdd}>
             <Plus className="h-4 w-4" aria-hidden />
             Add Admin
           </Button>
-        </PermissionGate>
+        </CanAccess>
       </div>
 
       <ListFilterBar
@@ -217,34 +224,40 @@ export function AdminsPage() {
       />
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-        <SummaryCard
-          label="Super Admins"
-          value={`${supers.length} / ${SUPER_CAP}`}
-          hint={
-            supers.length >= SUPER_CAP
-              ? 'Maximum limit reached'
-              : `${SUPER_CAP - supers.length} seat(s) open`
-          }
-          progress={supers.length / SUPER_CAP}
-          filled
-        />
-        <SummaryCard
-          label="General Admins"
-          value={`${generals.length} / ${GENERAL_CAP}`}
-          hint={
-            generals.length >= GENERAL_CAP
-              ? 'Slots filled'
-              : `${GENERAL_CAP - generals.length} slot(s) open`
-          }
-          progress={generals.length / GENERAL_CAP}
-          filled={generals.length >= GENERAL_CAP}
-        />
-        <SummaryCard
-          label="Department HODs"
-          value={String(departmentAdmins.length)}
-          hint="No capacity limits"
-          progress={1}
-        />
+        {canViewSuper ? (
+          <SummaryCard
+            label="Super Admins"
+            value={`${supers.length} / ${SUPER_CAP}`}
+            hint={
+              supers.length >= SUPER_CAP
+                ? 'Maximum limit reached'
+                : `${SUPER_CAP - supers.length} seat(s) open`
+            }
+            progress={supers.length / SUPER_CAP}
+            filled
+          />
+        ) : null}
+        {canViewGeneral ? (
+          <SummaryCard
+            label="General Admins"
+            value={`${generals.length} / ${GENERAL_CAP}`}
+            hint={
+              generals.length >= GENERAL_CAP
+                ? 'Slots filled'
+                : `${GENERAL_CAP - generals.length} slot(s) open`
+            }
+            progress={generals.length / GENERAL_CAP}
+            filled={generals.length >= GENERAL_CAP}
+          />
+        ) : null}
+        {canViewDept ? (
+          <SummaryCard
+            label="Department HODs"
+            value={String(departmentAdmins.length)}
+            hint="No capacity limits"
+            progress={1}
+          />
+        ) : null}
         <SummaryCard
           label="Total Admins"
           value={String(admins.length)}
@@ -253,57 +266,62 @@ export function AdminsPage() {
         />
       </div>
 
-      <TierSection
-        title="Super Admins"
-        badge={<Badge tone="accent">View only</Badge>}
-        countLabel={`${supers.length} Accounts`}
-      >
-        <AdminTable
-          rows={supers}
-          deptList={deptList}
-          readOnly
-          onEdit={openEdit}
-          onFreeze={toggleFreeze}
-        />
-      </TierSection>
+      {canViewSuper ? (
+        <TierSection
+          title="Super Admins"
+          badge={<Badge tone="accent">View only</Badge>}
+          countLabel={`${supers.length} Accounts`}
+        >
+          <AdminTable
+            rows={supers}
+            deptList={deptList}
+            readOnly
+            onEdit={openEdit}
+            onFreeze={toggleFreeze}
+          />
+        </TierSection>
+      ) : null}
 
-      <TierSection
-        title="General Admins"
-        description="Both seats are freezeable."
-        badge={
-          <Badge tone={generals.length >= GENERAL_CAP ? 'warning' : 'accent'}>
-            {generals.length}/{GENERAL_CAP} Slots filled
-          </Badge>
-        }
-        countLabel={`${generals.length} Accounts`}
-      >
-        <AdminTable
-          rows={generals}
-          deptList={deptList}
-          onEdit={openEdit}
-          onFreeze={toggleFreeze}
-        />
-      </TierSection>
+      {canViewGeneral ? (
+        <TierSection
+          title="General Admins"
+          description="Both seats are freezeable."
+          badge={
+            <Badge tone={generals.length >= GENERAL_CAP ? 'warning' : 'accent'}>
+              {generals.length}/{GENERAL_CAP} Slots filled
+            </Badge>
+          }
+          countLabel={`${generals.length} Accounts`}
+        >
+          <AdminTable
+            rows={generals}
+            deptList={deptList}
+            onEdit={openEdit}
+            onFreeze={toggleFreeze}
+          />
+        </TierSection>
+      ) : null}
 
-      <TierSection
-        title="Department Admins (HODs)"
-        description="Manage department heads."
-        badge={
-          <Badge tone="accent">
-            {departmentAdmins.length} assigned
-          </Badge>
-        }
-        countLabel={`${departmentAdmins.length} Account${departmentAdmins.length === 1 ? '' : 's'}`}
-      >
-        <AdminTable
-          rows={departmentAdmins}
-          deptList={deptList}
-          showDepartment
-          onEdit={openEdit}
-          onFreeze={toggleFreeze}
-        />
-
-      </TierSection>
+      {canViewDept ? (
+        <TierSection
+          title="Department Admins (HODs)"
+          description="Manage department heads."
+          badge={
+            <Badge tone="accent">
+              {departmentAdmins.length} assigned
+            </Badge>
+          }
+          countLabel={`${departmentAdmins.length} Account${departmentAdmins.length === 1 ? '' : 's'}`}
+        >
+          <AdminTable
+            rows={departmentAdmins}
+            deptList={deptList}
+            showDepartment
+            onEdit={openEdit}
+            onFreeze={toggleFreeze}
+          />
+        </TierSection>
+      ) : null}
 
       <Modal
         open={open}

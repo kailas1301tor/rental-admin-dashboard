@@ -86,6 +86,7 @@ export interface AuthUser {
   name: string;
   email: string;
   role: AdminRole;
+  permissions: string[];
 }
 
 export interface AuthSession {

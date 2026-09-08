@@ -17,7 +17,7 @@ import { apiPatch } from '@/api/axios-helpers';
 import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
-import { PermissionGate } from '@/components/auth/PermissionGate';
+import { CanAccess } from '@/components/auth/CanAccess';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader } from '@/components/ui/Card';
 import {
@@ -233,7 +233,7 @@ function RboDetailPageInner() {
 
             <div className="flex flex-wrap gap-2">
               {vendor.status === 'onboarding' ? (
-                <PermissionGate module="rbos">
+                <CanAccess permission="change_rbovendor">
                   <>
                     <Button size="sm" onClick={() => void patchVendor('active')}>
                       Approve
@@ -246,7 +246,7 @@ function RboDetailPageInner() {
                       Reject
                     </Button>
                   </>
-                </PermissionGate>
+                </CanAccess>
               ) : null}
               <Button
                 size="sm"
@@ -258,7 +258,7 @@ function RboDetailPageInner() {
                 <MoreHorizontal className="h-4 w-4" aria-hidden />
                 More actions
               </Button>
-              <PermissionGate module="rbos">
+              <CanAccess permission="change_rbovendor">
                 <Button
                   size="sm"
                   variant="outline"
@@ -272,7 +272,7 @@ function RboDetailPageInner() {
                   <Lock className="h-4 w-4" aria-hidden />
                   {vendor.status === 'frozen' ? 'Unfreeze RBO' : 'Freeze RBO'}
                 </Button>
-              </PermissionGate>
+              </CanAccess>
             </div>
           </div>
         </div>
@@ -651,7 +651,7 @@ function ProductsTab({
                 <ProductStatus status={p.status} />
               </ClickableTd>
               <TableActionsCell>
-                <PermissionGate module="rbos">
+                <CanAccess permission="change_rbovendor">
                   <div className="flex flex-wrap justify-end gap-2">
                     <Button
                       size="sm"
@@ -666,7 +666,7 @@ function ProductsTab({
                       {p.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
                     </Button>
                   </div>
-                </PermissionGate>
+                </CanAccess>
               </TableActionsCell>
             </ClickableTableRow>
           ))}
@@ -723,7 +723,7 @@ function StaffTab({
                 <StatusDot active={s.status === 'active'} label={s.status} />
               </Td>
               <Td>
-                <PermissionGate module="rbos">
+                <CanAccess permission="change_rbovendor">
                   <div className="flex justify-end">
                     <Button
                       size="sm"
@@ -738,7 +738,7 @@ function StaffTab({
                       {s.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
                     </Button>
                   </div>
-                </PermissionGate>
+                </CanAccess>
               </Td>
             </tr>
           ))}
@@ -831,7 +831,7 @@ function ReviewsTab({
                     </span>
                   </Td>
                   <Td>
-                    <PermissionGate module="rbos">
+                    <CanAccess permission="change_rbovendor">
                       <div className="flex flex-wrap justify-end gap-2">
                         <Button
                           size="sm"
@@ -853,7 +853,7 @@ function ReviewsTab({
                           Hide
                         </Button>
                       </div>
-                    </PermissionGate>
+                    </CanAccess>
                   </Td>
                 </tr>
               ))}

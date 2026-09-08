@@ -14,7 +14,7 @@ import { apiDelete, apiPatch, apiPost } from '@/api/axios-helpers';
 import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
-import { PermissionGate } from '@/components/auth/PermissionGate';
+import { CanAccess } from '@/components/auth/CanAccess';
 import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -259,18 +259,18 @@ export function CategoriesPage() {
           </p>
         </div>
         <div className="flex flex-wrap gap-2">
-          <PermissionGate module="categories">
+          <CanAccess permission="change_category">
             <Button variant="outline" onClick={() => openCreate('category')}>
               <Plus className="h-4 w-4" aria-hidden />
               Add category
             </Button>
-          </PermissionGate>
-          <PermissionGate module="categories">
+          </CanAccess>
+          <CanAccess permission="change_category">
             <Button onClick={() => openCreate('subcategory')}>
               <Plus className="h-4 w-4" aria-hidden />
               Add subcategory
             </Button>
-          </PermissionGate>
+          </CanAccess>
         </div>
       </div>
 
@@ -336,11 +336,11 @@ export function CategoriesPage() {
         <EmptyState
           title="No categories match filters"
           action={
-            <PermissionGate module="categories">
+            <CanAccess permission="change_category">
               <Button className="mt-3" onClick={() => openCreate('category')}>
                 Add category
               </Button>
-            </PermissionGate>
+            </CanAccess>
           }
         />
       ) : (
@@ -431,7 +431,7 @@ export function CategoriesPage() {
                     {children.length === 0 ? (
                       <p className="px-4 py-6 text-center text-sm text-text-muted">
                         No subcategories yet.{' '}
-                        <PermissionGate module="categories">
+                        <CanAccess permission="change_category">
                           <button
                             type="button"
                             className="text-accent hover:underline"
@@ -439,7 +439,7 @@ export function CategoriesPage() {
                           >
                             Add one
                           </button>
-                        </PermissionGate>
+                        </CanAccess>
                       </p>
                     ) : (
                       <ul className="divide-y divide-border">
@@ -627,7 +627,7 @@ function CategoryActions({
   showAddSub?: boolean;
 }) {
   return (
-    <PermissionGate module="categories">
+    <CanAccess permission="change_category">
       <div className="flex flex-wrap gap-1.5">
         {showAddSub && onAddSub ? (
           <Button size="sm" variant="outline" onClick={onAddSub}>
@@ -658,7 +658,7 @@ function CategoryActions({
           Delete
         </Button>
       </div>
-    </PermissionGate>
+    </CanAccess>
   );
 }
 

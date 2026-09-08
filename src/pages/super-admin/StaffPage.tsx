@@ -3,7 +3,7 @@ import { apiPatch, apiPost } from '@/api/axios-helpers';
 import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
-import { PermissionGate } from '@/components/auth/PermissionGate';
+import { CanAccess } from '@/components/auth/CanAccess';
 import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -137,9 +137,9 @@ export function StaffPage() {
         title="Staff"
         description="Platform departmental staff. Separate from RBO sub-staff."
         actions={
-          <PermissionGate module="staff">
+          <CanAccess permission="change_staff">
             <Button onClick={openCreate}>Add staff</Button>
-          </PermissionGate>
+          </CanAccess>
         }
       />
 
@@ -185,11 +185,11 @@ export function StaffPage() {
         <EmptyState
           title="No staff match filters"
           action={
-            <PermissionGate module="staff">
+            <CanAccess permission="change_staff">
               <Button className="mt-3" onClick={openCreate}>
                 Add staff
               </Button>
-            </PermissionGate>
+            </CanAccess>
           }
         />
       ) : (
@@ -240,7 +240,7 @@ export function StaffPage() {
                       {formatDateTime(row.createdAt)}
                     </ClickableTd>
                     <TableActionsCell>
-                      <PermissionGate module="staff">
+                      <CanAccess permission="change_staff">
                         <div className="flex flex-wrap gap-2">
                           <Button size="sm" variant="outline" onClick={() => openEdit(row)}>
                             Edit
@@ -249,7 +249,7 @@ export function StaffPage() {
                             {row.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
                           </Button>
                         </div>
-                      </PermissionGate>
+                      </CanAccess>
                     </TableActionsCell>
                   </ClickableTableRow>
                 ))}

@@ -1,7 +1,7 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2, Lock, Pencil, Trash2, UserPlus } from 'lucide-react';
-import { PermissionGate } from '@/components/auth/PermissionGate';
+import { CanAccess } from '@/components/auth/CanAccess';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -92,7 +92,7 @@ export function DepartmentCard({
         </dl>
       </div>
 
-      <PermissionGate module="departments">
+      <CanAccess permission="change_department">
         <div className="flex flex-wrap items-center justify-end gap-2 border-t border-border bg-canvas/40 px-4 py-3 sm:px-5">
           <Button size="sm" variant="outline" onClick={() => onEdit(dept)}>
             <Pencil className="h-3.5 w-3.5" aria-hidden />
@@ -119,7 +119,7 @@ export function DepartmentCard({
             Archive
           </Button>
         </div>
-      </PermissionGate>
+      </CanAccess>
     </Card>
   );
 }

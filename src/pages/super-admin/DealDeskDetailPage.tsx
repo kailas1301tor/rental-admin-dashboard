@@ -5,7 +5,7 @@ import { apiPatch, apiPost } from '@/api/axios-helpers';
 import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
-import { PermissionGate } from '@/components/auth/PermissionGate';
+import { CanAccess } from '@/components/auth/CanAccess';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ErrorState } from '@/components/ui/States';
@@ -103,7 +103,7 @@ export function DealDeskDetailPage() {
         </p>
       </div>
 
-      <PermissionGate module="deal_desk" level="manage">
+      <CanAccess permission="change_dealdeskinquiry">
         <Card className="!p-4">
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-[200px] flex-1">
@@ -126,7 +126,7 @@ export function DealDeskDetailPage() {
             </Button>
           </div>
         </Card>
-      </PermissionGate>
+      </CanAccess>
 
       <div className="grid gap-4 lg:grid-cols-2">
         <ThreadCard
@@ -184,7 +184,7 @@ function ThreadCard({
           </div>
         ))}
       </div>
-      <PermissionGate module="deal_desk" level="manage">
+      <CanAccess permission="change_dealdeskinquiry">
         <div className="mt-3 flex gap-2">
           <input
             value={reply}
@@ -194,7 +194,7 @@ function ThreadCard({
           />
           <Button size="sm" onClick={onSend}>Send</Button>
         </div>
-      </PermissionGate>
+      </CanAccess>
     </Card>
   );
 }

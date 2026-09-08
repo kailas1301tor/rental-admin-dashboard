@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown, Star } from 'lucide-react';
-import { PermissionGate } from '@/components/auth/PermissionGate';
+import { CanAccess } from '@/components/auth/CanAccess';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import type { Review } from '@/types';
@@ -91,7 +91,7 @@ export function RboDetailReviewMobileCard({
             </p>
           </div>
 
-          <PermissionGate module="rbos">
+          <CanAccess permission="change_rbovendor">
             <div className="flex flex-wrap gap-2 pt-1">
               <Button
                 size="sm"
@@ -113,7 +113,7 @@ export function RboDetailReviewMobileCard({
                 Hide
               </Button>
             </div>
-          </PermissionGate>
+          </CanAccess>
         </div>
       ) : null}
     </div>

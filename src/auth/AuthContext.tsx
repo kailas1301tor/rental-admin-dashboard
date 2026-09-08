@@ -4,6 +4,7 @@ import {
   useContext,
   useMemo,
   useState,
+  useEffect,
   type ReactNode,
 } from 'react';
 import { apiPost, apiGet } from '@/api/axios-helpers';
@@ -70,6 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         name: profile.first_name ? `${profile.first_name} ${profile.last_name || ''}`.trim() : profile.name,
         email: profile.email,
         role: role as AdminRole,
+        permissions: profile.permissions ?? [],
       };
 
       localStorage.setItem(USER_KEY, JSON.stringify(authUser));
@@ -86,6 +88,27 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setToken(null);
     setUser(null);
     setPendingEmail(null);
+  }, []);
+
+  useEffect(() => {
+    if (token && user) {
+      // Quietly sync latest permissions in background so old cached users don't get stuck with empty permissions
+      apiGet<any>(ENDPOINTS.profile)
+        .then((profile) => {
+          if (profile && profile.permissions) {
+            setUser((prev) => {
+              if (!prev) return null;
+              const nextUser = { ...prev, permissions: profile.permissions };
+              localStorage.setItem(USER_KEY, JSON.stringify(nextUser));
+              return nextUser;
+            });
+          }
+        })
+        .catch(() => {
+          // ignore
+        });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const value = useMemo(

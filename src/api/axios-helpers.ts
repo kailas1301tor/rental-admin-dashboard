@@ -69,6 +69,9 @@ export function apiGet<T>(url: string): Promise<T> {
   return axiosClient
     .get<any>(backendUrl)
     .then((r) => {
+      if (r.data?.success !== undefined && r.data?.data !== undefined) {
+        return r.data.data as T;
+      }
       if (r.data?.results?.data !== undefined) {
         return r.data.results.data as T;
       }

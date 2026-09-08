@@ -15,7 +15,7 @@ import { apiPatch } from '@/api/axios-helpers';
 import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
-import { PermissionGate } from '@/components/auth/PermissionGate';
+import { CanAccess } from '@/components/auth/CanAccess';
 import { BookingMobileCard } from '@/components/ui/BookingMobileCard';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -141,7 +141,7 @@ export function ProductDetailPage() {
             <MoreHorizontal className="h-4 w-4" aria-hidden />
             More actions
           </Button>
-          <PermissionGate module="listings">
+          <CanAccess permission="change_product">
             {product.status === 'pending_review' ? (
               <>
                 <Button size="sm" onClick={() => void setStatus('active')}>
@@ -173,7 +173,7 @@ export function ProductDetailPage() {
                 </Button>
               </>
             )}
-          </PermissionGate>
+          </CanAccess>
         </div>
       </div>
 

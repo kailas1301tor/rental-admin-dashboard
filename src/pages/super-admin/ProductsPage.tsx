@@ -14,7 +14,7 @@ import {
 import { Link } from 'react-router-dom';
 import { useApiSWR } from '@/api/swr-helpers';
 import { ENDPOINTS } from '@/api/endpoints';
-import { PermissionGate } from '@/components/auth/PermissionGate';
+import { CanAccess } from '@/components/auth/CanAccess';
 import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -163,7 +163,7 @@ export function ProductsPage({ embedded = false }: { embedded?: boolean }) {
               performance.
             </p>
           </div>
-          <PermissionGate module="listings">
+          <CanAccess permission="change_product">
           <Button
             onClick={() =>
               toast('Add Product opens when create API is ready', 'info')
@@ -172,7 +172,7 @@ export function ProductsPage({ embedded = false }: { embedded?: boolean }) {
             <Plus className="h-4 w-4" aria-hidden />
             Add Product
           </Button>
-        </PermissionGate>
+        </CanAccess>
         </div>
       ) : null}
 

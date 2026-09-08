@@ -1,18 +1,19 @@
 import { useMemo } from 'react';
 import { useAuth } from '@/auth/AuthContext';
-import { canView, isSuperAdmin } from '@/auth/permissions';
-import { useProfile } from '@/auth/ProfileProvider';
+import { useRBAC } from '@/auth/useRBAC';
 import { APP_NAV, type NavItem } from '@/layouts/nav';
 
 export function useFilteredNav(): NavItem[] {
   const { user } = useAuth();
-  const { permissions } = useProfile();
+  const { hasAnyPermission } = useRBAC();
 
   return useMemo(() => {
     return APP_NAV.filter((item) => {
-      if (item.superAdminOnly) return isSuperAdmin(user);
-      if (!item.permission) return true;
-      return canView(permissions, item.permission, user);
+      if (item.superAdminOnly) {
+        return user?.role === 'super_admin' || user?.role === 'Super Admin';
+      }
+      if (!item.permissions || item.permissions.length === 0) return true;
+      return hasAnyPermission(item.permissions);
     });
-  }, [permissions, user]);
+  }, [user, hasAnyPermission]);
 }

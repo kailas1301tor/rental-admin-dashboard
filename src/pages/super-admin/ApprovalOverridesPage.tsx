@@ -3,7 +3,7 @@ import { apiPatch } from '@/api/axios-helpers';
 import { useApiSWR } from '@/api/swr-helpers';
 import { ENDPOINTS } from '@/api/endpoints';
 import { getErrorMessage } from '@/api/axios-client';
-import { PermissionGate } from '@/components/auth/PermissionGate';
+import { CanAccess } from '@/components/auth/CanAccess';
 import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -156,7 +156,7 @@ export function ApprovalOverridesPage() {
                   ) : null}
                 </div>
                 {item.status === 'pending' || item.status === 'info_requested' ? (
-                  <PermissionGate module="approval_overrides">
+                  <CanAccess permission="change_approvaloverrideitem">
                     <div className="flex flex-wrap gap-2">
                       <Button
                         size="sm"
@@ -192,7 +192,7 @@ export function ApprovalOverridesPage() {
                         Request info
                       </Button>
                     </div>
-                  </PermissionGate>
+                  </CanAccess>
                 ) : null}
               </div>
             </Card>

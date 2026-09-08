@@ -25,11 +25,11 @@ import type { BackendRole, BackendPermission } from '@/types';
 export function PermissionsPage() {
   const { toast } = useToast();
   const { mutate: mutateProfile } = useProfile();
-  
+
   const { data: roles, error: rolesError, isLoading: rolesLoading, mutate: mutateRoles } = useApiSWR<BackendRole[]>(
     ENDPOINTS.roles,
   );
-  
+
   const { data: permissionsList, error: permissionsError, isLoading: permissionsLoading } = useApiSWR<BackendPermission[]>(
     ENDPOINTS.permissionsList,
   );
@@ -76,7 +76,7 @@ export function PermissionsPage() {
   if ((rolesLoading && !roles) || (permissionsLoading && !permissionsList)) {
     return <ListPageSkeleton showKpis={false} />;
   }
-  
+
   if (rolesError || permissionsError) {
     return <ErrorState message={rolesError?.message || permissionsError?.message} onRetry={() => void mutateRoles()} />;
   }
@@ -103,41 +103,41 @@ export function PermissionsPage() {
           </div>
 
           <TableShell className="hidden lg:block">
-          <Table>
-            <thead>
-              <tr>
-                <Th>Role</Th>
-                <Th>Modules granted</Th>
-                <Th className="text-right">Actions</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {rows.map((row) => (
-                <ClickableTableRow
-                  key={row.id}
-                  onActivate={() => openEditor(row)}
-                  ariaLabel={`Edit permissions for ${row.name}`}
-                >
-                  <ClickableTd>
-                    <p className="font-medium text-text-primary">{row.name}</p>
-                  </ClickableTd>
-                  <ClickableTd className="tabular-nums">
-                    {row.permissions.length}
-                  </ClickableTd>
-                  <TableActionsCell>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      onClick={() => openEditor(row)}
-                    >
-                      Edit permissions
-                    </Button>
-                  </TableActionsCell>
-                </ClickableTableRow>
-              ))}
-            </tbody>
-          </Table>
-        </TableShell>
+            <Table>
+              <thead>
+                <tr>
+                  <Th>Role</Th>
+                  <Th>Modules granted</Th>
+                  <Th className="text-right">Actions</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((row) => (
+                  <ClickableTableRow
+                    key={row.id}
+                    onActivate={() => openEditor(row)}
+                    ariaLabel={`Edit permissions for ${row.name}`}
+                  >
+                    <ClickableTd>
+                      <p className="font-medium text-text-primary">{row.name}</p>
+                    </ClickableTd>
+                    <ClickableTd className="tabular-nums">
+                      {row.permissions.length}
+                    </ClickableTd>
+                    <TableActionsCell>
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => openEditor(row)}
+                      >
+                        Edit permissions
+                      </Button>
+                    </TableActionsCell>
+                  </ClickableTableRow>
+                ))}
+              </tbody>
+            </Table>
+          </TableShell>
         </>
       )}
 
@@ -161,8 +161,8 @@ export function PermissionsPage() {
         <div className="max-h-[min(60vh,28rem)] overflow-y-auto pr-2">
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
             {permissionsList?.map((permission) => (
-              <label 
-                key={permission.id} 
+              <label
+                key={permission.id}
                 className="flex items-start gap-3 p-3 rounded-md border border-border/50 bg-surface/50 hover:bg-surface cursor-pointer transition-colors"
               >
                 <div className="flex h-5 items-center">

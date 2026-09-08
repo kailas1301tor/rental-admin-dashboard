@@ -14,7 +14,7 @@ import {
 import { Link, useSearchParams } from 'react-router-dom';
 import { useApiSWR } from '@/api/swr-helpers';
 import { ENDPOINTS } from '@/api/endpoints';
-import { PermissionGate } from '@/components/auth/PermissionGate';
+import { CanAccess } from '@/components/auth/CanAccess';
 import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -175,7 +175,7 @@ function RbosPageInner() {
             Manage registered business owners, onboarding, and vendor status.
           </p>
         </div>
-        <PermissionGate module="rbos">
+        <CanAccess permission="add_rbovendor">
           <Button
             onClick={() =>
               toast('Add RBO opens when vendor create API is ready', 'info')
@@ -184,7 +184,7 @@ function RbosPageInner() {
             <Plus className="h-4 w-4" aria-hidden />
             Add RBO
           </Button>
-        </PermissionGate>
+        </CanAccess>
       </div>
 
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-5">

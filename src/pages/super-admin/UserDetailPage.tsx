@@ -11,7 +11,7 @@ import {
 import { Link, useParams } from 'react-router-dom';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
-import { PermissionGate } from '@/components/auth/PermissionGate';
+import { CanAccess } from '@/components/auth/CanAccess';
 import { Badge } from '@/components/ui/Badge';
 import { BookingMobileCard } from '@/components/ui/BookingMobileCard';
 import { Button } from '@/components/ui/Button';
@@ -161,7 +161,7 @@ export function UserDetailPage() {
           >
             <MoreHorizontal className="h-4 w-4" aria-hidden />
           </Button>
-          <PermissionGate module="users">
+          <CanAccess permission="change_marketplaceuser">
             <Button
               size="sm"
               onClick={() =>
@@ -171,7 +171,7 @@ export function UserDetailPage() {
               <Pencil className="h-4 w-4" aria-hidden />
               Edit User
             </Button>
-          </PermissionGate>
+          </CanAccess>
         </div>
       </div>
 
@@ -181,7 +181,7 @@ export function UserDetailPage() {
             <span className="flex h-24 w-24 items-center justify-center rounded-full bg-accent-muted text-2xl font-semibold text-accent">
               {initials(user.name)}
             </span>
-            <PermissionGate module="users">
+            <CanAccess permission="change_marketplaceuser">
               <Button
                 size="sm"
                 variant="outline"
@@ -191,7 +191,7 @@ export function UserDetailPage() {
               >
                 Change Avatar
               </Button>
-            </PermissionGate>
+            </CanAccess>
           </div>
 
           <div className="grid grid-cols-1 gap-5 sm:grid-cols-2 lg:col-span-10 lg:grid-cols-3">

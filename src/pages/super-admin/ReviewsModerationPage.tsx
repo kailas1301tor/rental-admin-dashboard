@@ -3,7 +3,7 @@ import { apiPatch } from '@/api/axios-helpers';
 import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
-import { PermissionGate } from '@/components/auth/PermissionGate';
+import { CanAccess } from '@/components/auth/CanAccess';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { filterSelectClass } from '@/components/ui/control-styles';
@@ -102,7 +102,7 @@ export function ReviewsModerationPage() {
                     </p>
                   ) : null}
                 </div>
-                <PermissionGate module="reviews_moderation" level="manage">
+                <CanAccess permission="change_review">
                   <div className="flex flex-wrap gap-2">
                     {review.status === 'pending_moderation' ? (
                       <Button
@@ -124,7 +124,7 @@ export function ReviewsModerationPage() {
                       Hide
                     </Button>
                   </div>
-                </PermissionGate>
+                </CanAccess>
               </div>
             </Card>
           ))}

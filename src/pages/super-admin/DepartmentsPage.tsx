@@ -5,7 +5,7 @@ import { apiDelete, apiPut, apiPost } from '@/api/axios-helpers';
 import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
-import { PermissionGate } from '@/components/auth/PermissionGate';
+import { CanAccess } from '@/components/auth/CanAccess';
 import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -196,12 +196,12 @@ export function DepartmentsPage() {
         title="Departments"
         description="Manage platform departments and assign Department Admins (HODs)."
         actions={
-          <PermissionGate module="departments">
+          <CanAccess permission="change_department">
             <Button onClick={openCreate}>
               <Plus className="h-4 w-4" aria-hidden />
               Add department
             </Button>
-          </PermissionGate>
+          </CanAccess>
         }
       />
 
@@ -245,11 +245,11 @@ export function DepartmentsPage() {
         <EmptyState
           title="No departments"
           action={
-            <PermissionGate module="departments">
+            <CanAccess permission="change_department">
               <Button className="mt-3" onClick={openCreate}>
                 Add department
               </Button>
-            </PermissionGate>
+            </CanAccess>
           }
         />
       ) : (

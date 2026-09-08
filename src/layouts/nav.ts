@@ -35,7 +35,7 @@ export interface NavItem {
   end?: boolean;
   icon: LucideIcon;
   section: NavSection;
-  permission?: PermissionModule;
+  permissions?: string[];
   superAdminOnly?: boolean;
 }
 
@@ -54,132 +54,133 @@ export const APP_NAV: NavItem[] = [
     end: true,
     icon: LayoutDashboard,
     section: 'operations',
-    permission: 'dashboard',
+    // Always show or require bookingsummary fallback, leaving empty means always show
   },
   {
     to: '/admins',
     label: 'Admins',
     icon: UserCog,
     section: 'operations',
-    permission: 'admins',
+    permissions: ['view_superadmin', 'view_generaladmin', 'view_departmentadmin'],
   },
   {
     to: '/staff',
     label: 'Staff',
     icon: Users,
     section: 'operations',
-    permission: 'staff',
+    permissions: ['view_staff'],
   },
   {
     to: '/departments',
     label: 'Departments',
     icon: Building2,
     section: 'operations',
-    permission: 'departments',
+    permissions: ['view_department'],
   },
   {
     to: '/rbos',
     label: 'RBOs',
     icon: Store,
     section: 'operations',
-    permission: 'rbos',
+    permissions: ['view_rbovendor'],
   },
   {
     to: '/listings',
     label: 'Listings',
     icon: Package,
     section: 'operations',
-    permission: 'listings',
+    permissions: ['view_product', 'view_service'],
   },
   {
     to: '/bookings',
     label: 'Bookings',
     icon: CalendarDays,
     section: 'operations',
-    permission: 'bookings',
+    permissions: ['view_bookingsummary'],
   },
   {
     to: '/categories',
     label: 'Categories',
     icon: Layers3,
     section: 'operations',
-    permission: 'categories',
+    permissions: ['view_category'],
   },
   {
     to: '/users',
     label: 'Users',
     icon: ContactRound,
     section: 'user_management',
-    permission: 'users',
+    permissions: ['view_marketplaceuser'],
   },
   {
     to: '/login-alerts',
     label: 'Login Alerts',
     icon: ShieldAlert,
     section: 'oversight',
-    permission: 'login_alerts',
+    permissions: ['view_loginalert'],
   },
   {
     to: '/support',
     label: 'Support',
     icon: Headphones,
     section: 'oversight',
-    permission: 'support',
+    permissions: ['view_supportticket'],
   },
   {
     to: '/deal-desk',
     label: 'Deal Desk',
     icon: Briefcase,
     section: 'oversight',
-    permission: 'deal_desk',
+    permissions: ['view_dealdeskinquiry'],
   },
   {
     to: '/reviews',
     label: 'Reviews',
     icon: Star,
     section: 'oversight',
-    permission: 'reviews_moderation',
+    permissions: ['view_review'],
   },
   {
     to: '/approval-overrides',
     label: 'Approval Overrides',
     icon: ClipboardCheck,
     section: 'oversight',
-    permission: 'approval_overrides',
+    permissions: ['view_approvaloverrideitem'],
   },
   {
     to: '/reports',
     label: 'Reports',
     icon: FileText,
     section: 'insights',
-    permission: 'reports',
+    permissions: ['view_bookingsummary', 'view_platformsettings'],
   },
   {
     to: '/activity-log',
     label: 'Activity Log',
     icon: History,
     section: 'insights',
-    permission: 'activity_log',
+    permissions: ['view_auditlog'],
   },
   {
     to: '/notifications',
     label: 'Notifications',
     icon: Bell,
     section: 'insights',
-    permission: 'notifications',
+    permissions: ['view_systemnotification'],
   },
   {
     to: '/settings',
     label: 'Settings',
     icon: Settings,
     section: 'system',
-    permission: 'settings',
+    permissions: ['view_platformsettings'],
   },
   {
     to: '/permissions',
     label: 'Permissions',
     icon: KeyRound,
     section: 'system',
+    permissions: ['view_group'],
     superAdminOnly: true,
   },
 ];
@@ -189,21 +190,20 @@ export const SUPER_ADMIN_NAV = APP_NAV;
 
 /** Primary destinations for the mobile bottom tab bar. */
 export const MOBILE_BOTTOM_NAV: Array<
-  Pick<NavItem, 'to' | 'label' | 'end' | 'icon' | 'permission'>
+  Pick<NavItem, 'to' | 'label' | 'end' | 'icon' | 'permissions'>
 > = [
   {
     to: '/',
     label: 'Home',
     end: true,
     icon: LayoutDashboard,
-    permission: 'dashboard',
   },
-  { to: '/rbos', label: 'RBOs', icon: Store, permission: 'rbos' },
-  { to: '/listings', label: 'Listings', icon: Package, permission: 'listings' },
+  { to: '/rbos', label: 'RBOs', icon: Store, permissions: ['view_rbovendor'] },
+  { to: '/listings', label: 'Listings', icon: Package, permissions: ['view_product', 'view_service'] },
   {
     to: '/login-alerts',
     label: 'Alerts',
     icon: ShieldAlert,
-    permission: 'login_alerts',
+    permissions: ['view_loginalert'],
   },
 ];

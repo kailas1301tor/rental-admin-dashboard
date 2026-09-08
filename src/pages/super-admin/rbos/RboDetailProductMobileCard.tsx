@@ -1,6 +1,6 @@
 import { type ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { PermissionGate } from '@/components/auth/PermissionGate';
+import { CanAccess } from '@/components/auth/CanAccess';
 import { Button } from '@/components/ui/Button';
 import { NavigableListCard } from '@/components/ui/NavigableListCard';
 import { categoryPathLabel } from '@/lib/category-helpers';
@@ -69,7 +69,7 @@ export function RboDetailProductMobileCard({
             >
               View product
             </Link>
-            <PermissionGate module="rbos">
+            <CanAccess permission="change_rbovendor">
               <Button
                 size="sm"
                 variant="outline"
@@ -82,7 +82,7 @@ export function RboDetailProductMobileCard({
               >
                 {product.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
               </Button>
-            </PermissionGate>
+            </CanAccess>
           </div>
         </>
       }

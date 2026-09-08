@@ -5,7 +5,7 @@ import { apiPatch, apiPost } from '@/api/axios-helpers';
 import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
-import { PermissionGate } from '@/components/auth/PermissionGate';
+import { CanAccess } from '@/components/auth/CanAccess';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
 import { ErrorState } from '@/components/ui/States';
@@ -109,7 +109,7 @@ export function SupportDetailPage() {
         </p>
       </div>
 
-      <PermissionGate module="support" level="manage">
+      <CanAccess permission="change_supportticket">
         <Card className="!p-4">
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-[200px] flex-1">
@@ -135,7 +135,7 @@ export function SupportDetailPage() {
             </Button>
           </div>
         </Card>
-      </PermissionGate>
+      </CanAccess>
 
       <Card className="!p-4">
         <div className="space-y-4 max-h-[50vh] overflow-y-auto">
@@ -159,7 +159,7 @@ export function SupportDetailPage() {
           ))}
         </div>
 
-        <PermissionGate module="support" level="manage">
+        <CanAccess permission="change_supportticket">
           <div className="mt-4 flex gap-2">
             <input
               value={reply}
@@ -169,7 +169,7 @@ export function SupportDetailPage() {
             />
             <Button size="sm" onClick={() => void sendReply()}>Send</Button>
           </div>
-        </PermissionGate>
+        </CanAccess>
       </Card>
     </div>
   );

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { ChevronDown } from 'lucide-react';
-import { PermissionGate } from '@/components/auth/PermissionGate';
+import { CanAccess } from '@/components/auth/CanAccess';
 import { Button } from '@/components/ui/Button';
 import { cn } from '@/lib/utils';
 import type { RboStaff } from '@/types';
@@ -64,7 +64,7 @@ export function RboDetailStaffMobileCard({
             </div>
           </div>
 
-          <PermissionGate module="rbos">
+          <CanAccess permission="change_rbovendor">
             <Button
               size="sm"
               variant="outline"
@@ -77,7 +77,7 @@ export function RboDetailStaffMobileCard({
             >
               {staff.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
             </Button>
-          </PermissionGate>
+          </CanAccess>
         </div>
       ) : null}
     </div>

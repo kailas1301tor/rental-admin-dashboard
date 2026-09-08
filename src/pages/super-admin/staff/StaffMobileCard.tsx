@@ -1,4 +1,4 @@
-import { PermissionGate } from '@/components/auth/PermissionGate';
+import { CanAccess } from '@/components/auth/CanAccess';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { NavigableListCard } from '@/components/ui/NavigableListCard';
@@ -53,7 +53,7 @@ export function StaffMobileCard({
             value={staff.department?.name || 'N/A'}
           />
           <DetailField label="Joined" value={formatDateTime(staff.createdAt)} />
-          <PermissionGate module="staff">
+          <CanAccess permission="change_staff">
             <div className="flex flex-wrap gap-2 pt-1">
               <Button size="sm" variant="outline" onClick={onEdit}>
                 Edit
@@ -62,7 +62,7 @@ export function StaffMobileCard({
                 {staff.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
               </Button>
             </div>
-          </PermissionGate>
+          </CanAccess>
         </>
       }
     />
