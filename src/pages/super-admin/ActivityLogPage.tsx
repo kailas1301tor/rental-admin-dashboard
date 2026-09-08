@@ -39,6 +39,17 @@ import type {
 
 const PAGE_SIZE = 10;
 
+function getStartOfMonth() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-01`;
+}
+
+function getToday() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
+
 export function ActivityLogPage() {
   const { filters, setFilters, reset } = useListFilters();
   const [q, setQ] = useState('');
@@ -47,8 +58,8 @@ export function ActivityLogPage() {
   const [module, setModule] = useState<'' | ActivityLogModule>('');
   const [action, setAction] = useState<'' | ActivityLogActionKind>('');
   const [status, setStatus] = useState<'' | ActivityLogStatus>('');
-  const [from, setFrom] = useState('2025-05-13');
-  const [to, setTo] = useState('2025-05-20');
+  const [from, setFrom] = useState(() => getStartOfMonth());
+  const [to, setTo] = useState(() => getToday());
   const [page, setPage] = useState(1);
 
   const searchParams = useMemo(() => {
@@ -93,8 +104,8 @@ export function ActivityLogPage() {
     setModule('');
     setAction('');
     setStatus('');
-    setFrom('2025-05-13');
-    setTo('2025-05-20');
+    setFrom(getStartOfMonth());
+    setTo(getToday());
     setPage(1);
   }
 

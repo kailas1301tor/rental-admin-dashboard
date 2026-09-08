@@ -19,6 +19,7 @@ export const ENDPOINTS = {
   rbos: '/admin/rbos',
   products: '/admin/products',
   services: '/admin/services',
+  listings: '/admin/listings',
   bookings: '/admin/bookings',
   approvalOverrides: '/admin/approval-overrides',
   masterAnalytics: '/admin/analytics',

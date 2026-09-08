@@ -1,8 +1,10 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { useDebounce } from '@/hooks/useDebounce';
 import { Search } from 'lucide-react';
 import { ENDPOINTS } from '@/api/endpoints';
-import { useApiSWR } from '@/api/swr-helpers';
+import { useApiSWR, usePaginatedApiSWR } from '@/api/swr-helpers';
+import { Button } from '@/components/ui/Button';
 import {
   ListingKindTabs,
   type ListingKindTab,
@@ -30,59 +32,37 @@ function parseKind(value: string | null): ListingKindTab {
 }
 
 function AllListingsTable({
-  products,
-  services,
   rboMap,
 }: {
-  products: Product[];
-  services: Service[];
   rboMap: Map<string, string>;
 }) {
   const [q, setQ] = useState('');
   const [status, setStatus] = useState<'' | ProductStatus>('');
+  const [page, setPage] = useState(1);
+  const [debouncedQ] = useDebounce(q, 300);
 
-  const rows = useMemo<UnifiedRow[]>(() => {
-    const productRows: UnifiedRow[] = products.map((p) => ({
-      id: p.id,
-      kind: 'product',
-      name: p.name,
-      rboId: p.rboId,
-      status: p.status,
-      pricePerDayInr: p.pricePerDayInr,
-    }));
-    const serviceRows: UnifiedRow[] = services.map((s) => ({
-      id: s.id,
-      kind: 'service',
-      name: s.name,
-      rboId: s.rboId,
-      status: s.status,
-      pricePerDayInr: s.pricePerDayInr,
-    }));
-    return [...productRows, ...serviceRows];
-  }, [products, services]);
+  const searchParams = useMemo(() => {
+    const params = new URLSearchParams();
+    if (debouncedQ) params.set('search', debouncedQ);
+    if (status) params.set('status', status);
+    params.set('page', String(page));
+    params.set('page_size', '10');
+    return params;
+  }, [debouncedQ, status, page]);
 
-  const filtered = useMemo(() => {
-    const query = q.trim().toLowerCase();
-    return rows.filter((row) => {
-      if (status && row.status !== status) return false;
-      if (!query) return true;
-      const vendor = rboMap.get(row.rboId)?.toLowerCase() ?? '';
-      return (
-        row.name.toLowerCase().includes(query) ||
-        row.id.toLowerCase().includes(query) ||
-        vendor.includes(query)
-      );
-    });
-  }, [rows, q, status, rboMap]);
+  const { data, error, isLoading } = usePaginatedApiSWR<{ data: UnifiedRow[]; total_count: number; total_pages: number }>(
+    `${ENDPOINTS.listings}?${searchParams.toString()}`
+  );
 
-  if (filtered.length === 0) {
-    return (
-      <EmptyState
-        title="No listings found"
-        description="Try another filter or check product and service tabs."
-      />
-    );
-  }
+  const rows = data?.data ?? [];
+  const totalCount = data?.total_count ?? 0;
+  const totalPages = data?.total_pages ?? 1;
+
+  const rangeStart = totalCount === 0 ? 0 : (page - 1) * 10 + 1;
+  const rangeEnd = Math.min(page * 10, totalCount);
+
+  if (isLoading && !data) return <ListPageSkeleton kpiCount={3} />;
+  if (error) return <ErrorState message={error.message} />;
 
   return (
     <div className="space-y-4">
@@ -95,14 +75,20 @@ function AllListingsTable({
           <input
             type="search"
             value={q}
-            onChange={(e) => setQ(e.target.value)}
+            onChange={(e) => {
+              setQ(e.target.value);
+              setPage(1);
+            }}
             placeholder="Search listings…"
             className={searchControlClass}
           />
         </div>
         <select
           value={status}
-          onChange={(e) => setStatus(e.target.value as '' | ProductStatus)}
+          onChange={(e) => {
+            setStatus(e.target.value as '' | ProductStatus);
+            setPage(1);
+          }}
           className={filterSelectClass}
         >
           <option value="">All statuses</option>
@@ -112,9 +98,17 @@ function AllListingsTable({
           <option value="rejected">Rejected</option>
         </select>
       </div>
-      <div className="overflow-hidden rounded-xl border border-border bg-surface">
-        <table className="w-full min-w-[640px] text-left text-sm">
-          <thead className="border-b border-border bg-canvas/50 text-xs uppercase tracking-wide text-text-muted">
+
+      {rows.length === 0 ? (
+        <EmptyState
+          title="No listings found"
+          description="Try another filter or check product and service tabs."
+        />
+      ) : (
+        <>
+          <div className="overflow-hidden rounded-xl border border-border bg-surface">
+            <table className="w-full min-w-[640px] text-left text-sm">
+              <thead className="border-b border-border bg-canvas/50 text-xs uppercase tracking-wide text-text-muted">
             <tr>
               <th className="px-4 py-3 font-medium">Type</th>
               <th className="px-4 py-3 font-medium">Listing</th>
@@ -124,7 +118,7 @@ function AllListingsTable({
             </tr>
           </thead>
           <tbody>
-            {filtered.map((row) => (
+            {rows.map((row) => (
               <tr key={`${row.kind}-${row.id}`} className="border-b border-border/60 last:border-0">
                 <td className="px-4 py-3">
                   <span
@@ -160,6 +154,63 @@ function AllListingsTable({
           </tbody>
         </table>
       </div>
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <p className="text-sm text-text-muted">
+          Showing {rangeStart} to {rangeEnd} of {totalCount} listings
+        </p>
+        <Pagination page={page} totalPages={totalPages} onChange={setPage} />
+      </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+function Pagination({
+  page,
+  totalPages,
+  onChange,
+}: {
+  page: number;
+  totalPages: number;
+  onChange: (page: number) => void;
+}) {
+  const pages = Array.from({ length: Math.min(totalPages, 5) }, (_, i) => i + 1);
+  return (
+    <div className="flex items-center gap-1">
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={page <= 1}
+        onClick={() => onChange(page - 1)}
+        aria-label="Previous page"
+      >
+        ‹
+      </Button>
+      {pages.map((p) => (
+        <button
+          key={p}
+          type="button"
+          onClick={() => onChange(p)}
+          className={cn(
+            'inline-flex h-9 min-w-9 items-center justify-center rounded-full text-sm font-medium',
+            p === page
+              ? 'bg-accent text-text-on-accent'
+              : 'text-text-secondary hover:bg-accent-muted hover:text-text-primary',
+          )}
+        >
+          {p}
+        </button>
+      ))}
+      <Button
+        variant="outline"
+        size="sm"
+        disabled={page >= totalPages}
+        onClick={() => onChange(page + 1)}
+        aria-label="Next page"
+      >
+        ›
+      </Button>
     </div>
   );
 }
@@ -168,9 +219,6 @@ export function ListingsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const kind = parseKind(searchParams.get('kind'));
 
-  const { data: products, error: productsError, isLoading: productsLoading, mutate } =
-    useApiSWR<Product[]>(ENDPOINTS.products);
-  const { data: services } = useApiSWR<Service[]>(ENDPOINTS.services);
   const { data: rbos } = useApiSWR<RboVendor[]>(ENDPOINTS.rbos);
 
   const rboMap = useMemo(() => {
@@ -189,14 +237,6 @@ export function ListingsPage() {
     setSearchParams(params, { replace: true });
   }
 
-  if (kind === 'all' && productsLoading && !products) {
-    return <ListPageSkeleton kpiCount={3} />;
-  }
-
-  if (kind === 'all' && productsError) {
-    return <ErrorState message={productsError.message} onRetry={() => void mutate()} />;
-  }
-
   return (
     <div className="space-y-6">
       <div>
@@ -211,11 +251,7 @@ export function ListingsPage() {
       <ListingKindTabs value={kind} onChange={setKind} />
 
       {kind === 'all' ? (
-        <AllListingsTable
-          products={products ?? []}
-          services={services ?? []}
-          rboMap={rboMap}
-        />
+        <AllListingsTable rboMap={rboMap} />
       ) : null}
       {kind === 'product' ? <ProductsPage embedded /> : null}
       {kind === 'service' ? <ServicesPage embedded /> : null}

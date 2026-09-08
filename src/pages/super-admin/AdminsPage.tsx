@@ -6,6 +6,7 @@ import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
 import { CanAccess } from '@/components/auth/CanAccess';
 import { useRBAC } from '@/auth/useRBAC';
+import { useAuth } from '@/auth/AuthContext';
 import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -70,6 +71,7 @@ export function AdminsPage() {
 
   const { data: deptData } = useApiSWR<Department[]>(ENDPOINTS.departments);
   const { filters, setFilters, reset, matchesDistrict } = useListFilters();
+  const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<PlatformAdmin | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
@@ -357,7 +359,15 @@ export function AdminsPage() {
                 }))
               }
             >
-              {rolesData?.map((role) => {
+              {rolesData?.filter((role) => {
+                const r = user?.role?.toLowerCase() || '';
+                const isSuper = r.includes('super');
+                const isGeneral = r.includes('general');
+                
+                if (isSuper) return true;
+                if (isGeneral) return role.id !== 'super_admin';
+                return role.id === 'department_admin';
+              }).map((role) => {
                 const isSuperFull = role.id === 'super_admin' && supers.length >= SUPER_CAP;
                 const isGeneralFull = role.id === 'general_admin' && generals.length >= GENERAL_CAP;
                 
