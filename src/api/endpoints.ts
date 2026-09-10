@@ -14,6 +14,7 @@ export const ENDPOINTS = {
   staff: '/admin/staff',
   users: '/admin/users',
   categories: '/admin/categories',
+  subcategories: '/admin/subcategories',
   departments: '/admin/departments',
   categorySchemas: '/admin/category-schemas',
   rbos: '/admin/rbos',

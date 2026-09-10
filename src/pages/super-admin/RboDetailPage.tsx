@@ -184,14 +184,13 @@ function RboDetailPageInner() {
                 {vendor.ownerName} · {vendor.email} · {vendor.phone}
               </p>
               <div className="mt-3 flex flex-wrap gap-1.5">
-                {vendor.categoryIds.map((cid) => (
+                {vendor.category ? (
                   <span
-                    key={cid}
                     className="rounded-full border border-accent/35 bg-accent-muted px-2.5 py-0.5 text-[11px] font-medium text-accent"
                   >
-                    {categoryPathLabel(catList, cid)}
+                    {vendor.category}
                   </span>
-                ))}
+                ) : null}
                 <span className="rounded-full border border-border bg-canvas px-2.5 py-0.5 text-[11px] font-medium text-text-secondary">
                   {city || vendor.address}
                 </span>

@@ -9,7 +9,7 @@ import {
   ListingKindTabs,
   type ListingKindTab,
 } from '@/components/listings/ListingKindTabs';
-import { filterSelectClass, searchControlClass } from '@/components/ui/control-styles';
+import { selectControlClass, filterSelectClass, searchControlClass } from '@/components/ui/control-styles';
 import { EmptyState, ErrorState } from '@/components/ui/States';
 import { ListPageSkeleton } from '@/components/ui/skeletons';
 import { cn, formatInr } from '@/lib/utils';
@@ -89,7 +89,7 @@ function AllListingsTable({
             setStatus(e.target.value as '' | ProductStatus);
             setPage(1);
           }}
-          className={filterSelectClass}
+          className={selectControlClass}
         >
           <option value="">All statuses</option>
           <option value="pending_review">Pending review</option>

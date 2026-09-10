@@ -1,11 +1,12 @@
 import { useMemo, useState } from 'react';
 import { Search } from 'lucide-react';
+import { useDebounce } from '@/hooks/useDebounce';
 import { useNavigate } from 'react-router-dom';
 import { ENDPOINTS } from '@/api/endpoints';
-import { useApiSWR } from '@/api/swr-helpers';
+import { useApiSWR, usePaginatedApiSWR } from '@/api/swr-helpers';
 import { BookingMobileCard } from '@/components/ui/BookingMobileCard';
 import { Card } from '@/components/ui/Card';
-import { filterSelectClass, searchControlClass } from '@/components/ui/control-styles';
+import { selectControlClass, filterSelectClass, searchControlClass } from '@/components/ui/control-styles';
 import { EmptyState, ErrorState } from '@/components/ui/States';
 import { ListPageSkeleton } from '@/components/ui/skeletons';
 import { Table, TableShell, Th } from '@/components/ui/Table';
@@ -23,8 +24,19 @@ export function BookingsPage() {
   const [status, setStatus] = useState<'' | BookingStatus>('');
   const [page, setPage] = useState(1);
 
-  const { data, error, isLoading, mutate } = useApiSWR<BookingSummaryExtended[]>(
-    ENDPOINTS.bookings,
+  const [debouncedQ] = useDebounce(q, 300);
+
+  const searchParams = useMemo(() => {
+    const params = new URLSearchParams();
+    if (debouncedQ) params.set('search', debouncedQ);
+    if (status) params.set('status', status);
+    params.set('page', String(page));
+    params.set('page_size', String(PAGE_SIZE));
+    return params;
+  }, [debouncedQ, status, page]);
+
+  const { data, error, isLoading, mutate } = usePaginatedApiSWR<{ data: BookingSummaryExtended[]; total_count: number; total_pages: number }>(
+    `${ENDPOINTS.bookings}?${searchParams.toString()}`,
   );
   const { data: rbos } = useApiSWR<RboVendor[]>(ENDPOINTS.rbos);
 
@@ -34,24 +46,9 @@ export function BookingsPage() {
     return m;
   }, [rbos]);
 
-  const list = data ?? [];
-
-  const filtered = useMemo(() => {
-    const query = q.trim().toLowerCase();
-    return list.filter((b) => {
-      if (status && b.status !== status) return false;
-      if (!query) return true;
-      return (
-        b.id.toLowerCase().includes(query) ||
-        b.customerName.toLowerCase().includes(query) ||
-        (rboMap.get(b.rboId)?.toLowerCase().includes(query) ?? false)
-      );
-    });
-  }, [list, q, status, rboMap]);
-
-  const totalPages = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-  const safePage = Math.min(page, totalPages);
-  const pageRows = filtered.slice((safePage - 1) * PAGE_SIZE, safePage * PAGE_SIZE);
+  const pageRows = data?.data ?? [];
+  const totalCount = data?.total_count ?? 0;
+  const totalPages = data?.total_pages ?? 1;
 
   if (isLoading && !data) return <ListPageSkeleton kpiCount={3} />;
   if (error) {
@@ -92,7 +89,7 @@ export function BookingsPage() {
             setStatus(e.target.value as '' | BookingStatus);
             setPage(1);
           }}
-          className={filterSelectClass}
+          className={selectControlClass}
         >
           <option value="">All statuses</option>
           <option value="pending">Pending</option>
@@ -106,7 +103,7 @@ export function BookingsPage() {
         </select>
       </div>
 
-      {filtered.length === 0 ? (
+      {pageRows.length === 0 ? (
         <EmptyState
           title="No bookings found"
           description="Try adjusting filters or search."
@@ -167,23 +164,23 @@ export function BookingsPage() {
 
           <div className="flex items-center justify-between text-sm text-text-muted">
             <span>
-              {filtered.length} booking{filtered.length === 1 ? '' : 's'}
+              {totalCount} booking{totalCount === 1 ? '' : 's'}
             </span>
             <div className="flex gap-2">
               <button
                 type="button"
-                disabled={safePage <= 1}
+                disabled={page <= 1}
                 onClick={() => setPage((p) => p - 1)}
                 className="rounded-lg border border-border px-3 py-1 disabled:opacity-40"
               >
                 Prev
               </button>
               <span className="px-2 py-1">
-                {safePage} / {totalPages}
+                {page} / {totalPages}
               </span>
               <button
                 type="button"
-                disabled={safePage >= totalPages}
+                disabled={page >= totalPages}
                 onClick={() => setPage((p) => p + 1)}
                 className="rounded-lg border border-border px-3 py-1 disabled:opacity-40"
               >

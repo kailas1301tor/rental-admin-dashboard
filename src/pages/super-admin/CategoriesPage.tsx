@@ -1,7 +1,5 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import {
-  ChevronDown,
-  ChevronRight,
   LayoutGrid,
   Package,
   Pencil,
@@ -13,7 +11,7 @@ import {
 import { apiDelete, apiPatch, apiPost } from '@/api/axios-helpers';
 import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
-import { useApiSWR } from '@/api/swr-helpers';
+import { useApiSWR, usePaginatedApiSWR } from '@/api/swr-helpers';
 import { CanAccess } from '@/components/auth/CanAccess';
 import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Button } from '@/components/ui/Button';
@@ -25,6 +23,7 @@ import {
   EmptyState,
   ErrorState,
 } from '@/components/ui/States';
+import { Tabs } from '@/components/ui/Tabs';
 import { ListPageSkeleton } from '@/components/ui/skeletons';
 import { useToast } from '@/components/ui/Toast';
 import { filterSelectClass } from '@/components/ui/control-styles';
@@ -42,12 +41,15 @@ type StatusFilter = 'all' | 'active' | 'frozen' | 'archived';
 type LevelFilter = 'category' | 'subcategory';
 
 export function CategoriesPage() {
-  const { toast } = useToast();
-  const { data, error, isLoading, mutate } = useApiSWR<Category[]>(
-    ENDPOINTS.categories,
-  );
+const { toast } = useToast();
+  
+  const [catPage, setCatPage] = useState(1);
+  const [subPage, setSubPage] = useState(1);
+
+  const { data: allCategories, mutate: mutateAll } = useApiSWR<Category[]>(`${ENDPOINTS.categories}?fetch_all=true`);
   const { data: products } = useApiSWR<Product[]>(ENDPOINTS.products);
   const { filters, setFilters, reset } = useListFilters();
+  
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [name, setName] = useState('');
@@ -58,9 +60,18 @@ export function CategoriesPage() {
   const [confirmDelete, setConfirmDelete] = useState<Category | null>(null);
   const [query, setQuery] = useState('');
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('all');
-  const [expanded, setExpanded] = useState<Set<string>>(() => new Set());
+  const [activeTab, setActiveTab] = useState<'categories' | 'subcategories'>('categories');
 
-  const rows = data ?? [];
+  const catQuery = new URLSearchParams({ page: catPage.toString() });
+  const subQuery = new URLSearchParams({ page: subPage.toString() });
+  if (query) { catQuery.set('search', query); subQuery.set('search', query); }
+  if (statusFilter !== 'all') { catQuery.set('status', statusFilter); subQuery.set('status', statusFilter); }
+
+  const { data: catResponse, error: catError, isLoading: catLoading, mutate: mutateCat } = usePaginatedApiSWR<{ data: Category[]; total_count: number; total_pages: number }>(`${ENDPOINTS.categories}?${catQuery.toString()}`);
+  const { data: subResponse, error: subError, isLoading: subLoading, mutate: mutateSub } = usePaginatedApiSWR<{ data: Category[]; total_count: number; total_pages: number }>(`${ENDPOINTS.subcategories}?${subQuery.toString()}`);
+
+  const rows = allCategories ?? [];
+
   const roots = useMemo(() => businessTypes(rows), [rows]);
 
   const productCounts = useMemo(() => {
@@ -110,53 +121,6 @@ export function CategoriesPage() {
     };
   }, [rows, roots, productCounts, bookingTotal]);
 
-  const filteredRoots = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    return roots.filter((root) => {
-      if (statusFilter !== 'all' && root.status !== statusFilter) return false;
-      if (
-        !matchesTaxonomyFilters(
-          [root.id],
-          rows,
-          filters.businessCategoryIds,
-        )
-      ) {
-        return false;
-      }
-      if (filters.districts.length > 0 && !visibleCategoryIds.has(root.id)) {
-        const children = subcategories(rows, [root.id]);
-        if (!children.some((c) => visibleCategoryIds.has(c.id))) return false;
-      }
-      if (!q) return true;
-      const childMatch = subcategories(rows, [root.id]).some(
-        (c) =>
-          c.name.toLowerCase().includes(q) ||
-          (c.description?.toLowerCase().includes(q) ?? false),
-      );
-      return (
-        root.name.toLowerCase().includes(q) ||
-        (root.description?.toLowerCase().includes(q) ?? false) ||
-        childMatch
-      );
-    });
-  }, [
-    roots,
-    rows,
-    query,
-    statusFilter,
-    filters,
-    visibleCategoryIds,
-  ]);
-
-  function toggleExpanded(id: string) {
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id);
-      else next.add(id);
-      return next;
-    });
-  }
-
   function openCreate(type: LevelFilter, parent?: string) {
     setEditing(null);
     setName('');
@@ -195,7 +159,7 @@ export function CategoriesPage() {
         await apiPost(ENDPOINTS.categories, payload);
         toast('Category created', 'success');
       }
-      await mutate();
+      await mutateCat(); await mutateSub(); await mutateAll();
       setOpen(false);
     } catch (err) {
       toast(getErrorMessage(err), 'error');
@@ -209,7 +173,7 @@ export function CategoriesPage() {
       await apiPatch(`${ENDPOINTS.categories}/${cat.id}`, {
         status: cat.status === 'frozen' ? 'active' : 'frozen',
       });
-      await mutate();
+      await mutateCat(); await mutateSub(); await mutateAll();
       toast(
         cat.status === 'frozen' ? 'Category enabled' : 'Category frozen',
         'success',
@@ -223,7 +187,7 @@ export function CategoriesPage() {
     if (!confirmDelete) return;
     try {
       await apiDelete(`${ENDPOINTS.categories}/${confirmDelete.id}`);
-      await mutate();
+      await mutateCat(); await mutateSub(); await mutateAll();
       toast(
         (productCounts.get(confirmDelete.id) ?? 0) > 0
           ? 'Category archived (in use by products)'
@@ -236,9 +200,9 @@ export function CategoriesPage() {
     }
   }
 
-  if (isLoading && !data) return <ListPageSkeleton kpiCount={3} />;
-  if (error) {
-    return <ErrorState message={error.message} onRetry={() => void mutate()} />;
+  if ((catLoading && !catResponse) || (subLoading && !subResponse) || (!allCategories)) return <ListPageSkeleton kpiCount={3} />;
+  if (catError || subError) {
+    return <ErrorState message={(catError || subError)?.message || 'Error'} onRetry={() => { mutateCat(); mutateSub(); mutateAll(); }} />;
   }
 
   return (
@@ -332,158 +296,141 @@ export function CategoriesPage() {
         </div>
       </ListFilterBar>
 
-      {filteredRoots.length === 0 ? (
-        <EmptyState
-          title="No categories match filters"
-          action={
-            <CanAccess permission="change_category">
-              <Button className="mt-3" onClick={() => openCreate('category')}>
-                Add category
-              </Button>
-            </CanAccess>
-          }
-        />
-      ) : (
-        <div className="space-y-3">
-          {filteredRoots.map((root) => {
-            const children = subcategories(rows, [root.id]).filter((sub) => {
-              if (statusFilter !== 'all' && sub.status !== statusFilter) {
-                return false;
-              }
-              if (
-                !matchesTaxonomyFilters(
-                  [sub.id, root.id],
-                  rows,
-                  filters.businessCategoryIds,
-                )
-              ) {
-                return false;
-              }
-              if (
-                filters.districts.length > 0 &&
-                !visibleCategoryIds.has(sub.id)
-              ) {
-                return false;
-              }
-              const q = query.trim().toLowerCase();
-              if (
-                q &&
-                !sub.name.toLowerCase().includes(q) &&
-                !(sub.description?.toLowerCase().includes(q) ?? false) &&
-                !root.name.toLowerCase().includes(q)
-              ) {
-                return false;
-              }
-              return true;
-            });
-            const isOpen = expanded.has(root.id);
+      <Tabs
+        value={activeTab}
+        onChange={(v) => setActiveTab(v as 'categories' | 'subcategories')}
+        items={[
+          { id: 'categories', label: 'Categories' },
+          { id: 'subcategories', label: 'Subcategories' },
+        ]}
+      />
 
-            return (
-              <Card key={root.id} className="!p-0 overflow-hidden">
-                <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
-                  <button
-                    type="button"
-                    onClick={() => toggleExpanded(root.id)}
-                    className="flex min-w-0 flex-1 items-start gap-3 text-left"
-                  >
-                    {isOpen ? (
-                      <ChevronDown className="mt-0.5 h-4 w-4 shrink-0 text-text-muted" />
-                    ) : (
-                      <ChevronRight className="mt-0.5 h-4 w-4 shrink-0 text-text-muted" />
-                    )}
-                    <div className="min-w-0">
-                      <div className="flex flex-wrap items-center gap-2">
-                        <p className="font-semibold text-text-primary">
-                          {root.name}
+      {activeTab === 'categories' && (
+        (catResponse?.data ?? []).length === 0 ? (
+          <EmptyState
+            title="No categories match filters"
+            action={
+              <CanAccess permission="change_category">
+                <Button className="mt-3" onClick={() => openCreate('category')}>
+                  Add category
+                </Button>
+              </CanAccess>
+            }
+          />
+        ) : (
+          <div className="space-y-3">
+            {(catResponse?.data ?? []).map((root) => {
+              const children = subcategories(rows, [root.id]);
+              return (
+                <Card key={root.id} className="!p-0 overflow-hidden">
+                  <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 flex-1 items-start gap-3 text-left">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-semibold text-text-primary">
+                            {root.name}
+                          </p>
+                          <span className="rounded-full bg-canvas px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-text-muted">
+                            Category
+                          </span>
+                          <StatusPill status={root.status} />
+                        </div>
+                        {root.description ? (
+                          <p className="mt-1 text-sm text-text-secondary">
+                            {root.description}
+                          </p>
+                        ) : null}
+                        {children.length > 0 ? (
+                          <SubcategoryChipRow items={children} />
+                        ) : null}
+                        <p className="mt-1 text-xs text-text-muted">
+                          {children.length}{' '}
+                          {children.length === 1 ? 'subcategory' : 'subcategories'}{' '}
+                          · {formatDateTime(root.createdAt)}
                         </p>
-                        <span className="rounded-full bg-canvas px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-text-muted">
-                          Category
-                        </span>
-                        <StatusPill status={root.status} />
                       </div>
-                      {root.description ? (
-                        <p className="mt-1 text-sm text-text-secondary">
-                          {root.description}
-                        </p>
-                      ) : null}
-                      {!isOpen && children.length > 0 ? (
-                        <SubcategoryChipRow items={children} />
-                      ) : null}
-                      <p className="mt-1 text-xs text-text-muted">
-                        {children.length}{' '}
-                        {children.length === 1 ? 'subcategory' : 'subcategories'}{' '}
-                        · {formatDateTime(root.createdAt)}
-                      </p>
                     </div>
-                  </button>
-                  <CategoryActions
-                    cat={root}
-                    onEdit={openEdit}
-                    onFreeze={toggleFreeze}
-                    onDelete={setConfirmDelete}
-                    onAddSub={() => openCreate('subcategory', root.id)}
-                    showAddSub
-                  />
-                </div>
-
-                {isOpen ? (
-                  <div className="border-t border-border bg-canvas/40">
-                    {children.length === 0 ? (
-                      <p className="px-4 py-6 text-center text-sm text-text-muted">
-                        No subcategories yet.{' '}
-                        <CanAccess permission="change_category">
-                          <button
-                            type="button"
-                            className="text-accent hover:underline"
-                            onClick={() => openCreate('subcategory', root.id)}
-                          >
-                            Add one
-                          </button>
-                        </CanAccess>
-                      </p>
-                    ) : (
-                      <ul className="divide-y divide-border">
-                        {children.map((sub) => (
-                          <li
-                            key={sub.id}
-                            className="flex flex-col gap-3 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:pl-12"
-                          >
-                            <div className="min-w-0">
-                              <div className="flex flex-wrap items-center gap-2">
-                                <p className="font-medium text-text-primary">
-                                  {sub.name}
-                                </p>
-                                <span className="rounded-full bg-surface px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-text-muted">
-                                  Subcategory
-                                </span>
-                                <StatusPill status={sub.status} />
-                              </div>
-                              {sub.description ? (
-                                <p className="mt-1 text-sm text-text-secondary">
-                                  {sub.description}
-                                </p>
-                              ) : null}
-                              <p className="mt-1 text-xs text-text-muted">
-                                {productCounts.get(sub.id) ?? 0} products ·{' '}
-                                {formatDateTime(sub.createdAt)}
-                              </p>
-                            </div>
-                            <CategoryActions
-                              cat={sub}
-                              onEdit={openEdit}
-                              onFreeze={toggleFreeze}
-                              onDelete={setConfirmDelete}
-                            />
-                          </li>
-                        ))}
-                      </ul>
-                    )}
+                    <CategoryActions
+                      cat={root}
+                      onEdit={openEdit}
+                      onFreeze={toggleFreeze}
+                      onDelete={setConfirmDelete}
+                      onAddSub={() => openCreate('subcategory', root.id)}
+                      showAddSub
+                    />
                   </div>
-                ) : null}
-              </Card>
-            );
-          })}
-        </div>
+                </Card>
+              );
+            })}
+          </div>
+        )
+      )}
+
+      {activeTab === 'subcategories' && (
+        (subResponse?.data ?? []).length === 0 ? (
+          <EmptyState
+            title="No subcategories match filters"
+            action={
+              <CanAccess permission="change_category">
+                <Button className="mt-3" onClick={() => openCreate('subcategory')}>
+                  Add subcategory
+                </Button>
+              </CanAccess>
+            }
+          />
+        ) : (
+          <div className="space-y-3">
+            {(subResponse?.data ?? []).map((sub) => {
+              const root = rows.find((r) => r.id === sub.parentId);
+              return (
+                <Card key={sub.id} className="!p-0 overflow-hidden">
+                  <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="flex min-w-0 flex-1 items-start gap-3 text-left">
+                      <div className="min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-semibold text-text-primary">
+                            {sub.name}
+                          </p>
+                          <span className="rounded-full bg-surface px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-text-muted">
+                            Subcategory
+                          </span>
+                          {root && (
+                            <span className="rounded-full bg-canvas px-2 py-0.5 text-[10px] font-medium uppercase tracking-wide text-text-muted">
+                              In: {root.name}
+                            </span>
+                          )}
+                          <StatusPill status={sub.status} />
+                        </div>
+                        {sub.description ? (
+                          <p className="mt-1 text-sm text-text-secondary">
+                            {sub.description}
+                          </p>
+                        ) : null}
+                        <p className="mt-1 text-xs text-text-muted">
+                          {productCounts.get(sub.id) ?? 0} products ·{' '}
+                          {formatDateTime(sub.createdAt)}
+                        </p>
+                      </div>
+                    </div>
+                    <CategoryActions
+                      cat={sub}
+                      onEdit={openEdit}
+                      onFreeze={toggleFreeze}
+                      onDelete={setConfirmDelete}
+                    />
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        )
+      )}
+
+{activeTab === 'categories' && catResponse && catResponse.total_pages > 1 && (
+        <Pagination page={catPage} totalPages={catResponse.total_pages} onChange={setCatPage} />
+      )}
+      {activeTab === 'subcategories' && subResponse && subResponse.total_pages > 1 && (
+        <Pagination page={subPage} totalPages={subResponse.total_pages} onChange={setSubPage} />
       )}
 
       <Modal
@@ -714,5 +661,42 @@ function StatusPill({ status }: { status: Category['status'] }) {
       <span className={cn('h-1.5 w-1.5 rounded-full', dot)} aria-hidden />
       {label}
     </span>
+  );
+}
+
+function Pagination({
+  page,
+  totalPages,
+  onChange,
+}: {
+  page: number;
+  totalPages: number;
+  onChange: (p: number) => void;
+}) {
+  return (
+    <div className="flex items-center justify-between border-t border-border pt-4 text-sm">
+      <p className="text-text-secondary">
+        Page <span className="font-medium text-text-primary">{page}</span> of{' '}
+        <span className="font-medium text-text-primary">{totalPages}</span>
+      </p>
+      <div className="flex gap-2">
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={page <= 1}
+          onClick={() => onChange(page - 1)}
+        >
+          Previous
+        </Button>
+        <Button
+          variant="outline"
+          size="sm"
+          disabled={page >= totalPages}
+          onClick={() => onChange(page + 1)}
+        >
+          Next
+        </Button>
+      </div>
+    </div>
   );
 }

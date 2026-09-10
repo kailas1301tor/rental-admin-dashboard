@@ -252,9 +252,9 @@ export interface RboVendor {
   email: string;
   phone: string;
   address: string;
-  districtId: string;
+  district: string;
   status: RboStatus;
-  categoryIds: string[];
+  category: string;
   ratingAvg: number;
   createdAt: string;
 }
@@ -359,6 +359,7 @@ export interface Product extends RentalRules {
   id: string;
   rboId: string;
   categoryId: string;
+  category: string;
   districtId: string;
   name: string;
   description: string;

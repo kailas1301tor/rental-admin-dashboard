@@ -362,9 +362,7 @@ function RbosPageInner() {
                 <RboMobileCard
                   key={r.id}
                   vendor={r}
-                  categoryNames={r.categoryIds.map((id) =>
-                    categoryPathLabel(catList, id),
-                  )}
+                  categoryNames={r.category ? [r.category] : []}
                   onMore={() =>
                     toast('More actions available on vendor detail', 'info')
                   }
@@ -419,20 +417,17 @@ function RbosPageInner() {
                       </ClickableTd>
                       <ClickableTd>
                         <div className="flex max-w-[14rem] flex-wrap gap-1">
-                          {r.categoryIds.length === 0 ? (
+                          {!r.category ? (
                             <span className="text-xs text-text-muted">—</span>
                           ) : (
-                            r.categoryIds.map((id, i) => (
                               <span
-                                key={id}
                                 className={cn(
                                   'inline-flex rounded-full border px-2 py-0.5 text-[11px] font-medium',
-                                  CAT_TONES[i % CAT_TONES.length],
+                                  CAT_TONES[0],
                                 )}
                               >
-                                {categoryPathLabel(catList, id)}
+                                {r.category}
                               </span>
-                            ))
                           )}
                         </div>
                       </ClickableTd>

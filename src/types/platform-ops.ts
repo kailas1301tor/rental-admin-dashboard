@@ -14,6 +14,7 @@ export interface Service extends RentalRules {
   id: string;
   rboId: string;
   categoryId: string;
+  category: string;
   districtId: string;
   name: string;
   description: string;

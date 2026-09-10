@@ -120,7 +120,9 @@ export function UsersPage() {
     return list.filter((u) => {
       if (!matchesDistrict(u.districtId)) return false;
       const linkedRbo = u.rboId ? rboById.get(u.rboId) : undefined;
-      const categoryIds = linkedRbo?.categoryIds ?? [];
+      const rboCatName = linkedRbo?.category;
+      const catId = rboCatName ? catList.find((c) => c.name === rboCatName)?.id : undefined;
+      const categoryIds = catId ? [catId] : [];
       if (!matchesTaxonomy(categoryIds, catList)) return false;
       if (status && u.status !== status) return false;
       if (rboId === '__none__' && u.rboId !== null) return false;

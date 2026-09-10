@@ -350,7 +350,7 @@ export function ProductsPage({ embedded = false }: { embedded?: boolean }) {
                             CAT_TONES[toneIdx % CAT_TONES.length],
                           )}
                         >
-                          {categoryPathLabel(catList, p.categoryId)}
+                          {p.category || '—'}
                         </span>
                       </ClickableTd>
                       <ClickableTd className="tabular-nums">

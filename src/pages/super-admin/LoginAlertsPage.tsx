@@ -20,7 +20,7 @@ type RoleTab =
   | 'all'
   | 'super_admin'
   | 'general_admin'
-  | 'hod'
+  | 'department_admin'
   | 'staff'
   | 'rbo'
   | 'customer'
@@ -30,7 +30,7 @@ const ROLE_TABS: { id: RoleTab; label: string }[] = [
   { id: 'all', label: 'All' },
   { id: 'super_admin', label: 'Super Admin' },
   { id: 'general_admin', label: 'General Admin' },
-  { id: 'hod', label: 'HOD' },
+  { id: 'department_admin', label: 'Department Admin' },
   { id: 'staff', label: 'Staff' },
   { id: 'rbo', label: 'RBO' },
   { id: 'customer', label: 'Customer' },
@@ -42,7 +42,7 @@ function classifyRole(role: string): Exclude<RoleTab, 'all'> {
   if (!r || r === '—' || r === '-' || r === 'unknown') return 'unknown';
   if (r.includes('super admin') || r === 'super_admin') return 'super_admin';
   if (r.includes('general admin') || r === 'general_admin') return 'general_admin';
-  if (r.includes('hod') || r.includes('department admin')) return 'hod';
+  if (r.includes('hod') || r.includes('department admin') || r === 'department_admin') return 'department_admin';
   if (r.includes('staff')) return 'staff';
   if (r === 'rbo' || r.includes('rbo') || r.includes('vendor')) return 'rbo';
   if (r.includes('customer')) return 'customer';
@@ -88,7 +88,7 @@ export function LoginAlertsPage() {
       all: 0,
       super_admin: 0,
       general_admin: 0,
-      hod: 0,
+      department_admin: 0,
       staff: 0,
       rbo: 0,
       customer: 0,

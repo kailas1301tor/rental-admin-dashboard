@@ -365,9 +365,10 @@ function scopeReportOverview(
   const matchingRboNames = new Set(
     rbos
       .filter((r) => {
-        if (!matchesDistricts(filters.districts, r.districtId)) return false;
+        if (!matchesDistricts(filters.districts, r.district)) return false;
+        const catId = categories.find(c => c.name === r.category)?.id;
         return matchesTaxonomyFilters(
-          r.categoryIds,
+          catId ? [catId] : [],
           categories,
           filters.businessCategoryIds,
         );
@@ -473,9 +474,10 @@ function scopeReportRbos(
   const allowedIds = new Set(
     rbos
       .filter((r) => {
-        if (!matchesDistricts(filters.districts, r.districtId)) return false;
+        if (!matchesDistricts(filters.districts, r.district)) return false;
+        const catId = categories.find(c => c.name === r.category)?.id;
         return matchesTaxonomyFilters(
-          r.categoryIds,
+          catId ? [catId] : [],
           categories,
           filters.businessCategoryIds,
         );
