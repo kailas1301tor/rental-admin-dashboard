@@ -257,7 +257,30 @@ export interface RboVendor {
   category: string;
   ratingAvg: number;
   createdAt: string;
+  submittedAt?: string | null;
+  rejectionReason?: string | null;
+  rejectionCode?: string | null;
 }
+
+export type RboRejectionCode =
+  | 'doc_unreadable'
+  | 'doc_mismatch'
+  | 'gst_invalid'
+  | 'address_mismatch'
+  | 'category_not_supported'
+  | 'compliance_flag'
+  | 'other';
+
+export const RBO_REJECTION_CODES: { value: RboRejectionCode; label: string }[] = [
+  { value: 'doc_unreadable', label: 'Document unreadable / incomplete' },
+  { value: 'doc_mismatch', label: 'Name mismatch on documents' },
+  { value: 'gst_invalid', label: 'GST invalid or mismatched' },
+  { value: 'address_mismatch', label: 'Address proof mismatch' },
+  { value: 'category_not_supported', label: 'Category not supported in district' },
+  { value: 'compliance_flag', label: 'Compliance flag' },
+  { value: 'other', label: 'Other' },
+];
+
 
 /** End-customer / app user (not platform admin staff). */
 export interface MarketplaceUser {

@@ -9,6 +9,10 @@ import {
 } from '@/lib/date-range';
 import { useApiSWR } from '@/api/swr-helpers';
 import { useAuth } from '@/auth/AuthContext';
+import { Button } from '@/components/ui/Button';
+import { Input } from '@/components/ui/Input';
+import { Modal } from '@/components/ui/Modal';
+import { Select } from '@/components/ui/Select';
 import { useToast } from '@/components/ui/Toast';
 import { EmptyState, ErrorState } from '@/components/ui/States';
 import { DashboardSkeleton } from '@/components/ui/skeletons';
@@ -27,8 +31,10 @@ import type {
   DashboardKpis,
   LoginAttempt,
   ReportOverview,
+  RboRejectionCode,
   RboVendor,
 } from '@/types';
+import { RBO_REJECTION_CODES } from '@/types';
 
 export function DashboardPage() {
   const { user } = useAuth();
@@ -37,6 +43,10 @@ export function DashboardPage() {
   const [appliedRange, setAppliedRange] = useState<DateRange>(() =>
     defaultDashboardRange(),
   );
+  const [rejectVendorId, setRejectVendorId] = useState<string | null>(null);
+  const [rejectionCode, setRejectionCode] = useState<RboRejectionCode>('gst_invalid');
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejecting, setRejecting] = useState(false);
 
   const kpiKey = `${ENDPOINTS.dashboardKpis}${buildDateRangeQuery(
     appliedRange.from,
@@ -74,7 +84,14 @@ export function DashboardPage() {
     [overrides],
   );
   const onboardingRbos = useMemo(
-    () => (rbos ?? []).filter((r) => r.status === 'onboarding'),
+    () =>
+      (rbos ?? [])
+        .filter((r) => r.status === 'onboarding')
+        .sort((a, b) => {
+          const aT = a.submittedAt ? new Date(a.submittedAt).getTime() : 0;
+          const bT = b.submittedAt ? new Date(b.submittedAt).getTime() : 0;
+          return bT - aT;
+        }),
     [rbos],
   );
   const securityAlerts = useMemo(
@@ -104,9 +121,19 @@ export function DashboardPage() {
     }
   }
 
-  async function actRbo(id: string, status: 'active' | 'rejected') {
+  async function actRbo(
+    id: string,
+    status: 'active' | 'rejected',
+    extra?: { rejectionCode?: string; rejectionReason?: string },
+  ) {
+    if (status === 'rejected' && !extra?.rejectionCode) {
+      setRejectVendorId(id);
+      setRejectionCode('gst_invalid');
+      setRejectionReason('');
+      return;
+    }
     try {
-      await apiPatch(`${ENDPOINTS.rbos}/${id}`, { status });
+      await apiPatch(`${ENDPOINTS.rbos}/${id}`, { status, ...extra });
       await mutateRbos();
       await mutateKpis();
       toast(
@@ -115,6 +142,20 @@ export function DashboardPage() {
       );
     } catch (err) {
       toast(getErrorMessage(err), 'error');
+    }
+  }
+
+  async function confirmDashboardReject() {
+    if (!rejectVendorId || !rejectionCode) return;
+    setRejecting(true);
+    try {
+      await actRbo(rejectVendorId, 'rejected', {
+        rejectionCode,
+        rejectionReason: rejectionReason.trim() || undefined,
+      });
+      setRejectVendorId(null);
+    } finally {
+      setRejecting(false);
     }
   }
 
@@ -174,10 +215,53 @@ export function DashboardPage() {
         onOverrideAct={(item, status) => void actOverride(item, status)}
         onboarding={onboardingRbos}
         onboardingLoading={rbosLoading && !rbos}
-        onRboAct={(id, status) => void actRbo(id, status)}
+        onRboAct={(id, status, extra) => void actRbo(id, status, extra)}
         security={securityAlerts}
         securityLoading={alertLoading && !alerts}
       />
+
+      <Modal
+        open={Boolean(rejectVendorId)}
+        title="Reject RBO application"
+        description="Select a reason code. Optional notes are shown to the vendor."
+        onClose={() => setRejectVendorId(null)}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setRejectVendorId(null)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              disabled={rejecting}
+              onClick={() => void confirmDashboardReject()}
+            >
+              {rejecting ? 'Rejecting…' : 'Confirm reject'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Select
+            label="Rejection code"
+            value={rejectionCode}
+            onChange={(e) =>
+              setRejectionCode(e.target.value as RboRejectionCode)
+            }
+          >
+            {RBO_REJECTION_CODES.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </Select>
+          <Input
+            label="Additional notes (optional)"
+            value={rejectionReason}
+            onChange={(e) => setRejectionReason(e.target.value)}
+            placeholder="Shown to the vendor on the rejection screen"
+          />
+        </div>
+      </Modal>
 
       <section className="space-y-2.5 sm:space-y-3">
         <h2 className="text-[11px] font-semibold uppercase tracking-[0.12em] text-text-muted sm:text-xs">

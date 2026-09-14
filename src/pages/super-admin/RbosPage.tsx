@@ -438,7 +438,14 @@ function RbosPageInner() {
                         {formatDateTime(r.createdAt)}
                       </ClickableTd>
                       <ClickableTd>
-                        <StatusPill status={r.status} />
+                        <div className="flex flex-col items-start gap-1">
+                          <StatusPill status={r.status} />
+                          {r.status === 'onboarding' ? (
+                            <span className="text-[10px] font-medium text-text-muted">
+                              {r.submittedAt ? 'Awaiting review' : 'Draft'}
+                            </span>
+                          ) : null}
+                        </div>
                       </ClickableTd>
                       <TableActionsCell>
                         <div className="flex items-center justify-end gap-1.5">

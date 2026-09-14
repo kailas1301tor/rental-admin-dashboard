@@ -50,7 +50,11 @@ export function NeedsActionQueue({
   ) => void;
   onboarding: RboVendor[];
   onboardingLoading: boolean;
-  onRboAct: (id: string, status: 'active' | 'rejected') => void;
+  onRboAct: (
+    id: string,
+    status: 'active' | 'rejected',
+    extra?: { rejectionCode?: string; rejectionReason?: string },
+  ) => void;
   security: LoginAttempt[];
   securityLoading: boolean;
 }) {
@@ -153,7 +157,7 @@ export function NeedsActionQueue({
                 key={vendor.id}
                 title={vendor.businessName}
                 titleHref={`/rbos/${vendor.id}`}
-                subtitle={`${vendor.ownerName} · joined ${formatDateTime(vendor.createdAt)}`}
+                subtitle={`${vendor.ownerName} · ${vendor.submittedAt ? `submitted ${formatDateTime(vendor.submittedAt)}` : 'draft (not submitted)'} · joined ${formatDateTime(vendor.createdAt)}`}
               >
                 <div className="grid grid-cols-1 gap-2 sm:flex sm:flex-wrap">
                   <Button

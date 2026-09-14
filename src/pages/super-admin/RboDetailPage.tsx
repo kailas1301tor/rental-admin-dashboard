@@ -20,6 +20,9 @@ import { useApiSWR } from '@/api/swr-helpers';
 import { CanAccess } from '@/components/auth/CanAccess';
 import { Button } from '@/components/ui/Button';
 import { Card, CardHeader } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
+import { Modal } from '@/components/ui/Modal';
+import { Select } from '@/components/ui/Select';
 import {
   EmptyState,
   ErrorState,
@@ -46,9 +49,11 @@ import type {
   Review,
   RboActivityEvent,
   RboDetail,
+  RboRejectionCode,
   RboStaff,
   RboStatus,
 } from '@/types';
+import { RBO_REJECTION_CODES } from '@/types';
 
 type Tab = 'overview' | 'products' | 'staff' | 'reviews' | 'activity';
 
@@ -84,6 +89,10 @@ function RboDetailPageInner() {
   const { id = '' } = useParams();
   const { toast } = useToast();
   const [tab, setTab] = useState<Tab>('overview');
+  const [rejectOpen, setRejectOpen] = useState(false);
+  const [rejectionCode, setRejectionCode] = useState<RboRejectionCode>('gst_invalid');
+  const [rejectionReason, setRejectionReason] = useState('');
+  const [rejecting, setRejecting] = useState(false);
   const { data, error, isLoading, mutate } = useApiSWR<RboDetail>(
     id ? `${ENDPOINTS.rbos}/${id}` : null,
   );
@@ -91,13 +100,34 @@ function RboDetailPageInner() {
 
   const catList = categories ?? [];
 
-  async function patchVendor(status: string) {
+  async function patchVendor(
+    status: string,
+    extra?: { rejectionCode?: string; rejectionReason?: string },
+  ) {
     try {
-      await apiPatch(`${ENDPOINTS.rbos}/${id}`, { status });
+      await apiPatch(`${ENDPOINTS.rbos}/${id}`, { status, ...extra });
       await mutate();
       toast(`Vendor marked ${status}`, 'success');
     } catch (err) {
       toast(getErrorMessage(err), 'error');
+    }
+  }
+
+  async function confirmReject() {
+    if (!rejectionCode) {
+      toast('Select a rejection reason code', 'error');
+      return;
+    }
+    setRejecting(true);
+    try {
+      await patchVendor('rejected', {
+        rejectionCode,
+        rejectionReason: rejectionReason.trim() || undefined,
+      });
+      setRejectOpen(false);
+      setRejectionReason('');
+    } finally {
+      setRejecting(false);
     }
   }
 
@@ -202,10 +232,18 @@ function RboDetailPageInner() {
           </div>
 
           <div className="flex flex-col gap-4 xl:items-end">
-            <div className="grid grid-cols-2 gap-4 sm:grid-cols-4 xl:gap-6">
+            <div className="grid grid-cols-2 gap-4 sm:grid-cols-3 xl:grid-cols-5 xl:gap-6">
               <StatLabel
                 label="Joined on"
                 value={formatDateTime(vendor.createdAt).split(',')[0] ?? '—'}
+              />
+              <StatLabel
+                label="Submitted"
+                value={
+                  vendor.submittedAt
+                    ? formatDateTime(vendor.submittedAt).split(',')[0] ?? '—'
+                    : 'Not submitted'
+                }
               />
               <StatLabel
                 label="Total listings"
@@ -240,7 +278,7 @@ function RboDetailPageInner() {
                     <Button
                       size="sm"
                       variant="danger"
-                      onClick={() => void patchVendor('rejected')}
+                      onClick={() => setRejectOpen(true)}
                     >
                       Reject
                     </Button>
@@ -305,6 +343,7 @@ function RboDetailPageInner() {
 
       {tab === 'overview' ? (
         <OverviewTab
+          vendor={vendor}
           products={products}
           staff={staff}
           reviews={reviews}
@@ -336,11 +375,55 @@ function RboDetailPageInner() {
       ) : null}
 
       {tab === 'activity' ? <ActivityList events={activity} /> : null}
+
+      <Modal
+        open={rejectOpen}
+        title="Reject RBO application"
+        description="Select a reason code. Optional notes are shown to the vendor."
+        onClose={() => setRejectOpen(false)}
+        footer={
+          <>
+            <Button variant="outline" onClick={() => setRejectOpen(false)}>
+              Cancel
+            </Button>
+            <Button
+              variant="danger"
+              disabled={rejecting}
+              onClick={() => void confirmReject()}
+            >
+              {rejecting ? 'Rejecting…' : 'Confirm reject'}
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-4">
+          <Select
+            label="Rejection code"
+            value={rejectionCode}
+            onChange={(e) =>
+              setRejectionCode(e.target.value as RboRejectionCode)
+            }
+          >
+            {RBO_REJECTION_CODES.map((opt) => (
+              <option key={opt.value} value={opt.value}>
+                {opt.label}
+              </option>
+            ))}
+          </Select>
+          <Input
+            label="Additional notes (optional)"
+            value={rejectionReason}
+            onChange={(e) => setRejectionReason(e.target.value)}
+            placeholder="Shown to the vendor on the rejection screen"
+          />
+        </div>
+      </Modal>
     </div>
   );
 }
 
 function OverviewTab({
+  vendor,
   products,
   staff,
   reviews,
@@ -353,6 +436,7 @@ function OverviewTab({
   onShowReviews,
   onShowActivity,
 }: {
+  vendor: RboDetail['vendor'];
   products: Product[];
   staff: RboStaff[];
   reviews: Review[];
@@ -407,6 +491,22 @@ function OverviewTab({
           title="KYC documents"
           description="Submitted verification documents (read-only)"
         />
+        {vendor.status === 'rejected' && (vendor.rejectionReason || vendor.rejectionCode) ? (
+          <div className="mb-4 rounded-xl border border-danger/30 bg-danger-muted px-3 py-2 text-sm text-danger">
+            <p className="font-medium">
+              Rejection
+              {vendor.rejectionCode ? `: ${vendor.rejectionCode}` : ''}
+            </p>
+            {vendor.rejectionReason ? (
+              <p className="mt-1 text-xs">{vendor.rejectionReason}</p>
+            ) : null}
+          </div>
+        ) : null}
+        {vendor.submittedAt ? (
+          <p className="mb-3 text-xs text-text-muted">
+            Submitted for review on {formatDateTime(vendor.submittedAt)}
+          </p>
+        ) : null}
         {kycDocuments.length === 0 ? (
           <EmptyState title="No KYC documents" />
         ) : (
