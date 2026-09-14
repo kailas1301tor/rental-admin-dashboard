@@ -134,21 +134,26 @@ export interface SupportMessage {
 
 export type DealDeskStatus =
   | 'open'
-  | 'broker_active'
+  | 'assigned'
   | 'resolved'
   | 'closed';
 
 export interface DealDeskInquiry {
   id: string;
-  listingId: string;
-  listingKind: ListingKind;
+  listingId: string | null;
+  listingKind: ListingKind | 'booking' | null;
   listingName: string;
   rboId: string;
   rboName: string;
-  customerId: string;
-  customerMaskedLabel: string;
+  customerId?: string | null;
+  customerMaskedLabel?: string | null;
+  bookingId?: string | null;
   status: DealDeskStatus;
+  assignedStaffId?: string | null;
+  assignedStaffName?: string | null;
+  /** @deprecated use assignedStaffId */
   assignedBrokerId?: string | null;
+  /** @deprecated use assignedStaffName */
   assignedBrokerName?: string | null;
   subject: string;
   createdAt: string;
@@ -159,9 +164,9 @@ export interface DealDeskInquiry {
 export interface DealDeskMessage {
   id: string;
   inquiryId: string;
-  channel: 'customer_broker' | 'broker_vendor';
-  authorRole: 'customer' | 'broker' | 'vendor' | 'system';
-  authorId: string;
+  conversationId?: string;
+  authorRole: 'customer' | 'rbo' | 'staff' | 'system' | 'vendor' | 'broker';
+  authorId?: string | null;
   authorName: string;
   body: string;
   createdAt: string;

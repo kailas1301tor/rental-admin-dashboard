@@ -67,11 +67,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
       
       const authUser: AuthUser = {
-        id: profile.id,
-        name: profile.first_name ? `${profile.first_name} ${profile.last_name || ''}`.trim() : profile.name,
-        email: profile.email,
+        id: String(profile.id ?? profile.user?.id ?? ''),
+        name:
+          profile.name ||
+          profile.user?.name ||
+          (profile.first_name
+            ? `${profile.first_name} ${profile.last_name || ''}`.trim()
+            : profile.email),
+        email: profile.email || profile.user?.email,
         role: role as AdminRole,
-        permissions: profile.permissions ?? [],
+        permissions:
+          profile.codenames ??
+          profile.user?.permissions ??
+          (Array.isArray(profile.permissions) ? profile.permissions : []),
       };
 
       localStorage.setItem(USER_KEY, JSON.stringify(authUser));
@@ -95,10 +103,14 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       // Quietly sync latest permissions in background so old cached users don't get stuck with empty permissions
       apiGet<any>(ENDPOINTS.profile)
         .then((profile) => {
-          if (profile && profile.permissions) {
+          const nextPerms =
+            profile?.codenames ??
+            profile?.user?.permissions ??
+            (Array.isArray(profile?.permissions) ? profile.permissions : null);
+          if (nextPerms) {
             setUser((prev) => {
               if (!prev) return null;
-              const nextUser = { ...prev, permissions: profile.permissions };
+              const nextUser = { ...prev, permissions: nextPerms };
               localStorage.setItem(USER_KEY, JSON.stringify(nextUser));
               return nextUser;
             });

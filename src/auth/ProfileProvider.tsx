@@ -25,7 +25,11 @@ export function ProfileProvider({ children }: { children: ReactNode }) {
     isAuthenticated ? ENDPOINTS.profile : null,
   );
 
-  const permissions = useMemo(() => data?.permissions ?? {}, [data]);
+  const permissions = useMemo(() => {
+    const raw = data?.permissions;
+    if (!raw || Array.isArray(raw)) return {};
+    return raw as UserPermissions;
+  }, [data]);
 
   const value = useMemo(
     () => ({

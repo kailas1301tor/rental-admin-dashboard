@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { apiPatch, apiPost } from '@/api/axios-helpers';
@@ -12,63 +12,64 @@ import { ErrorState } from '@/components/ui/States';
 import { DetailPageSkeleton } from '@/components/ui/skeletons';
 import { useToast } from '@/components/ui/Toast';
 import { cn, formatDateTime } from '@/lib/utils';
-import type {
-  DealDeskInquiry,
-  DealDeskMessage,
-  PlatformStaff,
-} from '@/types';
+import type { DealDeskInquiry, DealDeskMessage, PlatformStaff } from '@/types';
 
 export function DealDeskDetailPage() {
   const { id = '' } = useParams();
   const { toast } = useToast();
-  const [customerReply, setCustomerReply] = useState('');
-  const [vendorReply, setVendorReply] = useState('');
-  const [brokerId, setBrokerId] = useState('');
+  const [reply, setReply] = useState('');
+  const [staffId, setStaffId] = useState('');
+  const [statusDraft, setStatusDraft] = useState<DealDeskInquiry['status'] | ''>('');
 
   const { data: inquiry, error, isLoading, mutate } = useApiSWR<DealDeskInquiry>(
     id ? `${ENDPOINTS.dealDeskInquiries}/${id}` : null,
   );
-  const { data: customerMsgs, mutate: reloadCustomer } = useApiSWR<DealDeskMessage[]>(
-    id
-      ? `${ENDPOINTS.dealDeskInquiries}/${id}/messages?channel=customer_broker`
-      : null,
-  );
-  const { data: vendorMsgs, mutate: reloadVendor } = useApiSWR<DealDeskMessage[]>(
-    id
-      ? `${ENDPOINTS.dealDeskInquiries}/${id}/messages?channel=broker_vendor`
-      : null,
+  const { data: messages, mutate: reloadMessages } = useApiSWR<DealDeskMessage[]>(
+    id ? `${ENDPOINTS.dealDeskInquiries}/${id}/messages` : null,
   );
   const { data: staffList } = useApiSWR<PlatformStaff[]>(ENDPOINTS.staff);
 
-  async function assignBroker() {
-    if (!brokerId) return;
+  useEffect(() => {
+    if (inquiry) {
+      setStaffId(inquiry.assignedStaffId || inquiry.assignedBrokerId || '');
+      setStatusDraft(inquiry.status);
+    }
+  }, [inquiry]);
+
+  async function assignStaff() {
+    if (!staffId) return;
     try {
       await apiPatch(`${ENDPOINTS.dealDeskInquiries}/${id}`, {
-        assignedBrokerId: brokerId,
-        status: 'broker_active',
+        assignedStaffId: staffId,
+        status: 'assigned',
       });
       await mutate();
-      toast('Broker assigned', 'success');
+      toast('Staff assigned', 'success');
     } catch (err) {
       toast(getErrorMessage(err), 'error');
     }
   }
 
-  async function postMessage(
-    channel: DealDeskMessage['channel'],
-    body: string,
-    clear: () => void,
-    reload: () => Promise<unknown>,
-  ) {
-    const text = body.trim();
+  async function updateStatus() {
+    if (!statusDraft) return;
+    try {
+      await apiPatch(`${ENDPOINTS.dealDeskInquiries}/${id}`, {
+        status: statusDraft,
+      });
+      await mutate();
+      toast('Status updated', 'success');
+    } catch (err) {
+      toast(getErrorMessage(err), 'error');
+    }
+  }
+
+  async function sendReply() {
+    const text = reply.trim();
     if (!text) return;
     try {
-      await apiPost(`${ENDPOINTS.dealDeskInquiries}/${id}/messages`, {
-        body: text,
-        channel,
-      });
-      clear();
-      await reload();
+      await apiPost(`${ENDPOINTS.dealDeskInquiries}/${id}/messages`, { body: text });
+      setReply('');
+      await reloadMessages();
       await mutate();
     } catch (err) {
       toast(getErrorMessage(err), 'error');
@@ -79,11 +80,16 @@ export function DealDeskDetailPage() {
   if (error || !inquiry) {
     return (
       <ErrorState
-        message={error?.message ?? 'Inquiry not found'}
+        message={error?.message ?? 'Ticket not found'}
         onRetry={() => void mutate()}
       />
     );
   }
+
+  const contextLabel =
+    inquiry.listingKind === 'booking'
+      ? `Booking · ${inquiry.listingName}`
+      : `${inquiry.listingKind ?? 'listing'} · ${inquiry.listingName}`;
 
   return (
     <div className="space-y-6">
@@ -99,7 +105,7 @@ export function DealDeskDetailPage() {
           {inquiry.subject}
         </h1>
         <p className="mt-1 text-sm text-text-secondary">
-          {inquiry.listingName} · {inquiry.rboName} · {inquiry.customerMaskedLabel}
+          {contextLabel} · {inquiry.rboName}
         </p>
       </div>
 
@@ -107,94 +113,86 @@ export function DealDeskDetailPage() {
         <Card className="!p-4">
           <div className="flex flex-wrap items-end gap-3">
             <div className="min-w-[200px] flex-1">
-              <label className="text-xs font-medium text-text-muted">Assign broker</label>
+              <label className="text-xs font-medium text-text-muted">Assign staff</label>
               <select
-                value={brokerId}
-                onChange={(e) => setBrokerId(e.target.value)}
+                value={staffId}
+                onChange={(e) => setStaffId(e.target.value)}
                 className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
               >
-                <option value="">Select broker…</option>
-                {(staffList ?? [])
-                  .filter((s) => s.departmentId === 'dep-deal-desk')
-                  .map((s) => (
-                    <option key={s.id} value={s.id}>{s.name}</option>
-                  ))}
+                <option value="">Select staff…</option>
+                {(staffList ?? []).map((s) => (
+                  <option key={s.id} value={s.id}>
+                    {s.name}
+                  </option>
+                ))}
               </select>
             </div>
-            <Button size="sm" onClick={() => void assignBroker()} disabled={!brokerId}>
-              Assign
+            <Button size="sm" onClick={() => void assignStaff()} disabled={!staffId}>
+              Assign / Reassign
+            </Button>
+            <div className="min-w-[140px]">
+              <label className="text-xs font-medium text-text-muted">Status</label>
+              <select
+                value={statusDraft}
+                onChange={(e) =>
+                  setStatusDraft(e.target.value as DealDeskInquiry['status'])
+                }
+                className="mt-1 w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm"
+              >
+                <option value="open">Open</option>
+                <option value="assigned">Assigned</option>
+                <option value="resolved">Resolved</option>
+                <option value="closed">Closed</option>
+              </select>
+            </div>
+            <Button size="sm" variant="secondary" onClick={() => void updateStatus()}>
+              Update status
             </Button>
           </div>
         </Card>
       </CanAccess>
 
-      <div className="grid gap-4 lg:grid-cols-2">
-        <ThreadCard
-          title="Customer ↔ Broker"
-          messages={customerMsgs ?? []}
-          reply={customerReply}
-          onReplyChange={setCustomerReply}
-          onSend={() =>
-            void postMessage('customer_broker', customerReply, () => setCustomerReply(''), reloadCustomer)
-          }
-        />
-        <ThreadCard
-          title="Broker ↔ Vendor"
-          messages={vendorMsgs ?? []}
-          reply={vendorReply}
-          onReplyChange={setVendorReply}
-          onSend={() =>
-            void postMessage('broker_vendor', vendorReply, () => setVendorReply(''), reloadVendor)
-          }
-        />
-      </div>
-    </div>
-  );
-}
-
-function ThreadCard({
-  title,
-  messages,
-  reply,
-  onReplyChange,
-  onSend,
-}: {
-  title: string;
-  messages: DealDeskMessage[];
-  reply: string;
-  onReplyChange: (v: string) => void;
-  onSend: () => void;
-}) {
-  return (
-    <Card className="!p-4">
-      <h2 className="text-sm font-semibold text-text-primary">{title}</h2>
-      <div className="mt-3 space-y-3 max-h-[40vh] overflow-y-auto">
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={cn(
-              'rounded-xl px-3 py-2 text-sm',
-              msg.authorRole === 'system' ? 'bg-canvas text-center text-xs text-text-muted' : 'bg-canvas',
-            )}
-          >
-            <p className="text-xs text-text-muted">
-              {msg.authorName} · {formatDateTime(msg.createdAt)}
-            </p>
-            <p className="mt-1 text-text-primary">{msg.body}</p>
-          </div>
-        ))}
-      </div>
-      <CanAccess permission="change_dealdeskinquiry">
-        <div className="mt-3 flex gap-2">
-          <input
-            value={reply}
-            onChange={(e) => onReplyChange(e.target.value)}
-            placeholder="Broker relay message…"
-            className="flex-1 rounded-lg border border-border px-3 py-2 text-sm"
-          />
-          <Button size="sm" onClick={onSend}>Send</Button>
+      <Card className="!p-4">
+        <h2 className="text-sm font-semibold text-text-primary">Conversation</h2>
+        <div className="mt-3 max-h-[50vh] space-y-3 overflow-y-auto">
+          {(messages ?? []).length === 0 ? (
+            <p className="text-sm text-text-muted">No messages yet.</p>
+          ) : (
+            (messages ?? []).map((msg) => (
+              <div
+                key={msg.id}
+                className={cn(
+                  'rounded-xl px-3 py-2 text-sm',
+                  msg.authorRole === 'system'
+                    ? 'bg-canvas text-center text-xs text-text-muted'
+                    : 'bg-canvas',
+                )}
+              >
+                <p className="text-xs text-text-muted">
+                  {msg.authorName} · {msg.authorRole} · {formatDateTime(msg.createdAt)}
+                </p>
+                <p className="mt-1 text-text-primary">{msg.body}</p>
+              </div>
+            ))
+          )}
         </div>
-      </CanAccess>
-    </Card>
+        <CanAccess permission="change_dealdeskinquiry">
+          <div className="mt-3 flex gap-2">
+            <input
+              value={reply}
+              onChange={(e) => setReply(e.target.value)}
+              placeholder="Reply as assigned staff…"
+              className="flex-1 rounded-lg border border-border px-3 py-2 text-sm"
+            />
+            <Button size="sm" onClick={() => void sendReply()}>
+              Send
+            </Button>
+          </div>
+          <p className="mt-2 text-xs text-text-muted">
+            Only the currently assigned staff can send messages. Reassign to yourself first if needed.
+          </p>
+        </CanAccess>
+      </Card>
+    </div>
   );
 }

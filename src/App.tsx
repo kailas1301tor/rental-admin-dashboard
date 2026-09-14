@@ -35,8 +35,6 @@ import { DealDeskPage } from '@/pages/super-admin/DealDeskPage';
 import { NotificationsPage } from '@/pages/super-admin/NotificationsPage';
 import { ReviewsModerationPage } from '@/pages/super-admin/ReviewsModerationPage';
 import { ServiceDetailPage } from '@/pages/super-admin/ServiceDetailPage';
-import { SupportDetailPage } from '@/pages/super-admin/SupportDetailPage';
-import { SupportInboxPage } from '@/pages/super-admin/SupportInboxPage';
 import { ThemeProvider } from '@/theme/ThemeProvider';
 import { PreferencesProvider } from '@/preferences/PreferencesProvider';
 
@@ -199,22 +197,8 @@ export default function App() {
                           </Guard>
                         }
                       />
-                      <Route
-                        path="support"
-                        element={
-                          <Guard module="support">
-                            <SupportInboxPage />
-                          </Guard>
-                        }
-                      />
-                      <Route
-                        path="support/:id"
-                        element={
-                          <Guard module="support">
-                            <SupportDetailPage />
-                          </Guard>
-                        }
-                      />
+                      <Route path="support" element={<Navigate to="/deal-desk" replace />} />
+                      <Route path="support/:id" element={<Navigate to="/deal-desk" replace />} />
                       <Route
                         path="deal-desk"
                         element={

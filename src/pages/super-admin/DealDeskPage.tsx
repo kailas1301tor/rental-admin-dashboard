@@ -10,7 +10,7 @@ import { cn, formatDateTime } from '@/lib/utils';
 import type { DealDeskInquiry } from '@/types';
 
 export function DealDeskPage() {
-  const [status, setStatus] = useState<'' | DealDeskInquiry['status']>('');
+  const [status, setStatus] = useState<'' | DealDeskInquiry['status'] | 'unassigned'>('');
 
   const url = status
     ? `${ENDPOINTS.dealDeskInquiries}?status=${status}`
@@ -20,10 +20,11 @@ export function DealDeskPage() {
 
   const sorted = useMemo(
     () =>
-      [...(data ?? [])].sort(
-        (a, b) =>
-          new Date(b.lastMessageAt).getTime() - new Date(a.lastMessageAt).getTime(),
-      ),
+      [...(data ?? [])].sort((a, b) => {
+        const aT = new Date(a.lastMessageAt || a.createdAt).getTime();
+        const bT = new Date(b.lastMessageAt || b.createdAt).getTime();
+        return bT - aT;
+      }),
     [data],
   );
 
@@ -39,28 +40,29 @@ export function DealDeskPage() {
           Deal Desk
         </h1>
         <p className="mt-1 text-sm text-text-secondary">
-          Broker-mediated inquiries for high-value listings. No direct customer↔vendor chat.
+          Single-thread tickets from RBOs (booking, product, or service). Assign staff and reply.
         </p>
       </div>
 
       <select
         value={status}
         onChange={(e) =>
-          setStatus(e.target.value as '' | DealDeskInquiry['status'])
+          setStatus(e.target.value as '' | DealDeskInquiry['status'] | 'unassigned')
         }
         className={filterSelectClass}
       >
         <option value="">All statuses</option>
+        <option value="unassigned">Unassigned</option>
         <option value="open">Open</option>
-        <option value="broker_active">Broker active</option>
+        <option value="assigned">Assigned</option>
         <option value="resolved">Resolved</option>
         <option value="closed">Closed</option>
       </select>
 
       {sorted.length === 0 ? (
         <EmptyState
-          title="No inquiries"
-          description="High-value listing inquiries appear here."
+          title="No tickets"
+          description="RBO support tickets appear here when vendors open a request."
         />
       ) : (
         <div className="space-y-3">
@@ -74,7 +76,10 @@ export function DealDeskPage() {
                       {inq.listingName} · {inq.rboName}
                     </p>
                     <p className="mt-1 text-xs text-text-muted">
-                      {inq.customerMaskedLabel} · {formatDateTime(inq.lastMessageAt)}
+                      {inq.assignedStaffName
+                        ? `Assigned: ${inq.assignedStaffName}`
+                        : 'Unassigned'}{' '}
+                      · {formatDateTime(inq.lastMessageAt || inq.createdAt)}
                     </p>
                   </div>
                   <StatusPill status={inq.status} />
@@ -92,7 +97,7 @@ function StatusPill({ status }: { status: DealDeskInquiry['status'] }) {
   const tone =
     status === 'resolved' || status === 'closed'
       ? 'border-success/30 bg-success-muted text-success'
-      : status === 'broker_active'
+      : status === 'assigned'
         ? 'border-accent/30 bg-accent-muted text-accent'
         : 'border-warning/30 bg-warning-muted text-warning';
   return (

@@ -7,7 +7,6 @@ import {
   ClipboardCheck,
   ContactRound,
   FileText,
-  Headphones,
   History,
   KeyRound,
   LayoutDashboard,
@@ -118,13 +117,6 @@ export const APP_NAV: NavItem[] = [
     icon: ShieldAlert,
     section: 'oversight',
     permissions: ['view_loginalert'],
-  },
-  {
-    to: '/support',
-    label: 'Support',
-    icon: Headphones,
-    section: 'oversight',
-    permissions: ['view_supportticket'],
   },
   {
     to: '/deal-desk',

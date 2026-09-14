@@ -23,7 +23,6 @@ function entityLink(n: PlatformNotification): string | null {
     case 'booking':
       return `/bookings/${n.entityId}`;
     case 'support':
-      return `/support/${n.entityId}`;
     case 'deal_desk':
       return `/deal-desk/${n.entityId}`;
     case 'review':

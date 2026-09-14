@@ -6,7 +6,9 @@ import {
   Search,
 } from 'lucide-react';
 import { ENDPOINTS } from '@/api/endpoints';
+import { axiosClient, getErrorMessage } from '@/api/axios-client';
 import { useApiSWR } from '@/api/swr-helpers';
+import { useToast } from '@/components/ui/Toast';
 import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Button } from '@/components/ui/Button';
 import {
@@ -51,6 +53,7 @@ function getToday() {
 
 
 export function ActivityLogPage() {
+  const { toast } = useToast();
   const { filters, setFilters, reset } = useListFilters();
   const [q, setQ] = useState('');
   const [user, setUser] = useState('');
@@ -61,6 +64,7 @@ export function ActivityLogPage() {
   const [from, setFrom] = useState(() => getStartOfMonth());
   const [to, setTo] = useState(() => getToday());
   const [page, setPage] = useState(1);
+  const [exporting, setExporting] = useState(false);
 
   const searchParams = useMemo(() => {
     const params = new URLSearchParams();
@@ -262,17 +266,38 @@ export function ActivityLogPage() {
           <Button
             variant="outline"
             size="sm"
+            disabled={exporting}
             onClick={() => {
-              const exportParams = new URLSearchParams(searchParams.toString());
-              exportParams.set('export', 'true');
-              window.open(
-                `${import.meta.env.VITE_API_BASE_URL}${ENDPOINTS.activityLog}?${exportParams.toString()}`,
-                '_blank'
-              );
+              void (async () => {
+                setExporting(true);
+                try {
+                  const exportParams = new URLSearchParams(searchParams.toString());
+                  exportParams.set('export', 'true');
+                  const response = await axiosClient.get(
+                    `/api${ENDPOINTS.activityLog}?${exportParams.toString()}`,
+                    { responseType: 'blob' },
+                  );
+                  const blob = new Blob([response.data], {
+                    type: response.headers['content-type'] || 'text/csv',
+                  });
+                  const url = URL.createObjectURL(blob);
+                  const anchor = document.createElement('a');
+                  anchor.href = url;
+                  anchor.download = 'activity-log.csv';
+                  document.body.appendChild(anchor);
+                  anchor.click();
+                  anchor.remove();
+                  URL.revokeObjectURL(url);
+                } catch (err) {
+                  toast(getErrorMessage(err), 'error');
+                } finally {
+                  setExporting(false);
+                }
+              })();
             }}
           >
             <Download className="h-4 w-4" aria-hidden />
-            Export
+            {exporting ? 'Exporting…' : 'Export'}
           </Button>
         </div>
       </ListFilterBar>
