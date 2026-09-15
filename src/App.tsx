@@ -1,4 +1,4 @@
-import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom';
+import { BrowserRouter, Navigate, Route, Routes, useParams } from 'react-router-dom';
 import type { ReactNode } from 'react';
 import { SWRConfig } from 'swr';
 import { AuthProvider } from '@/auth/AuthContext';
@@ -32,6 +32,7 @@ import { BookingDetailPage } from '@/pages/super-admin/BookingDetailPage';
 import { BookingsPage } from '@/pages/super-admin/BookingsPage';
 import { DealDeskDetailPage } from '@/pages/super-admin/DealDeskDetailPage';
 import { DealDeskPage } from '@/pages/super-admin/DealDeskPage';
+import { ListingDealsPage } from '@/pages/super-admin/ListingDealsPage';
 import { NotificationsPage } from '@/pages/super-admin/NotificationsPage';
 import { ReviewsModerationPage } from '@/pages/super-admin/ReviewsModerationPage';
 import { ServiceDetailPage } from '@/pages/super-admin/ServiceDetailPage';
@@ -40,18 +41,29 @@ import { PreferencesProvider } from '@/preferences/PreferencesProvider';
 
 function Guard({
   module,
+  permission,
   superAdminOnly,
   children,
 }: {
   module?: Parameters<typeof RequirePermission>[0]['module'];
+  permission?: string;
   superAdminOnly?: boolean;
   children: ReactNode;
 }) {
   return (
-    <RequirePermission module={module} superAdminOnly={superAdminOnly}>
+    <RequirePermission
+      module={module}
+      permission={permission}
+      superAdminOnly={superAdminOnly}
+    >
       {children}
     </RequirePermission>
   );
+}
+
+function SupportToDealDeskRedirect() {
+  const { id } = useParams();
+  return <Navigate to={id ? `/deal-desk/${id}` : '/deal-desk'} replace />;
 }
 
 export default function App() {
@@ -145,6 +157,14 @@ export default function App() {
                           </Guard>
                         }
                       />
+                      <Route
+                        path="listing-deals"
+                        element={
+                          <Guard permission="view_listingdeal">
+                            <ListingDealsPage />
+                          </Guard>
+                        }
+                      />
                       <Route path="products" element={<Navigate to="/listings?kind=product" replace />} />
                       <Route path="products/:id" element={<LegacyProductRedirect />} />
                       <Route path="services" element={<Navigate to="/listings?kind=service" replace />} />
@@ -198,7 +218,7 @@ export default function App() {
                         }
                       />
                       <Route path="support" element={<Navigate to="/deal-desk" replace />} />
-                      <Route path="support/:id" element={<Navigate to="/deal-desk" replace />} />
+                      <Route path="support/:id" element={<SupportToDealDeskRedirect />} />
                       <Route
                         path="deal-desk"
                         element={

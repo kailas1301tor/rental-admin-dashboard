@@ -27,7 +27,6 @@ export function BottomGrid({
 }) {
   const topRbos = overview?.topRbos ?? [];
   const security = alerts.slice(0, 5);
-  const vendorDeltas = [12.4, 8.1, -2.3, 5.6, 3.2];
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
@@ -48,7 +47,6 @@ export function BottomGrid({
           <ol className="space-y-2.5">
             {topRbos.slice(0, 5).map((row, index) => {
               const id = vendorIds.get(row.name);
-              const delta = vendorDeltas[index] ?? 0;
               return (
                 <li
                   key={row.name}
@@ -74,15 +72,6 @@ export function BottomGrid({
                   <div className="shrink-0 text-right">
                     <p className="text-sm font-semibold tabular-nums text-text-primary">
                       {formatInr(row.gmvInr)}
-                    </p>
-                    <p
-                      className={cn(
-                        'text-[11px] font-semibold tabular-nums',
-                        delta >= 0 ? 'text-success' : 'text-danger',
-                      )}
-                    >
-                      {delta >= 0 ? '+' : ''}
-                      {delta}%
                     </p>
                   </div>
                 </li>

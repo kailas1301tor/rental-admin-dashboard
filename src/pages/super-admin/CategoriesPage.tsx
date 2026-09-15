@@ -9,7 +9,6 @@ import {
   Trash2,
 } from 'lucide-react';
 import { apiDelete, apiPatch, apiPost } from '@/api/axios-helpers';
-import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR, usePaginatedApiSWR } from '@/api/swr-helpers';
 import { CanAccess } from '@/components/auth/CanAccess';
@@ -33,6 +32,15 @@ import {
   matchesTaxonomyFilters,
   subcategories,
 } from '@/lib/category-helpers';
+import {
+  apiFailureFieldErrors,
+  clearFieldError,
+  emptyFieldErrors,
+  requireFields,
+  scrollToFirstError,
+  type FieldErrors,
+  type RequireRule,
+} from '@/lib/form-errors';
 import { matchesDistricts } from '@/lib/kerala-districts';
 import { cn, formatDateTime } from '@/lib/utils';
 import type { Category, Product } from '@/types';
@@ -41,21 +49,22 @@ type StatusFilter = 'all' | 'active' | 'frozen' | 'archived';
 type LevelFilter = 'category' | 'subcategory';
 
 export function CategoriesPage() {
-const { toast } = useToast();
-  
+  const { toast } = useToast();
+
   const [catPage, setCatPage] = useState(1);
   const [subPage, setSubPage] = useState(1);
 
   const { data: allCategories, mutate: mutateAll } = useApiSWR<Category[]>(`${ENDPOINTS.categories}?fetch_all=true`);
   const { data: products } = useApiSWR<Product[]>(ENDPOINTS.products);
   const { filters, setFilters, reset } = useListFilters();
-  
+
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [level, setLevel] = useState<LevelFilter>('subcategory');
   const [parentId, setParentId] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>(emptyFieldErrors);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<Category | null>(null);
   const [query, setQuery] = useState('');
@@ -127,6 +136,7 @@ const { toast } = useToast();
     setDescription('');
     setLevel(type);
     setParentId(parent ?? '');
+    setFieldErrors(emptyFieldErrors());
     setOpen(true);
   }
 
@@ -136,15 +146,27 @@ const { toast } = useToast();
     setDescription(cat.description ?? '');
     setLevel(cat.parentId === null ? 'category' : 'subcategory');
     setParentId(cat.parentId ?? '');
+    setFieldErrors(emptyFieldErrors());
     setOpen(true);
   }
 
   async function onSave(e: FormEvent) {
     e.preventDefault();
-    if (level === 'subcategory' && !parentId && !editing?.parentId) {
-      toast('Select a parent category for this subcategory', 'error');
+    const rules: RequireRule[] = [{ field: 'name', label: 'Name' }];
+    if (level === 'subcategory' && !editing?.parentId) {
+      rules.push({ field: 'parentId', label: 'Parent category' });
+    }
+    const { fieldErrors: next, message } = requireFields(
+      { name, parentId: parentId || editing?.parentId || '' },
+      rules,
+    );
+    if (message) {
+      setFieldErrors(next);
+      toast(message, 'error');
+      scrollToFirstError(next);
       return;
     }
+    setFieldErrors(emptyFieldErrors());
     setSaving(true);
     try {
       const payload = {
@@ -162,7 +184,10 @@ const { toast } = useToast();
       await mutateCat(); await mutateSub(); await mutateAll();
       setOpen(false);
     } catch (err) {
-      toast(getErrorMessage(err), 'error');
+      const failure = apiFailureFieldErrors(err);
+      setFieldErrors(failure.fieldErrors);
+      toast(failure.message, 'error');
+      scrollToFirstError(failure.fieldErrors);
     } finally {
       setSaving(false);
     }
@@ -179,7 +204,7 @@ const { toast } = useToast();
         'success',
       );
     } catch (err) {
-      toast(getErrorMessage(err), 'error');
+      toast(apiFailureFieldErrors(err).message, 'error');
     }
   }
 
@@ -196,7 +221,7 @@ const { toast } = useToast();
       );
       setConfirmDelete(null);
     } catch (err) {
-      toast(getErrorMessage(err), 'error');
+      toast(apiFailureFieldErrors(err).message, 'error');
     }
   }
 
@@ -458,11 +483,13 @@ const { toast } = useToast();
           {!editing ? (
             <Select
               label="Level"
+              name="level"
               value={level}
               onChange={(e) => {
                 const next = e.target.value as LevelFilter;
                 setLevel(next);
                 if (next === 'category') setParentId('');
+                setFieldErrors((m) => clearFieldError(m, 'parentId'));
               }}
             >
               <option value="category">Category</option>
@@ -472,8 +499,13 @@ const { toast } = useToast();
           {level === 'subcategory' ? (
             <Select
               label="Parent category"
+              name="parentId"
               value={parentId}
-              onChange={(e) => setParentId(e.target.value)}
+              onChange={(e) => {
+                setParentId(e.target.value);
+                setFieldErrors((m) => clearFieldError(m, 'parentId'));
+              }}
+              error={fieldErrors.parentId}
               required
               disabled={Boolean(editing)}
             >
@@ -489,14 +521,24 @@ const { toast } = useToast();
           ) : null}
           <Input
             label="Name"
+            name="name"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value);
+              setFieldErrors((m) => clearFieldError(m, 'name'));
+            }}
+            error={fieldErrors.name}
             required
           />
           <Input
             label="Description"
+            name="description"
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={(e) => {
+              setDescription(e.target.value);
+              setFieldErrors((m) => clearFieldError(m, 'description'));
+            }}
+            error={fieldErrors.description}
             hint="Shown under the category name in the list"
           />
         </form>

@@ -2,15 +2,23 @@ import { useEffect, useState } from 'react';
 import { ArrowLeft } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { apiPatch, apiPost } from '@/api/axios-helpers';
-import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
 import { CanAccess } from '@/components/auth/CanAccess';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Input } from '@/components/ui/Input';
 import { ErrorState } from '@/components/ui/States';
 import { DetailPageSkeleton } from '@/components/ui/skeletons';
 import { useToast } from '@/components/ui/Toast';
+import {
+  apiFailureFieldErrors,
+  clearFieldError,
+  emptyFieldErrors,
+  requireFields,
+  scrollToFirstError,
+  type FieldErrors,
+} from '@/lib/form-errors';
 import { cn, formatDateTime } from '@/lib/utils';
 import type { DealDeskInquiry, DealDeskMessage, PlatformStaff } from '@/types';
 
@@ -18,6 +26,7 @@ export function DealDeskDetailPage() {
   const { id = '' } = useParams();
   const { toast } = useToast();
   const [reply, setReply] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>(emptyFieldErrors);
   const [staffId, setStaffId] = useState('');
   const [statusDraft, setStatusDraft] = useState<DealDeskInquiry['status'] | ''>('');
 
@@ -46,7 +55,7 @@ export function DealDeskDetailPage() {
       await mutate();
       toast('Staff assigned', 'success');
     } catch (err) {
-      toast(getErrorMessage(err), 'error');
+      toast(apiFailureFieldErrors(err).message, 'error');
     }
   }
 
@@ -59,20 +68,34 @@ export function DealDeskDetailPage() {
       await mutate();
       toast('Status updated', 'success');
     } catch (err) {
-      toast(getErrorMessage(err), 'error');
+      toast(apiFailureFieldErrors(err).message, 'error');
     }
   }
 
   async function sendReply() {
-    const text = reply.trim();
-    if (!text) return;
+    const { fieldErrors: next, message } = requireFields(
+      { body: reply },
+      [{ field: 'body', label: 'Reply', message: 'Reply is required' }],
+    );
+    if (message) {
+      setFieldErrors(next);
+      toast(message, 'error');
+      scrollToFirstError(next);
+      return;
+    }
+    setFieldErrors(emptyFieldErrors());
     try {
-      await apiPost(`${ENDPOINTS.dealDeskInquiries}/${id}/messages`, { body: text });
+      await apiPost(`${ENDPOINTS.dealDeskInquiries}/${id}/messages`, {
+        body: reply.trim(),
+      });
       setReply('');
       await reloadMessages();
       await mutate();
     } catch (err) {
-      toast(getErrorMessage(err), 'error');
+      const failure = apiFailureFieldErrors(err);
+      setFieldErrors(failure.fieldErrors);
+      toast(failure.message, 'error');
+      scrollToFirstError(failure.fieldErrors);
     }
   }
 
@@ -177,14 +200,20 @@ export function DealDeskDetailPage() {
           )}
         </div>
         <CanAccess permission="change_dealdeskinquiry">
-          <div className="mt-3 flex gap-2">
-            <input
-              value={reply}
-              onChange={(e) => setReply(e.target.value)}
-              placeholder="Reply as assigned staff…"
-              className="flex-1 rounded-lg border border-border px-3 py-2 text-sm"
-            />
-            <Button size="sm" onClick={() => void sendReply()}>
+          <div className="mt-3 flex items-start gap-2">
+            <div className="min-w-0 flex-1">
+              <Input
+                name="body"
+                value={reply}
+                onChange={(e) => {
+                  setReply(e.target.value);
+                  setFieldErrors((m) => clearFieldError(m, 'body'));
+                }}
+                error={fieldErrors.body}
+                placeholder="Reply as assigned staff…"
+              />
+            </div>
+            <Button size="sm" className="mt-0.5 shrink-0" onClick={() => void sendReply()}>
               Send
             </Button>
           </div>

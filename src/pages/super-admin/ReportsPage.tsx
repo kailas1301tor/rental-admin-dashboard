@@ -1,10 +1,7 @@
 import { useMemo, useState } from 'react';
 import {
-  CalendarDays,
   CalendarRange,
   CheckCircle2,
-  ChevronDown,
-  Download,
   IndianRupee,
   LayoutDashboard,
   LineChart as LineChartIcon,
@@ -42,7 +39,6 @@ import {
   CHART_GRID,
   CHART_TOOLTIP_STYLE,
 } from '@/components/charts/chart-theme';
-import { Button } from '@/components/ui/Button';
 import { Card, CardHeader } from '@/components/ui/Card';
 import {
   EmptyState,
@@ -51,7 +47,6 @@ import {
 import { Skeleton } from '@/components/ui/Skeleton';
 import { SectionSkeleton } from '@/components/ui/skeletons';
 import { Table, TableShell, Td, Th } from '@/components/ui/Table';
-import { useToast } from '@/components/ui/Toast';
 import { type BookingSeriesGranularity } from '@/lib/booking-series';
 import { BookingVolumeChart } from '@/pages/super-admin/reports/BookingVolumeChart';
 import {
@@ -108,12 +103,9 @@ function initials(name: string) {
 }
 
 export function ReportsPage() {
-  const { toast } = useToast();
   const [tab, setTab] = useState<Tab>('overview');
-  const [from, setFrom] = useState('2025-05-13');
-  const [to, setTo] = useState('2025-05-20');
   const [chartKind, setChartKind] = useState<ChartKind>('line');
-  const [applied, setApplied] = useState({ from: '2025-05-13', to: '2025-05-20' });
+  const applied = { from: '2025-05-13', to: '2025-05-20' };
 
   const { filters, setFilters, reset } = useListFilters();
 
@@ -148,16 +140,6 @@ export function ReportsPage() {
     return scopeReportRbos(rbos.data, filters, rboData ?? [], catList);
   }, [rbos.data, filters, rboData, catList]);
 
-  const rangeLabel = useMemo(() => {
-    const fmt = (iso: string) =>
-      new Intl.DateTimeFormat('en-IN', {
-        day: '2-digit',
-        month: 'short',
-        year: 'numeric',
-      }).format(new Date(`${iso}T12:00:00`));
-    return `${fmt(applied.from)} – ${fmt(applied.to)}`;
-  }, [applied.from, applied.to]);
-
   return (
     <div className="space-y-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
@@ -171,59 +153,13 @@ export function ReportsPage() {
             <span className="text-text-secondary">Reports</span>
           </nav>
         </div>
-        <Button
-          variant="outline"
-          onClick={() => toast('Export queued (mock CSV)', 'success')}
-        >
-          <Download className="h-4 w-4" aria-hidden />
-          Export Report
-          <ChevronDown className="h-3.5 w-3.5" aria-hidden />
-        </Button>
       </div>
 
       <Card className="!p-4">
-        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 xl:flex xl:flex-wrap xl:items-center xl:gap-3">
-          <label className="inline-flex h-11 min-w-0 items-center gap-2 rounded-full border border-border bg-canvas px-3.5 text-sm text-text-secondary sm:col-span-1">
-            <CalendarDays
-              className="h-4 w-4 shrink-0 text-text-muted"
-              aria-hidden
-            />
-            <span className="shrink-0 text-xs text-text-muted">From</span>
-            <input
-              type="date"
-              value={from}
-              onChange={(e) => setFrom(e.target.value)}
-              className="min-w-0 flex-1 bg-transparent py-0 text-sm text-text-primary focus:outline-none"
-            />
-          </label>
-
-          <label className="inline-flex h-11 min-w-0 items-center gap-2 rounded-full border border-border bg-canvas px-3.5 text-sm text-text-secondary sm:col-span-1">
-            <CalendarDays
-              className="h-4 w-4 shrink-0 text-text-muted"
-              aria-hidden
-            />
-            <span className="shrink-0 text-xs text-text-muted">To</span>
-            <input
-              type="date"
-              value={to}
-              onChange={(e) => setTo(e.target.value)}
-              className="min-w-0 flex-1 bg-transparent py-0 text-sm text-text-primary focus:outline-none"
-            />
-          </label>
-
-          <div className="flex flex-wrap gap-2 sm:col-span-2 xl:ml-auto">
-            <Button
-              size="sm"
-              onClick={() => {
-                setApplied({ from, to });
-                toast('Filters applied', 'success');
-              }}
-            >
-              Apply Filters
-            </Button>
-          </div>
-        </div>
-        <p className="mt-2 text-xs text-text-muted">Showing {rangeLabel}</p>
+        <p className="text-sm text-text-secondary">Showing all available data</p>
+        <p className="mt-1 text-xs text-text-muted">
+          Date filters are not applied to report APIs yet.
+        </p>
       </Card>
 
       <ListFilterBar
@@ -1091,14 +1027,9 @@ function BookingsTab({
   );
 
   const volumeSeries = useMemo(() => {
-    if (!state.data || statusTotal === 0) return [];
-    return buildBookingVolumeSeries(
-      rangeFrom,
-      rangeTo,
-      statusTotal,
-      volumeView,
-    );
-  }, [rangeFrom, rangeTo, state.data, statusTotal, volumeView]);
+    if (!state.data?.volumeSeries?.length) return [];
+    return buildBookingVolumeSeries(state.data.volumeSeries, volumeView);
+  }, [state.data, volumeView]);
 
   if (state.isLoading && !state.data) return <SectionSkeleton rows={4} />;
   if (state.error) {

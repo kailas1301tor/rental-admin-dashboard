@@ -1,6 +1,5 @@
 import { useMemo, useState, type FormEvent } from 'react';
 import { apiPatch, apiPost } from '@/api/axios-helpers';
-import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
 import { CanAccess } from '@/components/auth/CanAccess';
@@ -26,6 +25,14 @@ import { useToast } from '@/components/ui/Toast';
 import { useListFilters } from '@/hooks/useListFilters';
 import { StaffMobileCard } from '@/pages/super-admin/staff/StaffMobileCard';
 import { departmentLabel } from '@/lib/departments';
+import {
+  apiFailureFieldErrors,
+  clearFieldError,
+  emptyFieldErrors,
+  requireFields,
+  scrollToFirstError,
+  type FieldErrors,
+} from '@/lib/form-errors';
 import { formatDateTime } from '@/lib/utils';
 import type { Department, PlatformStaff, PlatformStaffWrite } from '@/types';
 
@@ -61,6 +68,7 @@ export function StaffPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<PlatformStaff | null>(null);
   const [form, setForm] = useState<FormState>(empty);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>(emptyFieldErrors);
   const [saving, setSaving] = useState(false);
 
   const deptList = deptData ?? [];
@@ -70,6 +78,7 @@ export function StaffPage() {
   function openCreate() {
     setEditing(null);
     setForm(empty);
+    setFieldErrors(emptyFieldErrors());
     setOpen(true);
   }
 
@@ -81,15 +90,33 @@ export function StaffPage() {
       phone: row.phone,
       departmentId: row.department?.id || '',
     });
+    setFieldErrors(emptyFieldErrors());
     setOpen(true);
+  }
+
+  function patchForm<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setForm((f) => ({ ...f, [key]: value }));
+    setFieldErrors((m) => clearFieldError(m, key));
   }
 
   async function onSave(e: FormEvent) {
     e.preventDefault();
-    if (!form.departmentId) {
-      toast('Select a department', 'error');
+    const { fieldErrors: next, message } = requireFields(
+      { ...form },
+      [
+        { field: 'name', label: 'Name' },
+        { field: 'email', label: 'Email' },
+        { field: 'phone', label: 'Phone' },
+        { field: 'departmentId', label: 'Department' },
+      ],
+    );
+    if (message) {
+      setFieldErrors(next);
+      toast(message, 'error');
+      scrollToFirstError(next);
       return;
     }
+    setFieldErrors(emptyFieldErrors());
     setSaving(true);
     try {
       const body: PlatformStaffWrite = {
@@ -108,7 +135,10 @@ export function StaffPage() {
       await mutate();
       setOpen(false);
     } catch (err) {
-      toast(getErrorMessage(err), 'error');
+      const failure = apiFailureFieldErrors(err);
+      setFieldErrors(failure.fieldErrors);
+      toast(failure.message, 'error');
+      scrollToFirstError(failure.fieldErrors);
     } finally {
       setSaving(false);
     }
@@ -122,7 +152,7 @@ export function StaffPage() {
       await mutate();
       toast(row.status === 'frozen' ? 'Staff unfrozen' : 'Staff frozen', 'success');
     } catch (err) {
-      toast(getErrorMessage(err), 'error');
+      toast(apiFailureFieldErrors(err).message, 'error');
     }
   }
 
@@ -277,32 +307,35 @@ export function StaffPage() {
         <form id="staff-form" className="space-y-3" onSubmit={(e) => void onSave(e)}>
           <Input
             label="Name"
+            name="name"
             value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            onChange={(e) => patchForm('name', e.target.value)}
+            error={fieldErrors.name}
             required
           />
           <Input
             label="Email"
+            name="email"
             type="email"
             value={form.email}
-            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+            onChange={(e) => patchForm('email', e.target.value)}
+            error={fieldErrors.email}
             required
           />
           <Input
             label="Phone"
+            name="phone"
             value={form.phone}
-            onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+            onChange={(e) => patchForm('phone', e.target.value)}
+            error={fieldErrors.phone}
             required
           />
           <Select
             label="Department"
+            name="departmentId"
             value={form.departmentId}
-            onChange={(e) =>
-              setForm((f) => ({
-                ...f,
-                departmentId: e.target.value,
-              }))
-            }
+            onChange={(e) => patchForm('departmentId', e.target.value)}
+            error={fieldErrors.departmentId}
             required
           >
             <option value="">Select</option>

@@ -4,7 +4,7 @@ import {
   ShieldAlert,
   Store,
 } from 'lucide-react';
-import { useMemo, useState } from 'react';
+import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
 import {
   Area,
@@ -25,13 +25,6 @@ import {
   CHART_TOOLTIP_STYLE,
 } from '@/components/charts/chart-theme';
 import { Card } from '@/components/ui/Card';
-import { Tabs } from '@/components/ui/Tabs';
-import {
-  BOOKING_SERIES_GRANULARITY,
-  buildDailyBookingSeries,
-  groupBookingSeries,
-  type BookingSeriesGranularity,
-} from '@/lib/booking-series';
 import { BOOKING_VALUE_LABEL } from '@/lib/metrics';
 import { formatDateRangeLabel } from '@/lib/date-range';
 import { cn, formatInr, formatInrCrore } from '@/lib/utils';
@@ -54,17 +47,16 @@ export function AnalyticsRow({
   rangeFrom: string;
   rangeTo: string;
 }) {
-  const [granularity, setGranularity] =
-    useState<BookingSeriesGranularity>('day');
-
   const bookingSeries = useMemo(() => {
-    const daily = buildDailyBookingSeries(
-      rangeFrom,
-      rangeTo,
-      kpis.revenueInr,
-    );
-    return groupBookingSeries(daily, granularity);
-  }, [granularity, kpis.revenueInr, rangeFrom, rangeTo]);
+    const trend = kpis.bookingsTrend ?? [];
+    if (!trend.length) return [];
+    const totalCount = trend.reduce((sum, point) => sum + point.count, 0) || 1;
+    return trend.map((point, index) => ({
+      label: point.label,
+      date: `${rangeFrom}-${index}`,
+      gmvInr: (point.count / totalCount) * (kpis.revenueInr || 0),
+    }));
+  }, [kpis.bookingsTrend, kpis.revenueInr, rangeFrom]);
 
   const distribution = overview?.salesByCategory ?? [];
   const totalBookings = kpis.bookingsTrend.reduce((s, d) => s + d.count, 0);
@@ -73,28 +65,24 @@ export function AnalyticsRow({
   const liveAlerts = [
     {
       title: `${kpis.loginAlertsToday} new login attempts`,
-      ago: '12 min ago',
       to: '/login-alerts',
       icon: ShieldAlert,
       tone: 'danger' as const,
     },
     {
       title: `${kpis.rbosOnboarding} vendors awaiting approval`,
-      ago: '28 min ago',
       to: '/rbos?tab=onboarding',
       icon: Store,
       tone: 'warning' as const,
     },
     {
       title: `${kpis.pendingListings} listings pending review`,
-      ago: '1 hr ago',
       to: '/approval-overrides',
       icon: ClipboardCheck,
       tone: 'warning' as const,
     },
     {
       title: `${kpis.pendingOverrides} override requests open`,
-      ago: '2 hr ago',
       to: '/approval-overrides',
       icon: Server,
       tone: 'accent' as const,
@@ -124,11 +112,6 @@ export function AnalyticsRow({
               <span className="rounded-full border border-accent/40 bg-accent-muted px-3 py-1 text-xs font-medium text-accent">
                 {formatDateRangeLabel(rangeFrom, rangeTo)}
               </span>
-              <Tabs
-                items={BOOKING_SERIES_GRANULARITY}
-                value={granularity}
-                onChange={setGranularity}
-              />
             </div>
           </div>
           <div className="h-48 sm:h-72">
@@ -200,9 +183,6 @@ export function AnalyticsRow({
                     <span className="min-w-0">
                       <span className="block text-sm font-medium leading-snug text-text-primary">
                         {a.title}
-                      </span>
-                      <span className="mt-1 block text-xs text-text-muted">
-                        {a.ago}
                       </span>
                     </span>
                   </Link>

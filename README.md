@@ -62,8 +62,7 @@ npm install
 
 # Local env
 cp .env.example .env
-# VITE_USE_MOCKS=true (default) — mock Super Admin API
-# Set VITE_API_BASE_URL when pointing at a real Django API
+# Set VITE_API_BASE_URL to your Django API (e.g. http://127.0.0.1:8000)
 
 # Dev server
 npm run dev
@@ -72,7 +71,7 @@ npm run dev
 npm run build
 ```
 
-Open the app, sign in with the prefilled Super Admin credentials, complete the CAPTCHA checkbox, then enter any 4+ digit OTP (mock).
+Open the app, sign in with a real admin account, complete the CAPTCHA checkbox, then enter the OTP (`000000` when the API runs with `DEBUG=True`).
 
 ---
 

@@ -15,7 +15,6 @@ import {
   Sun,
 } from 'lucide-react';
 import { apiPatch } from '@/api/axios-helpers';
-import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
 import { Button } from '@/components/ui/Button';
@@ -28,6 +27,14 @@ import {
 } from '@/components/ui/States';
 import { SettingsSkeleton } from '@/components/ui/skeletons';
 import { useToast } from '@/components/ui/Toast';
+import {
+  apiFailureFieldErrors,
+  clearFieldError,
+  emptyFieldErrors,
+  requireFields,
+  scrollToFirstError,
+  type FieldErrors,
+} from '@/lib/form-errors';
 import {
   ACCENT_SWATCHES,
   formatDateTimeValue,
@@ -80,6 +87,7 @@ export function SettingsPage() {
     ENDPOINTS.settings,
   );
   const [form, setForm] = useState<PlatformSettings | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>(emptyFieldErrors);
   const [saving, setSaving] = useState(false);
   const [previewTick, setPreviewTick] = useState(0);
 
@@ -93,7 +101,7 @@ export function SettingsPage() {
       timezone: data.timezone || prefs.timezone,
       themeMode: data.themeMode ?? prefs.themeMode,
       accentColor: data.accentColor ?? prefs.accentColor,
-      supportPhone: data.supportPhone ?? '+91 98765 43210',
+      supportPhone: data.supportPhone ?? '',
       emailNotifications: data.emailNotifications ?? true,
       inAppNotifications: data.inAppNotifications ?? true,
     });
@@ -106,6 +114,7 @@ export function SettingsPage() {
     value: PlatformSettings[K],
   ) {
     setForm((prev) => (prev ? { ...prev, [key]: value } : prev));
+    setFieldErrors((m) => clearFieldError(m, String(key)));
   }
 
   function applyLocaleLive(patch: Partial<LocalePreferences>) {
@@ -116,6 +125,27 @@ export function SettingsPage() {
   async function onSave(e: FormEvent) {
     e.preventDefault();
     if (!form) return;
+    const { fieldErrors: next, message } = requireFields(
+      {
+        supportEmail: form.supportEmail,
+        currency: form.currency,
+        dateFormat: form.dateFormat,
+        timezone: form.timezone,
+      },
+      [
+        { field: 'supportEmail', label: 'Support email' },
+        { field: 'currency', label: 'Currency' },
+        { field: 'dateFormat', label: 'Date format' },
+        { field: 'timezone', label: 'Timezone' },
+      ],
+    );
+    if (message) {
+      setFieldErrors(next);
+      toast(message, 'error');
+      scrollToFirstError(next);
+      return;
+    }
+    setFieldErrors(emptyFieldErrors());
     setSaving(true);
     try {
       const saved = await apiPatch<PlatformSettings>(ENDPOINTS.settings, form);
@@ -130,7 +160,10 @@ export function SettingsPage() {
       });
       toast('Settings saved', 'success');
     } catch (err) {
-      toast(getErrorMessage(err), 'error');
+      const failure = apiFailureFieldErrors(err);
+      setFieldErrors(failure.fieldErrors);
+      toast(failure.message, 'error');
+      scrollToFirstError(failure.fieldErrors);
     } finally {
       setSaving(false);
     }
@@ -172,7 +205,9 @@ export function SettingsPage() {
           description="Used across dashboards, tables, and reports."
         >
           <Select
+            name="currency"
             value={form.currency}
+            error={fieldErrors.currency}
             onChange={(e) => {
               const currency = e.target.value as AppCurrency;
               patchField('currency', currency);
@@ -194,7 +229,9 @@ export function SettingsPage() {
         >
           <Select
             key={previewTick}
+            name="dateFormat"
             value={form.dateFormat}
+            error={fieldErrors.dateFormat}
             onChange={(e) => {
               const dateFormat = e.target.value as DateFormatPref;
               patchField('dateFormat', dateFormat);
@@ -216,7 +253,9 @@ export function SettingsPage() {
           description="Applied to timestamps across the admin panel."
         >
           <Select
+            name="timezone"
             value={form.timezone}
+            error={fieldErrors.timezone}
             onChange={(e) => {
               const timezone = e.target.value;
               patchField('timezone', timezone);
@@ -347,14 +386,18 @@ export function SettingsPage() {
             <div className="mt-4 grid grid-cols-1 gap-3 md:grid-cols-2">
               <Input
                 label="Support email"
+                name="supportEmail"
                 type="email"
                 value={form.supportEmail}
                 onChange={(e) => patchField('supportEmail', e.target.value)}
+                error={fieldErrors.supportEmail}
               />
               <Input
                 label="Support number"
+                name="supportPhone"
                 value={form.supportPhone}
                 onChange={(e) => patchField('supportPhone', e.target.value)}
+                error={fieldErrors.supportPhone}
               />
             </div>
           </div>

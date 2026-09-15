@@ -1,7 +1,6 @@
 import { useMemo, useState, type FormEvent, type ReactNode } from 'react';
 import { Plus } from 'lucide-react';
 import { apiPatch, apiPost } from '@/api/axios-helpers';
-import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
 import { CanAccess } from '@/components/auth/CanAccess';
@@ -24,6 +23,15 @@ import { useToast } from '@/components/ui/Toast';
 import { useListFilters } from '@/hooks/useListFilters';
 import { AdminCard } from '@/pages/super-admin/admins/AdminCard';
 import { adminTierLabel, departmentLabel } from '@/lib/departments';
+import {
+  apiFailureFieldErrors,
+  clearFieldError,
+  emptyFieldErrors,
+  requireFields,
+  scrollToFirstError,
+  type FieldErrors,
+  type RequireRule,
+} from '@/lib/form-errors';
 import { districtLabel } from '@/lib/kerala-districts';
 import { cn } from '@/lib/utils';
 import type {
@@ -75,6 +83,7 @@ export function AdminsPage() {
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<PlatformAdmin | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>(emptyFieldErrors);
   const [saving, setSaving] = useState(false);
 
   const deptList = deptData ?? [];
@@ -100,6 +109,7 @@ export function AdminsPage() {
   function openCreate() {
     setEditing(null);
     setForm({ ...emptyForm, tier: rolesData?.[0]?.id ?? 'general_admin' });
+    setFieldErrors(emptyFieldErrors());
     setOpen(true);
   }
 
@@ -115,11 +125,44 @@ export function AdminsPage() {
       password: '',
       departmentId: admin.department?.id ?? '',
     });
+    setFieldErrors(emptyFieldErrors());
     setOpen(true);
+  }
+
+  function patchForm<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setForm((f) => ({ ...f, [key]: value }));
+    setFieldErrors((m) => clearFieldError(m, key));
   }
 
   async function onSave(e: FormEvent) {
     e.preventDefault();
+    const rules: RequireRule[] = [
+      { field: 'name', label: 'Full name' },
+      { field: 'phone', label: 'Phone' },
+      { field: 'email', label: 'Email' },
+      { field: 'address', label: 'Address' },
+    ];
+    if (!editing) {
+      rules.push({ field: 'password', label: 'Password' });
+    }
+    if (form.tier === 'department_admin') {
+      rules.push({ field: 'departmentId', label: 'Department' });
+    }
+    const { fieldErrors: next, message } = requireFields(
+      { ...form },
+      rules,
+    );
+    if (message) {
+      setFieldErrors(next);
+      toast(message, 'error');
+      scrollToFirstError(next);
+      return;
+    }
+    if (!editing && form.tier === 'general_admin' && generals.length >= GENERAL_CAP) {
+      toast('Maximum of 2 General Admin slots', 'error');
+      return;
+    }
+    setFieldErrors(emptyFieldErrors());
     setSaving(true);
     try {
       if (editing) {
@@ -134,12 +177,6 @@ export function AdminsPage() {
         await apiPatch(`${ENDPOINTS.admins}/${editing.id}`, body);
         toast('Admin updated', 'success');
       } else {
-        if (form.tier === 'general_admin' && generals.length >= GENERAL_CAP) {
-          throw { message: 'Maximum of 2 General Admin slots' };
-        }
-        if (form.tier === 'department_admin' && !form.departmentId) {
-          throw { message: 'Select a department' };
-        }
         const body: PlatformAdminWrite = {
           tier: form.tier as any,
           name: form.name,
@@ -149,7 +186,6 @@ export function AdminsPage() {
           password: form.password,
           departmentId: form.departmentId || undefined,
         };
-        if (!form.password) throw { message: 'Password is required' };
         await apiPost(ENDPOINTS.admins, body);
         toast('Admin created', 'success');
       }
@@ -163,7 +199,10 @@ export function AdminsPage() {
       }
       setOpen(false);
     } catch (err) {
-      toast(getErrorMessage(err), 'error');
+      const failure = apiFailureFieldErrors(err);
+      setFieldErrors(failure.fieldErrors);
+      toast(failure.message, 'error');
+      scrollToFirstError(failure.fieldErrors);
     } finally {
       setSaving(false);
     }
@@ -183,7 +222,7 @@ export function AdminsPage() {
         'success',
       );
     } catch (err) {
-      toast(getErrorMessage(err), 'error');
+      toast(apiFailureFieldErrors(err).message, 'error');
     }
   }
 
@@ -350,14 +389,21 @@ export function AdminsPage() {
           {!editing ? (
             <Select
               label="Admin type"
+              name="tier"
               value={form.tier}
-              onChange={(e) =>
+              onChange={(e) => {
                 setForm((f) => ({
                   ...f,
                   tier: e.target.value,
                   departmentId: '',
-                }))
-              }
+                }));
+                setFieldErrors((m) => {
+                  let next = clearFieldError(m, 'tier');
+                  next = clearFieldError(next, 'departmentId');
+                  return next;
+                });
+              }}
+              error={fieldErrors.tier}
             >
               {rolesData?.filter((role) => {
                 const r = user?.role?.toLowerCase() || '';
@@ -390,13 +436,10 @@ export function AdminsPage() {
           {form.tier === 'department_admin' ? (
             <Select
               label="Department"
+              name="departmentId"
               value={form.departmentId}
-              onChange={(e) =>
-                setForm((f) => ({
-                  ...f,
-                  departmentId: e.target.value,
-                }))
-              }
+              onChange={(e) => patchForm('departmentId', e.target.value)}
+              error={fieldErrors.departmentId}
               required
             >
               <option value="">Select department</option>
@@ -409,39 +452,45 @@ export function AdminsPage() {
           ) : null}
           <Input
             label="Full name"
+            name="name"
             value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            onChange={(e) => patchForm('name', e.target.value)}
+            error={fieldErrors.name}
             required
           />
           <Input
             label="Phone"
+            name="phone"
             value={form.phone}
-            onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))}
+            onChange={(e) => patchForm('phone', e.target.value)}
+            error={fieldErrors.phone}
             required
           />
           <Input
             label="Email"
+            name="email"
             type="email"
             value={form.email}
-            onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))}
+            onChange={(e) => patchForm('email', e.target.value)}
+            error={fieldErrors.email}
             required
           />
           <Input
             label="Password"
+            name="password"
             type="password"
             value={form.password}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, password: e.target.value }))
-            }
+            onChange={(e) => patchForm('password', e.target.value)}
+            error={fieldErrors.password}
             required={!editing}
             hint={editing ? 'Leave blank to keep current password' : undefined}
           />
           <Input
             label="Address"
+            name="address"
             value={form.address}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, address: e.target.value }))
-            }
+            onChange={(e) => patchForm('address', e.target.value)}
+            error={fieldErrors.address}
             required
           />
         </form>

@@ -2,7 +2,6 @@ import { useMemo, useState, type FormEvent } from 'react';
 import { Link } from 'react-router-dom';
 import { Building2, Plus, Users } from 'lucide-react';
 import { apiDelete, apiPut, apiPost } from '@/api/axios-helpers';
-import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
 import { CanAccess } from '@/components/auth/CanAccess';
@@ -21,6 +20,14 @@ import { ListPageSkeleton } from '@/components/ui/skeletons';
 import { useToast } from '@/components/ui/Toast';
 import { DepartmentCard } from '@/pages/super-admin/departments/DepartmentCard';
 import { useListFilters } from '@/hooks/useListFilters';
+import {
+  apiFailureFieldErrors,
+  clearFieldError,
+  emptyFieldErrors,
+  requireFields,
+  scrollToFirstError,
+  type FieldErrors,
+} from '@/lib/form-errors';
 import { cn } from '@/lib/utils';
 import type {
   Department,
@@ -62,6 +69,9 @@ export function DepartmentsPage() {
   const [editing, setEditing] = useState<Department | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
   const [hodId, setHodId] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>(emptyFieldErrors);
+  const [assignFieldErrors, setAssignFieldErrors] =
+    useState<FieldErrors>(emptyFieldErrors);
   const [saving, setSaving] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState<Department | null>(null);
 
@@ -103,6 +113,7 @@ export function DepartmentsPage() {
   function openCreate() {
     setEditing(null);
     setForm(emptyForm);
+    setFieldErrors(emptyFieldErrors());
     setOpen(true);
   }
 
@@ -112,11 +123,28 @@ export function DepartmentsPage() {
       name: dept.name,
       description: dept.description ?? '',
     });
+    setFieldErrors(emptyFieldErrors());
     setOpen(true);
+  }
+
+  function patchForm<K extends keyof FormState>(key: K, value: FormState[K]) {
+    setForm((f) => ({ ...f, [key]: value }));
+    setFieldErrors((m) => clearFieldError(m, key));
   }
 
   async function onSave(e: FormEvent) {
     e.preventDefault();
+    const { fieldErrors: next, message } = requireFields(
+      { ...form },
+      [{ field: 'name', label: 'Name' }],
+    );
+    if (message) {
+      setFieldErrors(next);
+      toast(message, 'error');
+      scrollToFirstError(next);
+      return;
+    }
+    setFieldErrors(emptyFieldErrors());
     setSaving(true);
     try {
       const body: DepartmentWrite = {
@@ -133,7 +161,10 @@ export function DepartmentsPage() {
       await mutate();
       setOpen(false);
     } catch (err) {
-      toast(getErrorMessage(err), 'error');
+      const failure = apiFailureFieldErrors(err);
+      setFieldErrors(failure.fieldErrors);
+      toast(failure.message, 'error');
+      scrollToFirstError(failure.fieldErrors);
     } finally {
       setSaving(false);
     }
@@ -150,13 +181,24 @@ export function DepartmentsPage() {
         'success',
       );
     } catch (err) {
-      toast(getErrorMessage(err), 'error');
+      toast(apiFailureFieldErrors(err).message, 'error');
     }
   }
 
   async function assignHod(e: FormEvent) {
     e.preventDefault();
-    if (!assignOpen || !hodId) return;
+    if (!assignOpen) return;
+    const { fieldErrors: next, message } = requireFields(
+      { hodAdminId: hodId },
+      [{ field: 'hodAdminId', label: 'Department Admin' }],
+    );
+    if (message) {
+      setAssignFieldErrors(next);
+      toast(message, 'error');
+      scrollToFirstError(next);
+      return;
+    }
+    setAssignFieldErrors(emptyFieldErrors());
     setSaving(true);
     try {
       await apiPut(`${ENDPOINTS.departments}/${assignOpen.id}`, {
@@ -167,7 +209,10 @@ export function DepartmentsPage() {
       setAssignOpen(null);
       setHodId('');
     } catch (err) {
-      toast(getErrorMessage(err), 'error');
+      const failure = apiFailureFieldErrors(err);
+      setAssignFieldErrors(failure.fieldErrors);
+      toast(failure.message, 'error');
+      scrollToFirstError(failure.fieldErrors);
     } finally {
       setSaving(false);
     }
@@ -181,7 +226,7 @@ export function DepartmentsPage() {
       toast('Department archived', 'success');
       setConfirmArchive(null);
     } catch (err) {
-      toast(getErrorMessage(err), 'error');
+      toast(apiFailureFieldErrors(err).message, 'error');
     }
   }
 
@@ -269,6 +314,7 @@ export function DepartmentsPage() {
                 onAssignHod={(d) => {
                   setAssignOpen(d);
                   setHodId('');
+                  setAssignFieldErrors(emptyFieldErrors());
                 }}
                 onToggleFreeze={(d) => void toggleFreeze(d)}
                 onArchive={setConfirmArchive}
@@ -296,16 +342,18 @@ export function DepartmentsPage() {
         <form id="dept-form" className="space-y-3" onSubmit={(e) => void onSave(e)}>
           <Input
             label="Name"
+            name="name"
             value={form.name}
-            onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))}
+            onChange={(e) => patchForm('name', e.target.value)}
+            error={fieldErrors.name}
             required
           />
           <Input
             label="Description"
+            name="description"
             value={form.description}
-            onChange={(e) =>
-              setForm((f) => ({ ...f, description: e.target.value }))
-            }
+            onChange={(e) => patchForm('description', e.target.value)}
+            error={fieldErrors.description}
           />
         </form>
       </Modal>
@@ -328,7 +376,6 @@ export function DepartmentsPage() {
               type="submit"
               form="assign-hod-form"
               isLoading={saving}
-              disabled={!hodId}
             >
               Assign
             </Button>
@@ -342,8 +389,13 @@ export function DepartmentsPage() {
         >
           <Select
             label="Department Admin"
+            name="hodAdminId"
             value={hodId}
-            onChange={(e) => setHodId(e.target.value)}
+            onChange={(e) => {
+              setHodId(e.target.value);
+              setAssignFieldErrors((m) => clearFieldError(m, 'hodAdminId'));
+            }}
+            error={assignFieldErrors.hodAdminId}
             required
           >
             <option value="">Select admin</option>

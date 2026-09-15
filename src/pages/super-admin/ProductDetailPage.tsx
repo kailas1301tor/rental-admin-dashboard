@@ -399,7 +399,9 @@ export function ProductDetailPage() {
               <InfoRow
                 label="Insurance"
                 value={
-                  insuranceCovered ? (
+                  insuranceCovered == null ? (
+                    '—'
+                  ) : insuranceCovered ? (
                     <span className="inline-flex items-center gap-1.5 font-medium text-success">
                       <CheckCircle2 className="h-4 w-4" aria-hidden />
                       Covered
@@ -412,14 +414,18 @@ export function ProductDetailPage() {
               <div className="sm:col-span-2">
                 <dt className="text-text-muted">Tags</dt>
                 <dd className="mt-1.5 flex flex-wrap gap-1.5">
-                  {tags.map((t) => (
-                    <span
-                      key={t}
-                      className="rounded-full border border-border bg-canvas px-2.5 py-0.5 text-[11px] font-medium text-text-secondary"
-                    >
-                      {t}
-                    </span>
-                  ))}
+                  {(tags ?? []).length === 0 ? (
+                    <span className="text-sm text-text-muted">—</span>
+                  ) : (
+                    tags.map((t) => (
+                      <span
+                        key={t}
+                        className="rounded-full border border-border bg-canvas px-2.5 py-0.5 text-[11px] font-medium text-text-secondary"
+                      >
+                        {t}
+                      </span>
+                    ))
+                  )}
                 </dd>
               </div>
             </dl>

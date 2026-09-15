@@ -48,7 +48,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const verifyOtp = useCallback(
     async (otp: string) => {
-      const email = pendingEmail ?? 'super@platform.admin';
+      if (!pendingEmail) {
+        throw { message: 'Start login again to request a new OTP', status: 400 };
+      }
+      const email = pendingEmail;
       const session = await apiPost<{ access: string; refresh: string; role?: string }>(ENDPOINTS.authVerifyOtp, {
         email,
         otp_code: otp,

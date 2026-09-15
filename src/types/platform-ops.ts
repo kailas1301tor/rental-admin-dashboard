@@ -46,7 +46,7 @@ export interface ServiceDetail {
   bookings: BookingSummaryExtended[];
   createdAt: string;
   updatedAt: string;
-  insuranceCovered: boolean;
+  insuranceCovered: boolean | null;
   tags: string[];
   activity: Array<{
     id: string;
@@ -170,6 +170,42 @@ export interface DealDeskMessage {
   authorName: string;
   body: string;
   createdAt: string;
+}
+
+/** Vendor listing promotional deal awaiting / past admin review. */
+export type ListingDealStatus =
+  | 'pending_review'
+  | 'active'
+  | 'rejected'
+  | 'cancelled'
+  | 'expired';
+
+export type ListingDealPricingMode = 'percent' | 'fixed';
+
+export interface ListingDeal {
+  id: string;
+  title: string;
+  terms: string;
+  pricingMode: ListingDealPricingMode;
+  discountPercent: number;
+  dealPricePerDayInr: number;
+  originalPricePerDayInr: number;
+  startsAt: string | null;
+  endsAt: string | null;
+  status: ListingDealStatus;
+  rejectionReason?: string;
+  submittedAt?: string | null;
+  reviewedAt?: string | null;
+  listingKind: ListingKind;
+  productId?: string | null;
+  serviceId?: string | null;
+  listingId?: string | null;
+  listingName: string;
+  listingImage?: string;
+  rboId: string;
+  rboName: string;
+  districtId?: string;
+  createdAt?: string | null;
 }
 
 export type PlatformNotificationAudience = 'admin' | 'vendor' | 'customer';

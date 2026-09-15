@@ -1,92 +1,48 @@
 import useSWR, { type SWRConfiguration, type SWRResponse } from 'swr';
 import { axiosClient, normalizeApiError } from '@/api/axios-client';
-import { mockRequest } from '@/mocks/mock-router';
 
-const useMocks = () => import.meta.env.VITE_USE_MOCKS !== 'false';
+function unwrapData<T>(payload: unknown): T {
+  if (
+    payload &&
+    typeof payload === 'object' &&
+    'success' in payload &&
+    (payload as { success?: boolean; data?: unknown }).data !== undefined
+  ) {
+    return (payload as unknown as { data: T }).data;
+  }
+  if (
+    payload &&
+    typeof payload === 'object' &&
+    'results' in payload &&
+    (payload as { results?: { data?: unknown } }).results?.data !== undefined
+  ) {
+    return (payload as unknown as { results: { data: T } }).results.data;
+  }
+  return payload as T;
+}
 
-const BYPASS_MOCKS = [
-  '/admin/admins',
-  '/admin/super-admins',
-  '/admin/general-admins',
-  '/admin/department-admins',
-  '/admin/roles/dropdown',
-  '/admin/departments',
-  '/admin/permissions',
-  '/admin/category-schemas',
-  '/admin/analytics',
-  '/auth/login/step-1',
-  '/auth/login/step-2',
-  '/admin/profile',
-  '/auth',
-  '/roles/groups',
-  '/roles/permissions',
-  '/roles/group-permissions',
-  '/admin/staff',
-  '/admin/login-alerts',
-  '/admin/login-alerts/stats',
-  '/admin/activity-log',
-  '/admin/users',
-  '/admin/rbos',
-  '/admin/listings',
-  '/admin/products',
-  '/admin/services',
-  '/admin/bookings',
-  '/admin/categories',
-  '/admin/subcategories',
-  '/admin/deal-desk',
-  '/admin/notifications',
-  '/admin/settings',
-  '/admin/dashboard',
-  '/admin/reports',
-  '/admin/approval-overrides',
-  '/admin/reviews',
-  '/admin/audit-logs',
-];
-
-function shouldMock(url: string): boolean {
-  if (!useMocks()) return false;
-  const baseUrl = url.split('?')[0];
-  return !BYPASS_MOCKS.some((bypass) => baseUrl === bypass || baseUrl.startsWith(`${bypass}/`));
+function toBackendUrl(url: string): string {
+  return url.startsWith('/api') ? url : `/api${url}`;
 }
 
 async function apiFetcher<T>(url: string): Promise<T> {
-  if (shouldMock(url)) {
-    try {
-      return await mockRequest<T>('get', url);
-    } catch (error) {
-      throw normalizeApiError(error);
-    }
-  }
-
   try {
-    const backendUrl = url.startsWith('/api') ? url : `/api${url}`;
-    const response = await axiosClient.get<any>(backendUrl);
-    if (response.data?.success !== undefined && response.data?.data !== undefined) {
-      return response.data.data as T;
-    }
-    if (response.data?.results?.data !== undefined) {
-      return response.data.results.data as T;
-    }
-    return response.data as T;
+    const response = await axiosClient.get(toBackendUrl(url));
+    return unwrapData<T>(response.data);
   } catch (error) {
     throw normalizeApiError(error);
   }
 }
 
 async function paginatedApiFetcher<T>(url: string): Promise<T> {
-  if (shouldMock(url)) {
-    try {
-      return await mockRequest<T>('get', url);
-    } catch (error) {
-      throw normalizeApiError(error);
-    }
-  }
-
   try {
-    const backendUrl = url.startsWith('/api') ? url : `/api${url}`;
-    const response = await axiosClient.get<any>(backendUrl);
-    if (response.data?.results !== undefined) {
-      return response.data.results as T;
+    const response = await axiosClient.get(toBackendUrl(url));
+    if (
+      response.data &&
+      typeof response.data === 'object' &&
+      'results' in response.data
+    ) {
+      return (response.data as { results: T }).results;
     }
     return response.data as T;
   } catch (error) {

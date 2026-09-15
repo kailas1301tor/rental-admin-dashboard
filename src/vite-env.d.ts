@@ -2,7 +2,8 @@
 
 interface ImportMetaEnv {
   readonly VITE_API_BASE_URL: string;
-  readonly VITE_USE_MOCKS: string;
+  readonly VITE_TURNSTILE_SITE_KEY?: string;
+  readonly NEXT_PUBLIC_TURNSTILE_SITE_KEY?: string;
 }
 
 interface ImportMeta {

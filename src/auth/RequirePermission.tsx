@@ -6,23 +6,27 @@ import {
   firstAllowedPath,
   isSuperAdmin,
 } from '@/auth/permissions';
+import { useRBAC } from '@/auth/useRBAC';
 import { DetailPageSkeleton } from '@/components/ui/skeletons';
 import type { PermissionModule } from '@/types';
 import type { ReactNode } from 'react';
 
 export function RequirePermission({
   module,
+  permission,
   level = 'view',
   superAdminOnly,
   children,
 }: {
   module?: PermissionModule;
+  permission?: string;
   level?: 'view' | 'manage';
   superAdminOnly?: boolean;
   children: ReactNode;
 }) {
   const { user } = useAuth();
   const { permissions, isLoading } = useProfile();
+  const { hasPermission } = useRBAC();
 
   if (isLoading) {
     return <DetailPageSkeleton />;
@@ -30,6 +34,14 @@ export function RequirePermission({
 
   if (superAdminOnly) {
     if (!isSuperAdmin(user)) {
+      const fallback = firstAllowedPath(permissions, user);
+      return <Navigate to={fallback ?? '/unauthorized'} replace />;
+    }
+    return children;
+  }
+
+  if (permission) {
+    if (!hasPermission(permission)) {
       const fallback = firstAllowedPath(permissions, user);
       return <Navigate to={fallback ?? '/unauthorized'} replace />;
     }

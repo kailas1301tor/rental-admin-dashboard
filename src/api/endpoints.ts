@@ -36,6 +36,7 @@ export const ENDPOINTS = {
   reviewsModeration: '/admin/reviews',
   supportConversations: '/admin/support/conversations',
   dealDeskInquiries: '/admin/deal-desk/inquiries',
+  deals: '/admin/deals',
   notifications: '/admin/notifications',
   settings: '/admin/settings',
   roles: '/roles/groups',

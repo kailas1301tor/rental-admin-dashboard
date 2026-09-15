@@ -38,7 +38,7 @@ import { useToast } from '@/components/ui/Toast';
 import { RboDetailProductMobileCard } from '@/pages/super-admin/rbos/RboDetailProductMobileCard';
 import { RboDetailReviewMobileCard } from '@/pages/super-admin/rbos/RboDetailReviewMobileCard';
 import { RboDetailStaffMobileCard } from '@/pages/super-admin/rbos/RboDetailStaffMobileCard';
-import { kycTypeLabel } from '@/mocks/kyc-documents';
+import { kycTypeLabel } from '@/lib/kyc';
 import { BOOKING_VALUE_LABEL } from '@/lib/metrics';
 import { categoryPathLabel } from '@/lib/category-helpers';
 import { cn, formatDateTime, formatInr } from '@/lib/utils';
@@ -466,7 +466,11 @@ function OverviewTab({
         />
         <MetricCard
           label="Response time"
-          value={`${metrics.responseTimeHours.toFixed(1)}h`}
+          value={
+            metrics.responseTimeHours == null
+              ? '—'
+              : `${metrics.responseTimeHours.toFixed(1)}h`
+          }
           delta={metrics.deltas.response}
           icon={Clock3}
           invertDelta

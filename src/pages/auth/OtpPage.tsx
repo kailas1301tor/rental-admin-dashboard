@@ -4,14 +4,23 @@ import { useAuth } from '@/auth/AuthContext';
 import { Button } from '@/components/ui/Button';
 import { Input } from '@/components/ui/Input';
 import { Card } from '@/components/ui/Card';
+import { useToast } from '@/components/ui/Toast';
 import { ThemeToggle } from '@/theme/theme-toggle';
-import { getErrorMessage } from '@/api/axios-client';
+import {
+  apiFailureFieldErrors,
+  clearFieldError,
+  emptyFieldErrors,
+  requireFields,
+  scrollToFirstError,
+  type FieldErrors,
+} from '@/lib/form-errors';
 
 export function OtpPage() {
   const { isAuthenticated, pendingEmail, verifyOtp } = useAuth();
+  const { toast } = useToast();
   const navigate = useNavigate();
-  const [otp, setOtp] = useState('123456');
-  const [error, setError] = useState<string | null>(null);
+  const [otp, setOtp] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>(emptyFieldErrors);
   const [loading, setLoading] = useState(false);
 
   if (isAuthenticated) {
@@ -24,13 +33,26 @@ export function OtpPage() {
 
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
-    setError(null);
+    const { fieldErrors: next, message } = requireFields(
+      { otp },
+      [{ field: 'otp', label: 'One-time password' }],
+    );
+    if (message) {
+      setFieldErrors(next);
+      toast(message, 'error');
+      scrollToFirstError(next);
+      return;
+    }
+    setFieldErrors(emptyFieldErrors());
     setLoading(true);
     try {
       await verifyOtp(otp);
       navigate('/');
     } catch (err) {
-      setError(getErrorMessage(err));
+      const failure = apiFailureFieldErrors(err);
+      setFieldErrors(failure.fieldErrors);
+      toast(failure.message, 'error');
+      scrollToFirstError(failure.fieldErrors);
     } finally {
       setLoading(false);
     }
@@ -52,14 +74,18 @@ export function OtpPage() {
           <form className="mt-6 space-y-4" onSubmit={onSubmit}>
             <Input
               label="One-time password"
+              name="otp"
               inputMode="numeric"
               autoComplete="one-time-code"
               value={otp}
-              onChange={(e) => setOtp(e.target.value)}
-              hint="Use any 4+ digit code in mock mode"
+              onChange={(e) => {
+                setOtp(e.target.value);
+                setFieldErrors((m) => clearFieldError(m, 'otp'));
+              }}
+              error={fieldErrors.otp}
+              hint="Enter the OTP sent to your email"
               required
             />
-            {error ? <p className="text-sm text-danger">{error}</p> : null}
             <Button type="submit" className="w-full" isLoading={loading}>
               Verify & enter dashboard
             </Button>

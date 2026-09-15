@@ -3,6 +3,7 @@ import {
   Building2,
   Briefcase,
   Bell,
+  BadgePercent,
   CalendarDays,
   ClipboardCheck,
   ContactRound,
@@ -89,6 +90,13 @@ export const APP_NAV: NavItem[] = [
     icon: Package,
     section: 'operations',
     permissions: ['view_product', 'view_service'],
+  },
+  {
+    to: '/listing-deals',
+    label: 'Listing Deals',
+    icon: BadgePercent,
+    section: 'operations',
+    permissions: ['view_listingdeal'],
   },
   {
     to: '/bookings',

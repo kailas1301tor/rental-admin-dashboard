@@ -436,7 +436,7 @@ export interface BookingSummary {
 export interface RboVendorMetrics {
   totalBookings: number;
   totalRevenueInr: number;
-  responseTimeHours: number;
+  responseTimeHours: number | null;
   completionRatePct: number;
   cancellationRatePct: number;
   deltas: {
@@ -476,7 +476,7 @@ export interface ProductDetail {
   bookings: BookingSummary[];
   createdAt: string;
   updatedAt: string;
-  insuranceCovered: boolean;
+  insuranceCovered: boolean | null;
   tags: string[];
   activity: RboActivityEvent[];
   metrics: {
@@ -672,8 +672,8 @@ export interface ReportOverview {
 
 export interface ReportBookings {
   byStatus: { name: string; value: number }[];
-  cancellationSeries: { label: string; count: number }[];
-  volumeSeries: { label: string; count: number }[];
+  cancellationSeries: { date?: string; label: string; count: number }[];
+  volumeSeries: { date?: string; label: string; count: number }[];
 }
 
 export interface ReportProducts {
@@ -691,16 +691,19 @@ export interface ReportRbos {
 export interface ReportCustomer {
   id: string;
   name: string;
-  negativeReviews: number;
-  riskScore: number;
-  flag: string;
+  negativeReviews: number | null;
+  riskScore: number | null;
+  flag: string | null;
   lastIncidentAt: string;
 }
+
+export type ApiFieldErrors = Record<string, string | string[]>;
 
 export interface ApiErrorShape {
   message: string;
   status?: number;
   code?: string;
+  errors?: ApiFieldErrors;
 }
 
 export type {
@@ -719,6 +722,9 @@ export type {
   DealDeskInquiry,
   DealDeskMessage,
   DealDeskStatus,
+  ListingDeal,
+  ListingDealPricingMode,
+  ListingDealStatus,
   ListingKind,
   ModerationReview,
   PlatformNotification,

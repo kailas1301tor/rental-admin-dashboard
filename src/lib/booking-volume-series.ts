@@ -1,5 +1,4 @@
 import { addDays, toIsoDate } from '@/lib/date-range';
-import { enumerateDays } from '@/lib/booking-series';
 import type { BookingSeriesGranularity } from '@/lib/booking-series';
 
 export interface BookingVolumePoint {
@@ -15,14 +14,6 @@ export interface BookingVolumeStats {
   average: number;
   peak: number;
   peakLabel: string;
-}
-
-function dayCountWeight(from: string, to: string, index: number): number {
-  let seed = 0;
-  for (const ch of `${from}${to}${index}`) {
-    seed = (seed * 31 + ch.charCodeAt(0)) % 997;
-  }
-  return 0.65 + (seed % 70) / 100;
 }
 
 function fullDateLabel(iso: string): string {
@@ -67,35 +58,23 @@ function dailyAxisLabel(iso: string): string {
   }).format(new Date(`${iso}T12:00:00`));
 }
 
-export function buildDailyBookingVolume(
-  from: string,
-  to: string,
-  totalCount: number,
+/** Map API daily volume points into chart points (no invented values). */
+export function toBookingVolumePoints(
+  rows: Array<{ date?: string; label?: string; count: number }>,
 ): BookingVolumePoint[] {
-  const days = enumerateDays(from, to);
-  if (days.length === 0) return [];
-
-  const weights = days.map((_, i) => dayCountWeight(from, to, i));
-  const sum = weights.reduce((a, b) => a + b, 0) || 1;
-
-  const points = days.map((date, i) => ({
-    date,
-    count: Math.max(1, Math.round((totalCount * weights[i]) / sum)),
-    label: dailyAxisLabel(date),
-    groupLabel: fullDateLabel(date),
-    fullDateLabel: fullDateLabel(date),
-  }));
-
-  const actual = points.reduce((s, p) => s + p.count, 0);
-  const drift = totalCount - actual;
-  if (points.length > 0 && drift !== 0) {
-    points[points.length - 1].count = Math.max(
-      1,
-      points[points.length - 1].count + drift,
-    );
-  }
-
-  return points;
+  return rows
+    .filter((row) => Boolean(row.date) || Boolean(row.label))
+    .map((row) => {
+      const date = row.date || row.label || '';
+      return {
+        date,
+        count: row.count,
+        label: row.date ? dailyAxisLabel(row.date) : row.label || '',
+        groupLabel: row.date ? fullDateLabel(row.date) : row.label || '',
+        fullDateLabel: row.date ? fullDateLabel(row.date) : row.label || '',
+      };
+    })
+    .sort((a, b) => a.date.localeCompare(b.date));
 }
 
 export function aggregateBookingVolume(
@@ -107,6 +86,9 @@ export function aggregateBookingVolume(
   const buckets = new Map<string, BookingVolumePoint>();
 
   for (const point of daily) {
+    if (!/^\d{4}-\d{2}-\d{2}/.test(point.date)) {
+      continue;
+    }
     const key =
       view === 'week' ? weekStart(point.date) : point.date.slice(0, 7);
     const label =
@@ -134,13 +116,10 @@ export function aggregateBookingVolume(
 }
 
 export function buildBookingVolumeSeries(
-  from: string,
-  to: string,
-  totalCount: number,
+  rows: Array<{ date?: string; label?: string; count: number }>,
   view: BookingSeriesGranularity,
 ): BookingVolumePoint[] {
-  const daily = buildDailyBookingVolume(from, to, totalCount);
-  return aggregateBookingVolume(daily, view);
+  return aggregateBookingVolume(toBookingVolumePoints(rows), view);
 }
 
 export function bookingVolumeStats(
@@ -168,11 +147,11 @@ export function bookingVolumeAverageLabel(
   view: BookingSeriesGranularity,
 ): string {
   switch (view) {
-    case 'day':
-      return 'Daily average';
     case 'week':
-      return 'Weekly average';
+      return 'Avg / week';
     case 'month':
-      return 'Monthly average';
+      return 'Avg / month';
+    default:
+      return 'Avg / day';
   }
 }
