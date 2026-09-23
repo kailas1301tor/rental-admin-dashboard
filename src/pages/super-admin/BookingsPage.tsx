@@ -6,7 +6,7 @@ import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR, usePaginatedApiSWR } from '@/api/swr-helpers';
 import { BookingMobileCard } from '@/components/ui/BookingMobileCard';
 import { Card } from '@/components/ui/Card';
-import { selectControlClass, filterSelectClass, searchControlClass } from '@/components/ui/control-styles';
+import { selectControlClass, searchControlClass } from '@/components/ui/control-styles';
 import { EmptyState, ErrorState } from '@/components/ui/States';
 import { ListPageSkeleton } from '@/components/ui/skeletons';
 import { Table, TableShell, Th } from '@/components/ui/Table';

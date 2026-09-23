@@ -3,17 +3,14 @@ import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
 import { NavigableListCard } from '@/components/ui/NavigableListCard';
 import { cn, formatDateTime } from '@/lib/utils';
-import { departmentLabel } from '@/lib/departments';
-import type { Department, PlatformStaff } from '@/types';
+import type { PlatformStaff } from '@/types';
 
 export function StaffMobileCard({
   staff,
-  deptList,
   onEdit,
   onToggleFreeze,
 }: {
   staff: PlatformStaff;
-  deptList: Department[];
   onEdit: () => void;
   onToggleFreeze: () => void;
 }) {

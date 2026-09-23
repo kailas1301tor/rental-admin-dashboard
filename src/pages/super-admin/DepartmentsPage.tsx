@@ -79,7 +79,9 @@ export function DepartmentsPage() {
   const staffCountByDept = useMemo(() => {
     const m = new Map<string, number>();
     for (const s of staff ?? []) {
-      m.set(s.departmentId, (m.get(s.departmentId) ?? 0) + 1);
+      const departmentId = s.departmentId ?? s.department?.id;
+      if (!departmentId) continue;
+      m.set(departmentId, (m.get(departmentId) ?? 0) + 1);
     }
     return m;
   }, [staff]);

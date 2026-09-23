@@ -20,7 +20,6 @@ import {
   UserCog,
   Users,
 } from 'lucide-react';
-import type { PermissionModule } from '@/types';
 
 export type NavSection =
   | 'operations'

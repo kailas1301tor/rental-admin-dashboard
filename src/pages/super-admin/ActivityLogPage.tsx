@@ -277,8 +277,12 @@ export function ActivityLogPage() {
                     `/api${ENDPOINTS.activityLog}?${exportParams.toString()}`,
                     { responseType: 'blob' },
                   );
+                  const contentType = response.headers['content-type'];
                   const blob = new Blob([response.data], {
-                    type: response.headers['content-type'] || 'text/csv',
+                    type:
+                      typeof contentType === 'string'
+                        ? contentType
+                        : 'text/csv',
                   });
                   const url = URL.createObjectURL(blob);
                   const anchor = document.createElement('a');

@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { getErrorMessage } from '@/api/axios-client';
 import { ENDPOINTS } from '@/api/endpoints';
 import { useApiSWR } from '@/api/swr-helpers';
@@ -78,7 +78,16 @@ export function PermissionsPage() {
   }
 
   if (rolesError || permissionsError) {
-    return <ErrorState message={rolesError?.message || permissionsError?.message} onRetry={() => void mutateRoles()} />;
+    return (
+      <ErrorState
+        message={
+          rolesError?.message ??
+          permissionsError?.message ??
+          'Failed to load permissions'
+        }
+        onRetry={() => void mutateRoles()}
+      />
+    );
   }
 
   return (

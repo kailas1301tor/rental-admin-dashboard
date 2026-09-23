@@ -32,7 +32,6 @@ import {
   type FieldErrors,
   type RequireRule,
 } from '@/lib/form-errors';
-import { districtLabel } from '@/lib/kerala-districts';
 import { cn } from '@/lib/utils';
 import type {
   AdminTier,
@@ -76,7 +75,7 @@ export function AdminsPage() {
   const { data: rolesData } = useApiSWR<{ id: string; name: string }[]>(ENDPOINTS.adminRolesDropdown);
 
   const { data: deptData } = useApiSWR<Department[]>(ENDPOINTS.departments);
-  const { filters, setFilters, reset, matchesDistrict } = useListFilters();
+  const { filters, setFilters, reset } = useListFilters();
   const { user } = useAuth();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<PlatformAdmin | null>(null);
@@ -343,7 +342,6 @@ export function AdminsPage() {
         >
           <AdminTable
             rows={supers}
-            deptList={deptList}
             readOnly
             onEdit={openEdit}
             onFreeze={toggleFreeze}
@@ -364,7 +362,6 @@ export function AdminsPage() {
         >
           <AdminTable
             rows={generals}
-            deptList={deptList}
             onEdit={openEdit}
             onFreeze={toggleFreeze}
             canApprove={isSuperAdmin}
@@ -386,7 +383,6 @@ export function AdminsPage() {
         >
           <AdminTable
             rows={departmentAdmins}
-            deptList={deptList}
             showDepartment
             onEdit={openEdit}
             onFreeze={toggleFreeze}
@@ -596,7 +592,6 @@ function TierSection({
 
 function adminSubtitle(
   admin: PlatformAdmin,
-  deptList: Department[],
   showDepartment?: boolean,
 ) {
   if (showDepartment && admin.department) {
@@ -613,7 +608,6 @@ function adminSubtitle(
 
 function AdminTable({
   rows,
-  deptList,
   readOnly,
   showDepartment,
   onEdit,
@@ -622,7 +616,6 @@ function AdminTable({
   onApprove,
 }: {
   rows: PlatformAdmin[];
-  deptList: Department[];
   readOnly?: boolean;
   showDepartment?: boolean;
   onEdit: (a: PlatformAdmin) => void;
@@ -640,7 +633,7 @@ function AdminTable({
         <AdminCard
           key={admin.id}
           admin={admin}
-          subtitle={adminSubtitle(admin, deptList, showDepartment)}
+          subtitle={adminSubtitle(admin, showDepartment)}
           readOnly={readOnly}
           canApprove={canApprove}
           onEdit={onEdit}

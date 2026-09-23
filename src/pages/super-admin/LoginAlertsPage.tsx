@@ -37,18 +37,6 @@ const ROLE_TABS: { id: RoleTab; label: string }[] = [
   { id: 'unknown', label: 'Unknown' },
 ];
 
-function classifyRole(role: string): Exclude<RoleTab, 'all'> {
-  const r = role.trim().toLowerCase();
-  if (!r || r === '—' || r === '-' || r === 'unknown') return 'unknown';
-  if (r.includes('super admin') || r === 'super_admin') return 'super_admin';
-  if (r.includes('general admin') || r === 'general_admin') return 'general_admin';
-  if (r.includes('hod') || r.includes('department admin') || r === 'department_admin') return 'department_admin';
-  if (r.includes('staff')) return 'staff';
-  if (r === 'rbo' || r.includes('rbo') || r.includes('vendor')) return 'rbo';
-  if (r.includes('customer')) return 'customer';
-  return 'unknown';
-}
-
 export function LoginAlertsPage() {
   const [roleTab, setRoleTab] = useState<RoleTab>('all');
   const [query, setQuery] = useState('');

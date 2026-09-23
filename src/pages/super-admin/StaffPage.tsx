@@ -24,7 +24,6 @@ import {
 import { useToast } from '@/components/ui/Toast';
 import { useListFilters } from '@/hooks/useListFilters';
 import { StaffMobileCard } from '@/pages/super-admin/staff/StaffMobileCard';
-import { departmentLabel } from '@/lib/departments';
 import {
   apiFailureFieldErrors,
   clearFieldError,
@@ -64,7 +63,7 @@ export function StaffPage() {
     `${ENDPOINTS.staff}?${searchParams.toString()}`,
   );
   const { data: deptData } = useApiSWR<Department[]>(ENDPOINTS.departments);
-  const { filters, setFilters, reset, matchesDistrict } = useListFilters();
+  const { filters, setFilters, reset } = useListFilters();
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<PlatformStaff | null>(null);
   const [form, setForm] = useState<FormState>(empty);
@@ -229,7 +228,6 @@ export function StaffPage() {
               <StaffMobileCard
                 key={row.id}
                 staff={row}
-                deptList={deptList}
                 onEdit={() => openEdit(row)}
                 onToggleFreeze={() => void toggleFreeze(row)}
               />

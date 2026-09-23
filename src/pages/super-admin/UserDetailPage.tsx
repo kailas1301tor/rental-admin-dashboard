@@ -2,7 +2,6 @@ import { useMemo, useState, type ReactNode } from 'react';
 import {
   CheckCircle2,
   ChevronDown,
-  CreditCard,
   MapPin,
   MoreHorizontal,
   Pencil,

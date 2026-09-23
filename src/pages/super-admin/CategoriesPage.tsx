@@ -29,7 +29,6 @@ import { filterSelectClass } from '@/components/ui/control-styles';
 import { useListFilters } from '@/hooks/useListFilters';
 import {
   businessTypes,
-  matchesTaxonomyFilters,
   subcategories,
 } from '@/lib/category-helpers';
 import {
@@ -94,20 +93,6 @@ export function CategoriesPage() {
     }
     return map;
   }, [products, filters.districts]);
-
-  const visibleCategoryIds = useMemo(() => {
-    const ids = new Set<string>();
-    for (const p of products ?? []) {
-      if (!matchesDistricts(filters.districts, p.districtId)) continue;
-      ids.add(p.categoryId);
-      const sub = rows.find((c) => c.id === p.categoryId);
-      if (sub?.parentId) ids.add(sub.parentId);
-    }
-    if (filters.districts.length === 0) {
-      rows.forEach((c) => ids.add(c.id));
-    }
-    return ids;
-  }, [products, filters.districts, rows]);
 
   const bookingTotal = useMemo(
     () =>

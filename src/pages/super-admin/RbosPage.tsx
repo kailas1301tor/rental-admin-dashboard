@@ -38,7 +38,6 @@ import {
   searchControlClass,
 } from '@/components/ui/control-styles';
 import { RboMobileCard } from '@/pages/super-admin/rbos/RboMobileCard';
-import { categoryPathLabel } from '@/lib/category-helpers';
 import { apiFailureFieldErrors } from '@/lib/form-errors';
 import { cn, formatDateTime } from '@/lib/utils';
 import { useListFilters } from '@/hooks/useListFilters';
@@ -72,23 +71,6 @@ function initials(name: string) {
     .toUpperCase();
 }
 
-function withinJoined(iso: string, filter: JoinedFilter) {
-  if (filter === 'all') return true;
-  const created = new Date(iso).getTime();
-  const now = Date.now();
-  const day = 86_400_000;
-  if (filter === '30d') return now - created <= 30 * day;
-  if (filter === '90d') return now - created <= 90 * day;
-  return now - created <= 365 * day;
-}
-
-function matchesRating(rating: number, filter: RatingFilter) {
-  if (filter === 'all') return true;
-  if (filter === '4+') return rating >= 4;
-  if (filter === '3+') return rating >= 3;
-  return rating > 0 && rating < 3;
-}
-
 class ErrorBoundary extends Component<{children: ReactNode}, {hasError: boolean, error: Error | null}> {
   constructor(props: any) { super(props); this.state = { hasError: false, error: null }; }
   static getDerivedStateFromError(error: Error) { return { hasError: true, error }; }
@@ -119,8 +101,7 @@ function RbosPageInner() {
   const [assignSaving, setAssignSaving] = useState(false);
   const [actionsMenuId, setActionsMenuId] = useState<string | null>(null);
 
-  const { filters, setFilters, reset, matchesDistrict, matchesTaxonomy } =
-    useListFilters();
+  const { filters, setFilters, reset } = useListFilters();
 
   const queryParams = new URLSearchParams({
     page: page.toString(),
