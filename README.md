@@ -56,15 +56,13 @@ src/
 
 ## Getting started
 
-> App scaffolding lands with the first Super Admin implementation. Once present:
-
 ```bash
 # Install
 npm install
 
 # Local env
 cp .env.example .env
-# Set VITE_API_BASE_URL when pointing at a real API
+# Set VITE_API_BASE_URL to your Django API (e.g. http://127.0.0.1:8000)
 
 # Dev server
 npm run dev
@@ -72,6 +70,8 @@ npm run dev
 # Production build
 npm run build
 ```
+
+Open the app, sign in with a real admin account, complete the CAPTCHA checkbox, then enter the OTP (`000000` when the API runs with `DEBUG=True`).
 
 ---
 

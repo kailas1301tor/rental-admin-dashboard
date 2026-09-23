@@ -1,0 +1,21 @@
+import type { ReactNode } from 'react';
+import { cn } from '@/lib/utils';
+
+export function FilterBar({
+  children,
+  className,
+}: {
+  children: ReactNode;
+  className?: string;
+}) {
+  return (
+    <div
+      className={cn(
+        'grid grid-cols-1 gap-3 rounded-xl border border-border bg-surface p-3 sm:p-4 md:grid-cols-2 xl:grid-cols-4',
+        className,
+      )}
+    >
+      {children}
+    </div>
+  );
+}
