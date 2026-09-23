@@ -18,6 +18,9 @@ export const ENDPOINTS = {
   departments: '/admin/departments',
   categorySchemas: '/admin/category-schemas',
   rbos: '/admin/rbos',
+  /** GET/PUT `/admin/rbos/:id/assigned-staff` — platform Staff assignee for an RBO */
+  rboAssignedStaff: (rboId: string | number) =>
+    `/admin/rbos/${rboId}/assigned-staff` as const,
   products: '/admin/products',
   services: '/admin/services',
   listings: '/admin/listings',

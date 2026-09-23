@@ -1,5 +1,4 @@
 import { useMemo, useState, type FormEvent } from 'react';
-import { Link } from 'react-router-dom';
 import { Building2, Plus, Users } from 'lucide-react';
 import { apiDelete, apiPut, apiPost } from '@/api/axios-helpers';
 import { ENDPOINTS } from '@/api/endpoints';
@@ -65,13 +64,9 @@ export function DepartmentsPage() {
   const { filters, setFilters, reset } = useListFilters();
 
   const [open, setOpen] = useState(false);
-  const [assignOpen, setAssignOpen] = useState<Department | null>(null);
   const [editing, setEditing] = useState<Department | null>(null);
   const [form, setForm] = useState<FormState>(emptyForm);
-  const [hodId, setHodId] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>(emptyFieldErrors);
-  const [assignFieldErrors, setAssignFieldErrors] =
-    useState<FieldErrors>(emptyFieldErrors);
   const [saving, setSaving] = useState(false);
   const [confirmArchive, setConfirmArchive] = useState<Department | null>(null);
 
@@ -88,15 +83,6 @@ export function DepartmentsPage() {
     }
     return m;
   }, [staff]);
-
-  const eligibleHods = useMemo(() => {
-    return (deptAdmins ?? []).filter(
-      (a) =>
-        a.tier === 'department_admin' &&
-        a.status === 'active' &&
-        (!a.departmentId || a.departmentId === assignOpen?.id),
-    );
-  }, [deptAdmins, assignOpen]);
 
   const rows = useMemo(() => {
     return data ?? [];
@@ -185,39 +171,6 @@ export function DepartmentsPage() {
     }
   }
 
-  async function assignHod(e: FormEvent) {
-    e.preventDefault();
-    if (!assignOpen) return;
-    const { fieldErrors: next, message } = requireFields(
-      { hodAdminId: hodId },
-      [{ field: 'hodAdminId', label: 'Department Admin' }],
-    );
-    if (message) {
-      setAssignFieldErrors(next);
-      toast(message, 'error');
-      scrollToFirstError(next);
-      return;
-    }
-    setAssignFieldErrors(emptyFieldErrors());
-    setSaving(true);
-    try {
-      await apiPut(`${ENDPOINTS.departments}/${assignOpen.id}`, {
-        hodAdminId: hodId,
-      });
-      await mutate();
-      toast('HOD assigned', 'success');
-      setAssignOpen(null);
-      setHodId('');
-    } catch (err) {
-      const failure = apiFailureFieldErrors(err);
-      setAssignFieldErrors(failure.fieldErrors);
-      toast(failure.message, 'error');
-      scrollToFirstError(failure.fieldErrors);
-    } finally {
-      setSaving(false);
-    }
-  }
-
   async function archiveDepartment() {
     if (!confirmArchive) return;
     try {
@@ -239,7 +192,7 @@ export function DepartmentsPage() {
     <div className="space-y-6">
       <PageHeader
         title="Departments"
-        description="Manage platform departments and assign Department Admins (HODs)."
+        description="Manage platform departments."
         actions={
           <CanAccess permission="change_department">
             <Button onClick={openCreate}>
@@ -311,11 +264,6 @@ export function DepartmentsPage() {
                 hod={hod}
                 staffCount={staffCount}
                 onEdit={openEdit}
-                onAssignHod={(d) => {
-                  setAssignOpen(d);
-                  setHodId('');
-                  setAssignFieldErrors(emptyFieldErrors());
-                }}
                 onToggleFreeze={(d) => void toggleFreeze(d)}
                 onArchive={setConfirmArchive}
               />
@@ -355,62 +303,6 @@ export function DepartmentsPage() {
             onChange={(e) => patchForm('description', e.target.value)}
             error={fieldErrors.description}
           />
-        </form>
-      </Modal>
-
-      <Modal
-        open={Boolean(assignOpen)}
-        onClose={() => setAssignOpen(null)}
-        title="Assign HOD"
-        description={
-          assignOpen
-            ? `Select a Department Admin for ${assignOpen.name}.`
-            : undefined
-        }
-        footer={
-          <>
-            <Button variant="ghost" onClick={() => setAssignOpen(null)}>
-              Cancel
-            </Button>
-            <Button
-              type="submit"
-              form="assign-hod-form"
-              isLoading={saving}
-            >
-              Assign
-            </Button>
-          </>
-        }
-      >
-        <form
-          id="assign-hod-form"
-          className="space-y-3"
-          onSubmit={(e) => void assignHod(e)}
-        >
-          <Select
-            label="Department Admin"
-            name="hodAdminId"
-            value={hodId}
-            onChange={(e) => {
-              setHodId(e.target.value);
-              setAssignFieldErrors((m) => clearFieldError(m, 'hodAdminId'));
-            }}
-            error={assignFieldErrors.hodAdminId}
-            required
-          >
-            <option value="">Select admin</option>
-            {eligibleHods.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name} ({a.email})
-              </option>
-            ))}
-          </Select>
-          <p className="text-xs text-text-muted">
-            Need a new HOD?{' '}
-            <Link to="/admins" className="text-accent hover:underline">
-              Create on Admins page
-            </Link>
-          </p>
         </form>
       </Modal>
 

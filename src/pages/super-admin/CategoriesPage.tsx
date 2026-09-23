@@ -64,6 +64,9 @@ export function CategoriesPage() {
   const [description, setDescription] = useState('');
   const [level, setLevel] = useState<LevelFilter>('subcategory');
   const [parentId, setParentId] = useState('');
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [clearImage, setClearImage] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>(emptyFieldErrors);
   const [saving, setSaving] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState<Category | null>(null);
@@ -130,12 +133,19 @@ export function CategoriesPage() {
     };
   }, [rows, roots, productCounts, bookingTotal]);
 
+  function resetImageState(existingUrl?: string | null) {
+    setImageFile(null);
+    setImagePreview(existingUrl ?? null);
+    setClearImage(false);
+  }
+
   function openCreate(type: LevelFilter, parent?: string) {
     setEditing(null);
     setName('');
     setDescription('');
     setLevel(type);
     setParentId(parent ?? '');
+    resetImageState(null);
     setFieldErrors(emptyFieldErrors());
     setOpen(true);
   }
@@ -146,8 +156,20 @@ export function CategoriesPage() {
     setDescription(cat.description ?? '');
     setLevel(cat.parentId === null ? 'category' : 'subcategory');
     setParentId(cat.parentId ?? '');
+    resetImageState(cat.imageUrl ?? null);
     setFieldErrors(emptyFieldErrors());
     setOpen(true);
+  }
+
+  function onImageSelected(file: File | null) {
+    setImageFile(file);
+    setClearImage(false);
+    if (file) {
+      setImagePreview(URL.createObjectURL(file));
+      setFieldErrors((m) => clearFieldError(m, 'image'));
+    } else {
+      setImagePreview(editing?.imageUrl ?? null);
+    }
   }
 
   async function onSave(e: FormEvent) {
@@ -169,19 +191,27 @@ export function CategoriesPage() {
     setFieldErrors(emptyFieldErrors());
     setSaving(true);
     try {
-      const payload = {
-        name,
-        description,
-        parentId: level === 'category' ? null : parentId || editing?.parentId,
-      };
+      const form = new FormData();
+      form.append('name', name);
+      form.append('description', description);
+      const resolvedParent =
+        level === 'category' ? '' : parentId || editing?.parentId || '';
+      form.append('parentId', resolvedParent);
+      if (imageFile) {
+        form.append('image', imageFile);
+      } else if (clearImage) {
+        form.append('clearImage', 'true');
+      }
       if (editing) {
-        await apiPatch(`${ENDPOINTS.categories}/${editing.id}`, payload);
+        await apiPatch(`${ENDPOINTS.categories}/${editing.id}`, form);
         toast('Category updated', 'success');
       } else {
-        await apiPost(ENDPOINTS.categories, payload);
+        await apiPost(ENDPOINTS.categories, form);
         toast('Category created', 'success');
       }
-      await mutateCat(); await mutateSub(); await mutateAll();
+      await mutateCat();
+      await mutateSub();
+      await mutateAll();
       setOpen(false);
     } catch (err) {
       const failure = apiFailureFieldErrors(err);
@@ -350,6 +380,7 @@ export function CategoriesPage() {
                 <Card key={root.id} className="!p-0 overflow-hidden">
                   <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex min-w-0 flex-1 items-start gap-3 text-left">
+                      <CategoryThumb name={root.name} imageUrl={root.imageUrl} />
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-semibold text-text-primary">
@@ -411,6 +442,7 @@ export function CategoriesPage() {
                 <Card key={sub.id} className="!p-0 overflow-hidden">
                   <div className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
                     <div className="flex min-w-0 flex-1 items-start gap-3 text-left">
+                      <CategoryThumb name={sub.name} imageUrl={sub.imageUrl} />
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">
                           <p className="font-semibold text-text-primary">
@@ -541,6 +573,42 @@ export function CategoriesPage() {
             error={fieldErrors.description}
             hint="Shown under the category name in the list"
           />
+          <div className="space-y-2">
+            <p className="text-sm font-medium text-text-primary">Image</p>
+            <div className="flex items-start gap-3">
+              <CategoryThumb
+                name={name || 'Category'}
+                imageUrl={clearImage ? null : imagePreview}
+                size="lg"
+              />
+              <div className="min-w-0 flex-1 space-y-2">
+                <Input
+                  name="image"
+                  type="file"
+                  accept="image/jpeg,image/png,image/webp,image/gif"
+                  onChange={(e) =>
+                    onImageSelected(e.target.files?.[0] ?? null)
+                  }
+                  error={fieldErrors.image}
+                  hint="JPEG, PNG, WebP, or GIF"
+                />
+                {(imagePreview || imageFile) && !clearImage ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="ghost"
+                    onClick={() => {
+                      setImageFile(null);
+                      setImagePreview(null);
+                      setClearImage(Boolean(editing?.imageUrl));
+                    }}
+                  >
+                    Remove image
+                  </Button>
+                ) : null}
+              </div>
+            </div>
+          </div>
         </form>
       </Modal>
 
@@ -565,6 +633,46 @@ export function CategoriesPage() {
         </p>
       </Modal>
     </div>
+  );
+}
+
+function CategoryThumb({
+  name,
+  imageUrl,
+  size = 'md',
+}: {
+  name: string;
+  imageUrl?: string | null;
+  size?: 'md' | 'lg';
+}) {
+  const dim = size === 'lg' ? 'h-16 w-16' : 'h-11 w-11';
+  if (imageUrl) {
+    return (
+      <img
+        src={imageUrl}
+        alt=""
+        className={cn(
+          dim,
+          'shrink-0 rounded-xl border border-border object-cover',
+        )}
+      />
+    );
+  }
+  return (
+    <span
+      className={cn(
+        dim,
+        'inline-flex shrink-0 items-center justify-center rounded-xl bg-accent-muted text-xs font-semibold text-accent',
+      )}
+      aria-hidden
+    >
+      {name
+        .split(' ')
+        .map((p) => p[0])
+        .join('')
+        .slice(0, 2)
+        .toUpperCase() || '?'}
+    </span>
   );
 }
 

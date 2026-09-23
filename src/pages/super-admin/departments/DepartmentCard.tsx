@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Link } from 'react-router-dom';
-import { Building2, Lock, Pencil, Trash2, UserPlus } from 'lucide-react';
+import { Building2, Lock, Pencil, Trash2 } from 'lucide-react';
 import { CanAccess } from '@/components/auth/CanAccess';
 import { Badge } from '@/components/ui/Badge';
 import { Button } from '@/components/ui/Button';
@@ -13,7 +13,6 @@ export function DepartmentCard({
   hod,
   staffCount,
   onEdit,
-  onAssignHod,
   onToggleFreeze,
   onArchive,
 }: {
@@ -21,12 +20,9 @@ export function DepartmentCard({
   hod?: PlatformAdmin;
   staffCount: number;
   onEdit: (dept: Department) => void;
-  onAssignHod: (dept: Department) => void;
   onToggleFreeze: (dept: Department) => void;
   onArchive: (dept: Department) => void;
 }) {
-  const showAssignHod = !dept.hodAdminId && dept.status === 'active';
-
   return (
     <Card className="!p-0 overflow-hidden">
       <div className="p-4 sm:p-5">
@@ -98,12 +94,6 @@ export function DepartmentCard({
             <Pencil className="h-3.5 w-3.5" aria-hidden />
             Edit
           </Button>
-          {showAssignHod ? (
-            <Button size="sm" variant="outline" onClick={() => onAssignHod(dept)}>
-              <UserPlus className="h-3.5 w-3.5" aria-hidden />
-              Assign HOD
-            </Button>
-          ) : null}
           <Button size="sm" variant="outline" onClick={() => onToggleFreeze(dept)}>
             <Lock className="h-3.5 w-3.5" aria-hidden />
             {dept.status === 'frozen' ? 'Unfreeze' : 'Freeze'}

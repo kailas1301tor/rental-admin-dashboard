@@ -41,7 +41,7 @@ export interface DepartmentWrite {
 }
 
 export type EntityStatus = 'active' | 'frozen';
-export type AdminStatus = 'active' | 'frozen' | 'archived';
+export type AdminStatus = 'pending' | 'active' | 'frozen' | 'archived';
 export type RboStatus = 'active' | 'onboarding' | 'rejected' | 'frozen';
 
 export type KycDocumentType =
@@ -223,6 +223,7 @@ export interface Category {
   id: string;
   name: string;
   description?: string;
+  imageUrl?: string | null;
   parentId: string | null;
   status: EntityStatus | 'archived';
   createdAt: string;
@@ -245,6 +246,12 @@ export interface CategoryNode {
   fieldCount: number;
 }
 
+export interface RboAssignedStaff {
+  id: string;
+  name: string;
+  email: string;
+}
+
 export interface RboVendor {
   id: string;
   businessName: string;
@@ -260,6 +267,8 @@ export interface RboVendor {
   submittedAt?: string | null;
   rejectionReason?: string | null;
   rejectionCode?: string | null;
+  assignedStaffId?: string | null;
+  assignedStaff?: RboAssignedStaff | null;
 }
 
 export type RboRejectionCode =

@@ -22,7 +22,7 @@ import { ListPageSkeleton } from '@/components/ui/skeletons';
 import { useToast } from '@/components/ui/Toast';
 import { useListFilters } from '@/hooks/useListFilters';
 import { AdminCard } from '@/pages/super-admin/admins/AdminCard';
-import { adminTierLabel, departmentLabel } from '@/lib/departments';
+import { adminTierLabel } from '@/lib/departments';
 import {
   apiFailureFieldErrors,
   clearFieldError,
@@ -50,7 +50,6 @@ type FormState = {
   phone: string;
   email: string;
   address: string;
-  password: string;
   departmentId: string;
 };
 
@@ -60,7 +59,6 @@ const emptyForm: FormState = {
   phone: '',
   email: '',
   address: '',
-  password: '',
   departmentId: '',
 };
 
@@ -106,9 +104,27 @@ export function AdminsPage() {
   const activeDepartments = deptList.filter(d => d.status === 'active');
   const canAdd = true;
 
+  const isSuperAdmin = useMemo(() => {
+    const r = user?.role?.toLowerCase() || '';
+    return r.includes('super');
+  }, [user?.role]);
+
+  const createRoleOptions = useMemo(() => {
+    return (rolesData ?? []).filter((role) => {
+      if (role.id === 'super_admin') return false;
+      if (isSuperAdmin) return true;
+      const isGeneral = (user?.role?.toLowerCase() || '').includes('general');
+      if (isGeneral) return role.id === 'department_admin' || role.id === 'general_admin';
+      return role.id === 'department_admin';
+    });
+  }, [rolesData, isSuperAdmin, user?.role]);
+
   function openCreate() {
     setEditing(null);
-    setForm({ ...emptyForm, tier: rolesData?.[0]?.id ?? 'general_admin' });
+    setForm({
+      ...emptyForm,
+      tier: createRoleOptions[0]?.id ?? 'general_admin',
+    });
     setFieldErrors(emptyFieldErrors());
     setOpen(true);
   }
@@ -122,7 +138,6 @@ export function AdminsPage() {
       phone: admin.phone,
       email: admin.email,
       address: admin.address,
-      password: '',
       departmentId: admin.department?.id ?? '',
     });
     setFieldErrors(emptyFieldErrors());
@@ -142,9 +157,6 @@ export function AdminsPage() {
       { field: 'email', label: 'Email' },
       { field: 'address', label: 'Address' },
     ];
-    if (!editing) {
-      rules.push({ field: 'password', label: 'Password' });
-    }
     if (form.tier === 'department_admin') {
       rules.push({ field: 'departmentId', label: 'Department' });
     }
@@ -173,21 +185,26 @@ export function AdminsPage() {
           address: form.address,
           departmentId: form.departmentId || undefined,
         };
-        if (form.password) body.password = form.password;
         await apiPatch(`${ENDPOINTS.admins}/${editing.id}`, body);
         toast('Admin updated', 'success');
       } else {
         const body: PlatformAdminWrite = {
-          tier: form.tier as any,
+          tier: form.tier as PlatformAdminWrite['tier'],
           name: form.name,
           phone: form.phone,
           email: form.email,
           address: form.address,
-          password: form.password,
           departmentId: form.departmentId || undefined,
         };
         await apiPost(ENDPOINTS.admins, body);
-        toast('Admin created', 'success');
+        const pending =
+          form.tier === 'department_admin' && !isSuperAdmin;
+        toast(
+          pending
+            ? 'Department Admin created — awaiting Super Admin approval'
+            : 'Admin created',
+          'success',
+        );
       }
       if (form.tier === 'super_admin') await supersMutate();
       else if (form.tier === 'general_admin') await generalsMutate();
@@ -221,6 +238,17 @@ export function AdminsPage() {
         admin.status === 'frozen' ? 'Admin unfrozen' : 'Admin frozen',
         'success',
       );
+    } catch (err) {
+      toast(apiFailureFieldErrors(err).message, 'error');
+    }
+  }
+
+  async function approveAdmin(admin: PlatformAdmin) {
+    if (admin.tier !== 'department_admin' || admin.status !== 'pending') return;
+    try {
+      await apiPatch(`${ENDPOINTS.admins}/${admin.id}`, { status: 'active' });
+      await deptAdminsMutate();
+      toast('Department Admin approved', 'success');
     } catch (err) {
       toast(apiFailureFieldErrors(err).message, 'error');
     }
@@ -339,6 +367,8 @@ export function AdminsPage() {
             deptList={deptList}
             onEdit={openEdit}
             onFreeze={toggleFreeze}
+            canApprove={isSuperAdmin}
+            onApprove={approveAdmin}
           />
         </TierSection>
       ) : null}
@@ -346,7 +376,7 @@ export function AdminsPage() {
       {canViewDept ? (
         <TierSection
           title="Department Admins (HODs)"
-          description="Manage department heads."
+          description="Manage department heads. HODs created by General Admins stay pending until Super Admin approval."
           badge={
             <Badge tone="accent">
               {departmentAdmins.length} assigned
@@ -360,6 +390,8 @@ export function AdminsPage() {
             showDepartment
             onEdit={openEdit}
             onFreeze={toggleFreeze}
+            canApprove={isSuperAdmin}
+            onApprove={approveAdmin}
           />
         </TierSection>
       ) : null}
@@ -405,25 +437,17 @@ export function AdminsPage() {
               }}
               error={fieldErrors.tier}
             >
-              {rolesData?.filter((role) => {
-                const r = user?.role?.toLowerCase() || '';
-                const isSuper = r.includes('super');
-                const isGeneral = r.includes('general');
-                
-                if (isSuper) return true;
-                if (isGeneral) return role.id !== 'super_admin';
-                return role.id === 'department_admin';
-              }).map((role) => {
-                const isSuperFull = role.id === 'super_admin' && supers.length >= SUPER_CAP;
-                const isGeneralFull = role.id === 'general_admin' && generals.length >= GENERAL_CAP;
-                
+              {createRoleOptions.map((role) => {
+                const isGeneralFull =
+                  role.id === 'general_admin' && generals.length >= GENERAL_CAP;
+
                 return (
                   <option
                     key={role.id}
                     value={role.id}
-                    disabled={isSuperFull || isGeneralFull}
+                    disabled={isGeneralFull}
                   >
-                    {role.name} {(isSuperFull || isGeneralFull) ? '(full)' : ''}
+                    {role.name} {isGeneralFull ? '(full)' : ''}
                   </option>
                 );
               })}
@@ -474,16 +498,6 @@ export function AdminsPage() {
             onChange={(e) => patchForm('email', e.target.value)}
             error={fieldErrors.email}
             required
-          />
-          <Input
-            label="Password"
-            name="password"
-            type="password"
-            value={form.password}
-            onChange={(e) => patchForm('password', e.target.value)}
-            error={fieldErrors.password}
-            required={!editing}
-            hint={editing ? 'Leave blank to keep current password' : undefined}
           />
           <Input
             label="Address"
@@ -604,6 +618,8 @@ function AdminTable({
   showDepartment,
   onEdit,
   onFreeze,
+  canApprove,
+  onApprove,
 }: {
   rows: PlatformAdmin[];
   deptList: Department[];
@@ -611,6 +627,8 @@ function AdminTable({
   showDepartment?: boolean;
   onEdit: (a: PlatformAdmin) => void;
   onFreeze: (a: PlatformAdmin) => void;
+  canApprove?: boolean;
+  onApprove?: (a: PlatformAdmin) => void;
 }) {
   if (rows.length === 0) {
     return <EmptyState title="No admins in this tier" />;
@@ -624,8 +642,10 @@ function AdminTable({
           admin={admin}
           subtitle={adminSubtitle(admin, deptList, showDepartment)}
           readOnly={readOnly}
+          canApprove={canApprove}
           onEdit={onEdit}
           onFreeze={onFreeze}
+          onApprove={onApprove}
         />
       ))}
     </div>

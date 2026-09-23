@@ -1,4 +1,4 @@
-import { useState, useMemo, Component } from 'react';
+import { useState, useMemo, useEffect, Component } from 'react';
 import type { ErrorInfo, ReactNode } from 'react';
 import {
   Download,
@@ -12,12 +12,14 @@ import {
   Layers3,
 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router-dom';
+import { apiPut } from '@/api/axios-helpers';
 import { useApiSWR } from '@/api/swr-helpers';
 import { ENDPOINTS } from '@/api/endpoints';
 import { CanAccess } from '@/components/auth/CanAccess';
 import { ListFilterBar } from '@/components/filters/ListFilterBar';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
+import { Modal } from '@/components/ui/Modal';
 import {
   EmptyState,
   ErrorState,
@@ -37,9 +39,10 @@ import {
 } from '@/components/ui/control-styles';
 import { RboMobileCard } from '@/pages/super-admin/rbos/RboMobileCard';
 import { categoryPathLabel } from '@/lib/category-helpers';
+import { apiFailureFieldErrors } from '@/lib/form-errors';
 import { cn, formatDateTime } from '@/lib/utils';
 import { useListFilters } from '@/hooks/useListFilters';
-import type { Category, RboStatus, RboVendor } from '@/types';
+import type { Category, PlatformStaff, RboStatus, RboVendor } from '@/types';
 
 type Tab = 'all' | 'onboarding' | 'rejected';
 type JoinedFilter = 'all' | '30d' | '90d' | '1y';
@@ -111,6 +114,10 @@ function RbosPageInner() {
   const [joinedFilter, setJoinedFilter] = useState<JoinedFilter>('all');
   const [ratingFilter, setRatingFilter] = useState<RatingFilter>('all');
   const [page, setPage] = useState(1);
+  const [assignTarget, setAssignTarget] = useState<RboVendor | null>(null);
+  const [selectedStaffId, setSelectedStaffId] = useState('');
+  const [assignSaving, setAssignSaving] = useState(false);
+  const [actionsMenuId, setActionsMenuId] = useState<string | null>(null);
 
   const { filters, setFilters, reset, matchesDistrict, matchesTaxonomy } =
     useListFilters();
@@ -134,6 +141,42 @@ function RbosPageInner() {
   
   const { data: statsData } = useApiSWR<{ active: number, onboarding: number, rejected: number, avg: number }>(`${ENDPOINTS.rbos}/stats`);
   const { data: categories } = useApiSWR<Category[]>(ENDPOINTS.categories);
+  const { data: staffList } = useApiSWR<PlatformStaff[]>(
+    assignTarget ? ENDPOINTS.staff : null,
+  );
+
+  useEffect(() => {
+    if (assignTarget) {
+      setSelectedStaffId(assignTarget.assignedStaffId ?? '');
+    } else {
+      setSelectedStaffId('');
+    }
+  }, [assignTarget]);
+
+  function openAssignStaff(vendor: RboVendor) {
+    setActionsMenuId(null);
+    setAssignTarget(vendor);
+  }
+
+  async function saveAssignedStaff() {
+    if (!assignTarget) return;
+    setAssignSaving(true);
+    try {
+      await apiPut(ENDPOINTS.rboAssignedStaff(assignTarget.id), {
+        staffId: selectedStaffId ? Number(selectedStaffId) : null,
+      });
+      await mutate();
+      toast(
+        selectedStaffId ? 'Staff assigned' : 'Staff assignment cleared',
+        'success',
+      );
+      setAssignTarget(null);
+    } catch (err) {
+      toast(apiFailureFieldErrors(err).message, 'error');
+    } finally {
+      setAssignSaving(false);
+    }
+  }
 
   const catList = categories ?? [];
   const list = listResponse?.data ?? [];
@@ -363,9 +406,7 @@ function RbosPageInner() {
                   key={r.id}
                   vendor={r}
                   categoryNames={r.category ? [r.category] : []}
-                  onMore={() =>
-                    toast('More actions available on vendor detail', 'info')
-                  }
+                  onAssignStaff={() => openAssignStaff(r)}
                 />
               ))}
             </div>
@@ -448,7 +489,7 @@ function RbosPageInner() {
                         </div>
                       </ClickableTd>
                       <TableActionsCell>
-                        <div className="flex items-center justify-end gap-1.5">
+                        <div className="relative flex items-center justify-end gap-1.5">
                           <Link
                             to={`/rbos/${r.id}`}
                             onClick={stopRowNavigation}
@@ -456,19 +497,50 @@ function RbosPageInner() {
                           >
                             View
                           </Link>
-                          <button
-                            type="button"
-                            className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border text-text-secondary hover:border-accent hover:text-text-primary"
-                            aria-label={`More actions for ${r.businessName}`}
-                            onClick={() =>
-                              toast(
-                                'More actions available on vendor detail',
-                                'info',
-                              )
-                            }
-                          >
-                            <MoreHorizontal className="h-4 w-4" aria-hidden />
-                          </button>
+                          <CanAccess permission="change_rbovendor">
+                            <button
+                              type="button"
+                              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border text-text-secondary hover:border-accent hover:text-text-primary"
+                              aria-label={`More actions for ${r.businessName}`}
+                              aria-expanded={actionsMenuId === r.id}
+                              onClick={(e) => {
+                                stopRowNavigation(e);
+                                setActionsMenuId((cur) =>
+                                  cur === r.id ? null : r.id,
+                                );
+                              }}
+                            >
+                              <MoreHorizontal className="h-4 w-4" aria-hidden />
+                            </button>
+                            {actionsMenuId === r.id ? (
+                              <>
+                                <button
+                                  type="button"
+                                  className="fixed inset-0 z-10 cursor-default"
+                                  aria-label="Close actions menu"
+                                  onClick={(e) => {
+                                    stopRowNavigation(e);
+                                    setActionsMenuId(null);
+                                  }}
+                                />
+                                <div
+                                  role="menu"
+                                  className="absolute right-0 top-full z-20 mt-1 min-w-[11rem] rounded-xl border border-border bg-surface py-1 shadow-lg"
+                                  onClick={stopRowNavigation}
+                                >
+                                  <button
+                                    type="button"
+                                    role="menuitem"
+                                    className="flex w-full items-center gap-2 px-3 py-2 text-left text-sm text-text-primary hover:bg-canvas"
+                                    onClick={() => openAssignStaff(r)}
+                                  >
+                                    <UserPlus className="h-4 w-4 text-text-muted" aria-hidden />
+                                    Assign Staff
+                                  </button>
+                                </div>
+                              </>
+                            ) : null}
+                          </CanAccess>
                         </div>
                       </TableActionsCell>
                     </ClickableTableRow>
@@ -490,6 +562,65 @@ function RbosPageInner() {
           />
         </div>
       </div>
+
+      <Modal
+        open={!!assignTarget}
+        title="Assign Staff"
+        description={
+          assignTarget
+            ? `Choose one platform staff member for ${assignTarget.businessName}.`
+            : undefined
+        }
+        onClose={() => {
+          if (!assignSaving) setAssignTarget(null);
+        }}
+        footer={
+          <div className="flex flex-wrap justify-end gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              disabled={assignSaving}
+              onClick={() => setAssignTarget(null)}
+            >
+              Cancel
+            </Button>
+            <Button
+              size="sm"
+              disabled={assignSaving}
+              onClick={() => void saveAssignedStaff()}
+            >
+              {assignSaving ? 'Saving…' : 'Save'}
+            </Button>
+          </div>
+        }
+      >
+        <div className="space-y-3">
+          <label className="block text-xs font-medium text-text-muted">
+            Staff
+          </label>
+          <select
+            value={selectedStaffId}
+            onChange={(e) => setSelectedStaffId(e.target.value)}
+            className="w-full rounded-lg border border-border bg-surface px-3 py-2 text-sm text-text-primary"
+          >
+            <option value="">Clear assignment</option>
+            {(staffList ?? []).map((s) => (
+              <option key={s.id} value={s.id}>
+                {s.name || s.email}
+                {s.email ? ` (${s.email})` : ''}
+              </option>
+            ))}
+          </select>
+          {assignTarget?.assignedStaff ? (
+            <p className="text-xs text-text-muted">
+              Currently assigned:{' '}
+              {assignTarget.assignedStaff.name || assignTarget.assignedStaff.email}
+            </p>
+          ) : (
+            <p className="text-xs text-text-muted">No staff currently assigned.</p>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

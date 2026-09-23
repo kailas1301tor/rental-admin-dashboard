@@ -1,6 +1,7 @@
 import { type ReactNode } from 'react';
-import { MoreHorizontal, Star } from 'lucide-react';
+import { Star, UserPlus } from 'lucide-react';
 import { Link } from 'react-router-dom';
+import { CanAccess } from '@/components/auth/CanAccess';
 import { NavigableListCard } from '@/components/ui/NavigableListCard';
 import { cn, formatDateTime } from '@/lib/utils';
 import type { RboStatus, RboVendor } from '@/types';
@@ -15,11 +16,11 @@ const CAT_TONES = [
 export function RboMobileCard({
   vendor,
   categoryNames,
-  onMore,
+  onAssignStaff,
 }: {
   vendor: RboVendor;
   categoryNames: string[];
-  onMore: () => void;
+  onAssignStaff: () => void;
 }) {
   return (
     <NavigableListCard
@@ -45,6 +46,11 @@ export function RboMobileCard({
               <p className="mt-2 truncate text-sm text-text-secondary">
                 {vendor.phone}
               </p>
+              {vendor.assignedStaff ? (
+                <p className="mt-1 truncate text-xs text-text-muted">
+                  Staff: {vendor.assignedStaff.name || vendor.assignedStaff.email}
+                </p>
+              ) : null}
             </div>
           </div>
         </>
@@ -54,6 +60,14 @@ export function RboMobileCard({
           <DetailField label="Owner" value={vendor.ownerName} />
           <DetailField label="Email" value={vendor.email} breakAll />
           <DetailField label="Phone" value={vendor.phone} />
+          <DetailField
+            label="Assigned staff"
+            value={
+              vendor.assignedStaff
+                ? vendor.assignedStaff.name || vendor.assignedStaff.email
+                : '—'
+            }
+          />
           <DetailField label="Categories">
             {categoryNames.length === 0 ? (
               <span className="text-sm text-text-muted">—</span>
@@ -87,14 +101,21 @@ export function RboMobileCard({
             >
               View
             </Link>
-            <button
-              type="button"
-              className="inline-flex h-9 w-9 items-center justify-center rounded-full border border-border bg-surface text-text-secondary hover:border-accent hover:text-text-primary"
-              aria-label={`More actions for ${vendor.businessName}`}
-              onClick={onMore}
-            >
-              <MoreHorizontal className="h-4 w-4" aria-hidden />
-            </button>
+            <CanAccess permission="change_rbovendor">
+              <button
+                type="button"
+                className="inline-flex h-9 items-center gap-1.5 rounded-full border border-border bg-surface px-3 text-sm font-medium text-text-secondary hover:border-accent hover:text-text-primary"
+                aria-label={`Assign staff for ${vendor.businessName}`}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onAssignStaff();
+                }}
+              >
+                <UserPlus className="h-4 w-4" aria-hidden />
+                Assign Staff
+              </button>
+            </CanAccess>
           </div>
         </>
       }

@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react';
-import { Lock, Pencil } from 'lucide-react';
+import { Check, Lock, Pencil } from 'lucide-react';
 import { CanAccess } from '@/components/auth/CanAccess';
 import { Button } from '@/components/ui/Button';
 import { Card } from '@/components/ui/Card';
@@ -10,15 +10,21 @@ export function AdminCard({
   admin,
   subtitle,
   readOnly,
+  canApprove,
   onEdit,
   onFreeze,
+  onApprove,
 }: {
   admin: PlatformAdmin;
   subtitle: string;
   readOnly?: boolean;
+  canApprove?: boolean;
   onEdit: (admin: PlatformAdmin) => void;
   onFreeze: (admin: PlatformAdmin) => void;
+  onApprove?: (admin: PlatformAdmin) => void;
 }) {
+  const isPending = admin.status === 'pending';
+
   return (
     <Card className="!p-0 overflow-hidden">
       <div className="p-4 sm:p-5">
@@ -68,10 +74,17 @@ export function AdminCard({
               <Pencil className="h-3.5 w-3.5" aria-hidden />
               Edit
             </Button>
-            <Button size="sm" variant="outline" onClick={() => onFreeze(admin)}>
-              <Lock className="h-3.5 w-3.5" aria-hidden />
-              {admin.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
-            </Button>
+            {isPending && canApprove && onApprove ? (
+              <Button size="sm" onClick={() => onApprove(admin)}>
+                <Check className="h-3.5 w-3.5" aria-hidden />
+                Approve
+              </Button>
+            ) : !isPending ? (
+              <Button size="sm" variant="outline" onClick={() => onFreeze(admin)}>
+                <Lock className="h-3.5 w-3.5" aria-hidden />
+                {admin.status === 'frozen' ? 'Unfreeze' : 'Freeze'}
+              </Button>
+            ) : null}
           </div>
         </CanAccess>
       )}
@@ -98,15 +111,18 @@ function MetaItem({
 
 function StatusPill({ status }: { status: PlatformAdmin['status'] }) {
   const active = status === 'active';
+  const pending = status === 'pending';
   return (
     <span
       className={cn(
         'inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-0.5 text-xs font-medium capitalize',
         active
           ? 'border-success/30 bg-success-muted text-success'
-          : status === 'frozen'
+          : pending
             ? 'border-warning/30 bg-warning-muted text-warning'
-            : 'border-border bg-canvas text-text-secondary',
+            : status === 'frozen'
+              ? 'border-warning/30 bg-warning-muted text-warning'
+              : 'border-border bg-canvas text-text-secondary',
       )}
     >
       <span
@@ -114,9 +130,11 @@ function StatusPill({ status }: { status: PlatformAdmin['status'] }) {
           'h-1.5 w-1.5 rounded-full',
           active
             ? 'bg-success'
-            : status === 'frozen'
+            : pending
               ? 'bg-warning'
-              : 'bg-text-muted',
+              : status === 'frozen'
+                ? 'bg-warning'
+                : 'bg-text-muted',
         )}
         aria-hidden
       />
