@@ -2,9 +2,9 @@ import { Navigate } from 'react-router-dom';
 import { useAuth } from '@/auth/AuthContext';
 import { useProfile } from '@/auth/ProfileProvider';
 import {
+  canManage,
   canView,
   firstAllowedPath,
-  isSuperAdmin,
 } from '@/auth/permissions';
 import { useRBAC } from '@/auth/useRBAC';
 import { DetailPageSkeleton } from '@/components/ui/skeletons';
@@ -15,12 +15,12 @@ export function RequirePermission({
   module,
   permission,
   level = 'view',
-  superAdminOnly,
   children,
 }: {
   module?: PermissionModule;
   permission?: string;
   level?: 'view' | 'manage';
+  /** @deprecated Ignored — access is permission-based only */
   superAdminOnly?: boolean;
   children: ReactNode;
 }) {
@@ -30,14 +30,6 @@ export function RequirePermission({
 
   if (isLoading) {
     return <DetailPageSkeleton />;
-  }
-
-  if (superAdminOnly) {
-    if (!isSuperAdmin(user)) {
-      const fallback = firstAllowedPath(permissions, user);
-      return <Navigate to={fallback ?? '/unauthorized'} replace />;
-    }
-    return children;
   }
 
   if (permission) {
@@ -54,7 +46,7 @@ export function RequirePermission({
 
   const allowed =
     level === 'manage'
-      ? permissions[module] === 'manage' || isSuperAdmin(user)
+      ? canManage(permissions, module, user)
       : canView(permissions, module, user);
 
   if (!allowed) {

@@ -286,7 +286,7 @@ export default function App() {
                       <Route
                         path="permissions"
                         element={
-                          <Guard superAdminOnly>
+                          <Guard permission="view_group">
                             <PermissionsPage />
                           </Guard>
                         }

@@ -90,24 +90,11 @@ export function isSuperAdmin(user: AuthUser | null | undefined): boolean {
   return user?.role === 'Super Admin' || user?.role === 'super_admin';
 }
 
-const BYPASS_ROLES = [
-  'Super Admin',
-  'super_admin',
-  'General Admin',
-  'general_admin_1',
-  'general_admin_2',
-  'Department Admin',
-  'department_admin',
-  'Staff',
-];
-
 export function canView(
   permissions: UserPermissions,
   module: PermissionModule,
-  user?: AuthUser | null,
+  _user?: AuthUser | null,
 ): boolean {
-  if (isSuperAdmin(user)) return true;
-  if (user && BYPASS_ROLES.includes(user.role)) return true;
   const level =
     module === 'listings'
       ? listingsPermissionLevel(permissions)
@@ -118,10 +105,8 @@ export function canView(
 export function canManage(
   permissions: UserPermissions,
   module: PermissionModule,
-  user?: AuthUser | null,
+  _user?: AuthUser | null,
 ): boolean {
-  if (isSuperAdmin(user)) return true;
-  if (user && BYPASS_ROLES.includes(user.role)) return true;
   if (module === 'listings') {
     return listingsPermissionLevel(permissions) === 'manage';
   }
@@ -145,7 +130,6 @@ export function firstAllowedPath(
   permissions: UserPermissions,
   user?: AuthUser | null,
 ): string | null {
-  if (isSuperAdmin(user)) return '/';
   const order = [
     '/',
     '/rbos',
@@ -166,6 +150,7 @@ export function firstAllowedPath(
     '/reports',
     '/activity-log',
     '/settings',
+    '/permissions',
   ];
   for (const path of order) {
     const module = navToModule(path);

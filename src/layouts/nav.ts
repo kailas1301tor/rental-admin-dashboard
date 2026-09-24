@@ -53,7 +53,7 @@ export const APP_NAV: NavItem[] = [
     end: true,
     icon: LayoutDashboard,
     section: 'operations',
-    // Always show or require bookingsummary fallback, leaving empty means always show
+    permissions: ['view_rbovendor', 'view_bookingsummary'],
   },
   {
     to: '/admins',
@@ -180,7 +180,6 @@ export const APP_NAV: NavItem[] = [
     icon: KeyRound,
     section: 'system',
     permissions: ['view_group'],
-    superAdminOnly: true,
   },
 ];
 
@@ -196,6 +195,7 @@ export const MOBILE_BOTTOM_NAV: Array<
     label: 'Home',
     end: true,
     icon: LayoutDashboard,
+    permissions: ['view_rbovendor', 'view_bookingsummary'],
   },
   { to: '/rbos', label: 'RBOs', icon: Store, permissions: ['view_rbovendor'] },
   { to: '/listings', label: 'Listings', icon: Package, permissions: ['view_product', 'view_service'] },
