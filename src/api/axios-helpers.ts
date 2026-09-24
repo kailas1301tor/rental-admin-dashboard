@@ -20,7 +20,9 @@ function unwrapData<T>(payload: unknown): T {
   return payload as T;
 }
 
+/** Prefix `/api` for live requests so Vercel can rewrite same-origin calls to Django. */
 function toBackendUrl(url: string): string {
+  if (url.startsWith('http')) return url;
   return url.startsWith('/api') ? url : `/api${url}`;
 }
 

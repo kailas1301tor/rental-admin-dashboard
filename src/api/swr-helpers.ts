@@ -22,6 +22,7 @@ function unwrapData<T>(payload: unknown): T {
 }
 
 function toBackendUrl(url: string): string {
+  if (url.startsWith('http')) return url;
   return url.startsWith('/api') ? url : `/api${url}`;
 }
 
